@@ -660,10 +660,12 @@ TR_InlinerBase::exceedsSizeThreshold(TR_CallSite *callsite, int bytecodeSize, TR
 
       if (block)
          {
+#if 0
          TR::DebugCounter::prependDebugCounter(comp(), "inliner.callSites/failed/calleeHasTooManyBytecodes", block->getFirstRealTreeTop());
          TR::DebugCounter::prependDebugCounter(comp(), "inliner.callSites/failed/calleeHasTooManyBytecodes:#bytecodeSize", block->getFirstRealTreeTop(), bytecodeSize);
          TR::DebugCounter::prependDebugCounter(comp(), "inliner.callSites/failed/calleeHasTooManyBytecodes:#excess", block->getFirstRealTreeTop(), bytecodeSize - inlineThreshold);
          TR::DebugCounter::prependDebugCounter(comp(), "inliner.callSites/failed/calleeHasTooManyBytecodes:#localsInCallee", block->getFirstRealTreeTop(), numLocals);
+#endif
          }
       heuristicTrace(tracer(),"### Exceeding size threshold because bytecodeSize %d > inlineThreshold %d ",bytecodeSize, inlineThreshold);
       return true; // Exceeds size threshold
@@ -1266,7 +1268,11 @@ TR_DumbInliner::inlineCallTargets(TR::ResolvedMethodSymbol * callerSymbol, TR_Ca
                 !comp()->getMethodSymbol()->doJSR292PerfTweaks() &&
                 node->getSymbol() && node->getSymbol()->isResolvedMethod() &&
                 !alwaysWorthInlining(node->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod(), node))
+{
+#if 0
                TR::DebugCounter::prependDebugCounter(comp(), "inliner.callSites/failed/coldCallee/1", tt);
+#endif
+}
             else
                if (analyzeCallSite(&callStack, tt, parent, node))
                {
@@ -1931,7 +1937,9 @@ TR_InlinerBase::addGuardForVirtual(
    block4->append(guardedCallNodeTreeTop);
 
    callNode->setIsTheVirtualCallNodeForAGuardedInlinedCall();
+#if 0
    TR::DebugCounter::prependDebugCounter(comp(), "inliner.callSites/succeeded:guardedCallee", block4->getLastRealTreeTop());
+#endif
 
    // if this is postExecution OSR, the call will be followed by a pending push store of its result.
    // this is necessary to ensure the stack has the correct contents when it transitions, therefore, it
@@ -5825,8 +5833,10 @@ void TR_InlinerTracer::partialTraceM ( const char * fmt, ...)
 
 void TR_InlinerTracer::insertCounter (TR_InlinerFailureReason reason, TR::TreeTop *tt)
    {
+#if 0
    const char *name = TR::DebugCounter::debugCounterName(comp(), "inliner.callSites/failed/%s",getFailureReasonString(reason));
    TR::DebugCounter::prependDebugCounter(comp(), name, tt);
+#endif
    }
 
 
