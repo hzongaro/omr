@@ -1265,15 +1265,18 @@ OMR::X86::MemoryReference::addMetaDataForCodeAddress(
                         }
                      else if (symbol->isDebugCounter())
                         {
-                        TR::DebugCounterBase *counter = cg->comp()->getCounterFromStaticAddress(&(self()->getSymbolReference()));
-                        if (counter == NULL)
+                        if (cg->comp()->compileRelocatableCode())
                            {
-                           cg->comp()->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in OMR::X86::MemoryReference::addMetaDataForCodeAddress\n");
+                           TR::DebugCounterBase *counter = cg->comp()->getCounterFromStaticAddress(&(self()->getSymbolReference()));
+                           if (counter == NULL)
+                              {
+                              cg->comp()->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in OMR::X86::MemoryReference::addMetaDataForCodeAddress\n");
+                              }
+                           TR::DebugCounter::generateRelocation(cg->comp(),
+                                                                cursor,
+                                                                node,
+                                                                counter);
                            }
-                        TR::DebugCounter::generateRelocation(cg->comp(),
-                                                             cursor,
-                                                             node,
-                                                             counter);
                         }
                      else
                         {
