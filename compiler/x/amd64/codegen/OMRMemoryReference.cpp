@@ -438,7 +438,7 @@ OMR::X86::AMD64::MemoryReference::addMetaDataForCodeAddressWithLoad(
          }
       else if (sr.getSymbol()->isCompiledMethod())
          {
-         if (cg->needRelocationsForStatics())
+         if (cg->comp()->compileRelocatableCode())
             cg->addExternalRelocation(new (cg->trHeapMemory()) TR::ExternalRelocation(displacementLocation, 0, TR_RamMethod, cg),
                                  __FILE__,__LINE__,containingInstruction->getNode());
          }
