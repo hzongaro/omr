@@ -135,10 +135,11 @@ OMR::CodeGenerator::_nodeToInstrEvaluators[] =
    #include "codegen/TreeEvaluatorTable.hpp"
    };
 
-
+#if !defined(TR_TARGET_ARM64)
 static_assert(TR::NumIlOps ==
               (sizeof(OMR::CodeGenerator::_nodeToInstrEvaluators) / sizeof(OMR::CodeGenerator::_nodeToInstrEvaluators[0])),
               "NodeToInstrEvaluators is not the correct size");
+#endif
 
 #define OPT_DETAILS "O^O CODE GENERATION: "
 
@@ -186,7 +187,6 @@ OMR::CodeGenerator::CodeGenerator() :
       _ialoadUnneeded(self()->comp()->trMemory()),
      _symRefTab(self()->comp()->getSymRefTab()),
      _vmThreadRegister(NULL),
-     _vmThreadSpillInstr(NULL),
      _stackAtlas(NULL),
      _methodStackMap(NULL),
      _binaryBufferStart(NULL),
@@ -251,7 +251,7 @@ OMR::CodeGenerator::CodeGenerator() :
      _collectedSpillList(getTypedAllocator<TR_BackingStore*>(TR::comp()->allocator())),
      _allSpillList(getTypedAllocator<TR_BackingStore*>(TR::comp()->allocator())),
      _relocationList(getTypedAllocator<TR::Relocation*>(TR::comp()->allocator())),
-     _aotRelocationList(getTypedAllocator<TR::Relocation*>(TR::comp()->allocator())),
+     _externalRelocationList(getTypedAllocator<TR::Relocation*>(TR::comp()->allocator())),
      _staticRelocationList(_compilation->allocator()),
      _breakPointList(getTypedAllocator<uint8_t*>(TR::comp()->allocator())),
      _jniCallSites(getTypedAllocator<TR_Pair<TR_ResolvedMethod,TR::Instruction> *>(TR::comp()->allocator())),
@@ -278,7 +278,7 @@ OMR::CodeGenerator::CodeGenerator() :
    _machine = new (self()->trHeapMemory()) TR::Machine(self());
    _disableInternalPointers = self()->comp()->getOption(TR_MimicInterpreterFrameShape) ||
                                self()->comp()->getOptions()->realTimeGC() ||
-                               self()->comp()->getOptions()->getOption(TR_DisableInternalPointers);
+                               self()->comp()->getOption(TR_DisableInternalPointers);
 
    uintptrj_t maxSize = TR::Compiler->vm.getOverflowSafeAllocSize(self()->comp());
    int32_t i;
@@ -862,8 +862,8 @@ OMR::CodeGenerator::use64BitRegsOn32Bit()
       return false;
    else
       {
-      bool longReg = self()->comp()->getOptions()->getOption(TR_Enable64BitRegsOn32Bit);
-      bool longRegHeur = self()->comp()->getOptions()->getOption(TR_Enable64BitRegsOn32BitHeuristic);
+      bool longReg = self()->comp()->getOption(TR_Enable64BitRegsOn32Bit);
+      bool longRegHeur = self()->comp()->getOption(TR_Enable64BitRegsOn32BitHeuristic);
       bool use64BitRegs = (longReg && !longRegHeur && self()->comp()->getJittedMethodSymbol()->mayHaveLongOps()) ||
                           (longReg && longRegHeur && self()->comp()->useLongRegAllocation());
       return use64BitRegs;
@@ -1129,22 +1129,6 @@ bool OMR::CodeGenerator::needGuardSitesEvenWhenGuardRemoved() { return self()->c
 bool OMR::CodeGenerator::supportVMInternalNatives() { return !self()->comp()->compileRelocatableCode(); }
 
 bool OMR::CodeGenerator::supportsNativeLongOperations() { return (TR::Compiler->target.is64Bit() || self()->use64BitRegsOn32Bit()); }
-
-void
-OMR::CodeGenerator::setVMThreadSpillInstruction(TR::Instruction *i)
-   {
-   if (_vmThreadSpillInstr == NULL)
-      {
-      _vmThreadSpillInstr = i;
-      }
-   else
-      {
-      _vmThreadSpillInstr = (TR::Instruction *)0xffffffff; // set to sentinel to indicate that
-                                                          // more than one location is needed and
-                                                          // should therefore simply spill in the prologue
-      }
-   }
-
 
 bool OMR::CodeGenerator::supportsInternalPointers()
    {
@@ -1969,7 +1953,7 @@ OMR::CodeGenerator::convertMultiplyToShift(TR::Node * node)
 bool
 OMR::CodeGenerator::isMemoryUpdate(TR::Node *node)
    {
-   if (self()->comp()->getOptions()->getOption(TR_DisableDirectMemoryOps))
+   if (self()->comp()->getOption(TR_DisableDirectMemoryOps))
       return false;
 
    // See if the given store node can be represented by a direct operation on the
@@ -2950,7 +2934,7 @@ OMR::CodeGenerator::canNullChkBeImplicit(TR::Node *node)
 bool
 OMR::CodeGenerator::canNullChkBeImplicit(TR::Node *node, bool doChecks)
    {
-   if (self()->comp()->getOptions()->getOption(TR_DisableTraps))
+   if (self()->comp()->getOption(TR_DisableTraps))
       return false;
 
    if (!doChecks)
@@ -3196,9 +3180,9 @@ TR::list<OMR::RegisterUsage*> *OMR::CodeGenerator::stopRecordingRegisterUsage()
 
 void OMR::CodeGenerator::addRelocation(TR::Relocation *r)
    {
-   if (r->isAOTRelocation())
+   if (r->isExternalRelocation())
       {
-      TR_ASSERT(false, "Cannot use addRelocation to add an AOT relocation. Please use addAOTRelocation here");
+      TR_ASSERT(false, "Cannot use addRelocation to add an AOT relocation. Please use addExternalRelocation here");
       }
    else
       {
@@ -3208,37 +3192,47 @@ void OMR::CodeGenerator::addRelocation(TR::Relocation *r)
 
 void OMR::CodeGenerator::addAOTRelocation(TR::Relocation *r, const char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node, TR::AOTRelocationPositionRequest where)
    {
-   TR_ASSERT(generatingFileName, "AOT relocation location has improper NULL filename specified");
+   self()->addExternalRelocation(r, generatingFileName, generatingLineNumber, node, static_cast<TR::ExternalRelocationPositionRequest>(where));
+   }
+
+void OMR::CodeGenerator::addAOTRelocation(TR::Relocation *r, TR::RelocationDebugInfo* info, TR::AOTRelocationPositionRequest where)
+   {
+   self()->addExternalRelocation(r, info, static_cast<TR::ExternalRelocationPositionRequest>(where));
+   }
+
+void OMR::CodeGenerator::addExternalRelocation(TR::Relocation *r, const char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node, TR::ExternalRelocationPositionRequest where)
+   {
+   TR_ASSERT(generatingFileName, "External relocation location has improper NULL filename specified");
    if (self()->comp()->compileRelocatableCode())
       {
       TR::RelocationDebugInfo *genData = new(self()->trHeapMemory()) TR::RelocationDebugInfo;
       genData->file = generatingFileName;
       genData->line = generatingLineNumber;
       genData->node = node;
-      self()->addAOTRelocation(r, genData, where);
+      self()->addExternalRelocation(r, genData, where);
       }
    }
 
-void OMR::CodeGenerator::addAOTRelocation(TR::Relocation *r, TR::RelocationDebugInfo* info, TR::AOTRelocationPositionRequest where)
+void OMR::CodeGenerator::addExternalRelocation(TR::Relocation *r, TR::RelocationDebugInfo* info, TR::ExternalRelocationPositionRequest where)
    {
    if (self()->comp()->compileRelocatableCode())
       {
-      TR_ASSERT(info, "AOT relocation location does not have associated debug information");
+      TR_ASSERT(info, "External relocation location does not have associated debug information");
       r->setDebugInfo(info);
       switch (where)
          {
-         case TR::AOTRelocationAtFront:
-            _aotRelocationList.push_front(r);
+         case TR::ExternalRelocationAtFront:
+            _externalRelocationList.push_front(r);
             break;
 
-         case TR::AOTRelocationAtBack:
-            _aotRelocationList.push_back(r);
+         case TR::ExternalRelocationAtBack:
+            _externalRelocationList.push_back(r);
             break;
 
          default:
             TR_ASSERT_FATAL(
                false,
-               "invalid TR::AOTRelocationPositionRequest %d",
+               "invalid TR::ExternalRelocationPositionRequest %d",
                where);
             break;
          }

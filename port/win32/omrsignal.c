@@ -628,13 +628,13 @@ consoleCtrlHandler(DWORD dwCtrlType)
 		cursor = asyncHandlerList;
 		while (cursor) {
 
-			if (cursor->flags & flags) {
+			if (OMR_ARE_ANY_BITS_SET(cursor->flags, flags)) {
 				cursor->handler(cursor->portLib, flags, NULL, cursor->handler_arg);
 
 				/* Returning TRUE stops control from being passed to the next handler routine. The OS default handler may be the next handler routine.
 				 * The default action of the OS default handler routine is to shut down the process
 				 */
-				if (flags & OMRPORT_SIG_FLAG_SIGQUIT) {
+				if (OMR_ARE_ANY_BITS_SET(flags, OMRPORT_SIG_FLAG_SIGQUIT)) {
 					/* Continue executing */
 					result = TRUE;
 				}

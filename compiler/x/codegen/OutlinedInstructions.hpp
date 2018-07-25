@@ -44,8 +44,8 @@ class TR_OutlinedInstructions
    {
    friend class TR_OutlinedInstructionsGenerator;
 
-   TR::LabelSymbol       *_entryLabel;
-   TR::LabelSymbol       *_restartLabel;
+   TR::LabelSymbol      *_entryLabel;
+   TR::LabelSymbol      *_restartLabel;
    TR::Instruction      *_firstInstruction;
    TR::Instruction      *_appendInstruction;
    TR_X86OpCodes        _targetRegMovOpcode;
@@ -62,10 +62,9 @@ class TR_OutlinedInstructions
    //
    TR::list<OMR::RegisterUsage*> *_outlinedPathRegisterUsageList;
    TR::list<OMR::RegisterUsage*> *_mainlinePathRegisterUsageList;
-   TR_RegisterAssignerState *_registerAssignerStateAtMerge;
+   TR_RegisterAssignerState      *_registerAssignerStateAtMerge;
 
    bool                 _hasBeenRegisterAssigned;
-   bool                 _rematerializeVMThread;
 
    TR::Compilation *comp() { return TR::comp(); }
    TR::CodeGenerator *cg() { return _cg; }
@@ -98,10 +97,6 @@ class TR_OutlinedInstructions
    // For calls
    //
    TR_OutlinedInstructions(TR::Node *callNode, TR::ILOpCodes callOp, TR::Register *targetReg, TR::LabelSymbol *entryLabel, TR::LabelSymbol *restartLabel, TR::CodeGenerator *cg);
-
-   TR_OutlinedInstructions(TR::Node *callNode, TR::ILOpCodes callOp, TR::Register *targetReg, TR::LabelSymbol *entryLabel, TR::LabelSymbol *restartLabel, TR_X86OpCodes targetRegMovOpcode, TR::CodeGenerator *cg);
-
-   TR_OutlinedInstructions(TR::Node *callNode, TR::ILOpCodes callOp, TR::Register *targetReg, TR::LabelSymbol *entryLabel, TR::LabelSymbol *restartLabel, bool rematerializeVMThread, TR::CodeGenerator *cg);
 
    public:
 
@@ -148,8 +143,6 @@ class TR_OutlinedInstructions
    void generateOutlinedInstructionsDispatch();
 
    TR::RegisterDependencyConditions  *formEvaluatedArgumentDepList();
-
-   void setRematerializeVMThread() { _rematerializeVMThread = true; }
 
    };
 

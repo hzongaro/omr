@@ -46,6 +46,9 @@
 #if defined(OMR_OPT_CUDA)
 #include "omrcuda.h"
 #endif /* OMR_OPT_CUDA */
+#if defined(OMRZTPF)
+#include "omrgcconsts.h"
+#endif /* defined(OMRZTPF) */
 
 #if (defined(LINUX) || defined(RS6000) || defined (OSX))
 #include <unistd.h>
@@ -221,6 +224,7 @@
 #define OMRPORT_VMEM_MEMORY_MODE_VIRTUAL 0x00000010
 #define OMRPORT_VMEM_ALLOCATE_TOP_DOWN 0x00000020
 #define OMRPORT_VMEM_ALLOCATE_PERSIST 0x00000040
+#define OMRPORT_VMEM_NO_AFFINITY 0x00000080
 /** @} */
 
 /**
@@ -566,6 +570,18 @@ typedef struct J9MemoryInfo {
 	uint64_t cached;			/* The physical RAM used as cache memory (in bytes). */
 	uint64_t buffered;			/* The physical RAM used for file buffers (in bytes). */
 	int64_t timestamp;			/* Sampling timestamp (in microseconds). */
+	/* Available physical memory on the host (in bytes) when process is in a cgroup.
+	 * When not in a cgroup, this will be identical to 'availPhysical' field above.
+	 */
+	uint64_t hostAvailPhysical;
+	/* The physical RAM used as cache memory (in bytes) when process is in a cgroup.
+	 * When not in a cgroup, this will be identical to 'cached' field above.
+	 */
+	uint64_t hostCached;
+	/* The physical RAM used for file buffers (in bytes) when process is in a cgroup.
+	 * When not in a cgroup, this will be identical to 'buffered' field above.
+	 */
+	uint64_t hostBuffered;
 } J9MemoryInfo;
 
 #define OMRPORT_MEMINFO_NOT_AVAILABLE ((uint64_t) -1)
@@ -668,6 +684,7 @@ typedef struct J9ProcessorInfos {
 #define OMRPORT_CTLDATA_TRACE_STOP  "TRACE_STOP"
 #define OMRPORT_CTLDATA_VMEM_NUMA_IN_USE  "VMEM_NUMA_IN_USE"
 #define OMRPORT_CTLDATA_VMEM_NUMA_ENABLE  "VMEM_NUMA_IN_ENABLE"
+#define OMRPORT_CTLDATA_VMEM_NUMA_INTERLEAVE_MEM "VMEM_NUMA_INTERLEAVE"
 #define OMRPORT_CTLDATA_SYSLOG_OPEN  "SYSLOG_OPEN"
 #define OMRPORT_CTLDATA_SYSLOG_CLOSE  "SYSLOG_CLOSE"
 #define OMRPORT_CTLDATA_NOIPT  "NOIPT"
@@ -731,8 +748,7 @@ typedef struct J9ProcessorInfos {
 #define OMRPORT_SIG_FLAG_DOES_NOT_MAP_TO_POSIX  0x200000
 #define OMRPORT_SIG_FLAG_SIGHUP  0x400000
 #define OMRPORT_SIG_FLAG_SIGCONT  0x800000
-#define OMRPORT_SIG_FLAG_SIGBREAK  0x1000000
-#define OMRPORT_SIG_FLAG_SIGALLASYNC  (OMRPORT_SIG_FLAG_SIGBREAK | OMRPORT_SIG_FLAG_SIGQUIT | OMRPORT_SIG_FLAG_SIGABRT | OMRPORT_SIG_FLAG_SIGTERM | OMRPORT_SIG_FLAG_SIGRECONFIG | OMRPORT_SIG_FLAG_SIGXFSZ | OMRPORT_SIG_FLAG_SIGINT | OMRPORT_SIG_FLAG_SIGHUP | OMRPORT_SIG_FLAG_SIGCONT)
+#define OMRPORT_SIG_FLAG_SIGALLASYNC  (OMRPORT_SIG_FLAG_SIGQUIT | OMRPORT_SIG_FLAG_SIGABRT | OMRPORT_SIG_FLAG_SIGTERM | OMRPORT_SIG_FLAG_SIGRECONFIG | OMRPORT_SIG_FLAG_SIGXFSZ | OMRPORT_SIG_FLAG_SIGINT | OMRPORT_SIG_FLAG_SIGHUP | OMRPORT_SIG_FLAG_SIGCONT)
 
 #define OMRPORT_SIG_EXCEPTION_CONTINUE_SEARCH  0
 #define OMRPORT_SIG_EXCEPTION_CONTINUE_EXECUTION  1
