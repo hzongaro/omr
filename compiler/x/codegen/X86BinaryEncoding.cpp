@@ -1140,15 +1140,18 @@ TR::X86ImmSymInstruction::addMetaDataForCodeAddress(uint8_t *cursor)
                                       __FILE__, __LINE__, getNode());
             else if (sym->isDebugCounter())
                {
-               TR::DebugCounterBase *counter = comp->getCounterFromStaticAddress(getSymbolReference());
-               if (counter == NULL)
+               if (comp->compileRelocatableCode())
                   {
-                  comp->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::X86ImmSymInstruction::addMetaDataForCodeAddress\n");
+                  TR::DebugCounterBase *counter = comp->getCounterFromStaticAddress(getSymbolReference());
+                  if (counter == NULL)
+                     {
+                     comp->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::X86ImmSymInstruction::addMetaDataForCodeAddress\n");
+                     }
+                  TR::DebugCounter::generateRelocation(comp,
+                                                       cursor,
+                                                       getNode(),
+                                                       counter);
                   }
-               TR::DebugCounter::generateRelocation(comp,
-                                                    cursor,
-                                                    getNode(),
-                                                    counter);
                }
             else
                cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,
@@ -1675,15 +1678,18 @@ TR::X86RegImmSymInstruction::addMetaDataForCodeAddress(uint8_t *cursor)
          break;
       case TR_DebugCounter:
          {
-         TR::DebugCounterBase *counter = cg()->comp()->getCounterFromStaticAddress(getSymbolReference());
-         if (counter == NULL)
+         if (cg()->comp()->compileRelocatableCode())
             {
-            cg()->comp()->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::X86RegImmSymInstruction::addMetaDataForCodeAddress\n");
+            TR::DebugCounterBase *counter = cg()->comp()->getCounterFromStaticAddress(getSymbolReference());
+            if (counter == NULL)
+               {
+               cg()->comp()->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::X86RegImmSymInstruction::addMetaDataForCodeAddress\n");
+               }
+            TR::DebugCounter::generateRelocation(cg()->comp(),
+                                                 cursor,
+                                                 getNode(),
+                                                 counter);
             }
-         TR::DebugCounter::generateRelocation(cg()->comp(),
-                                              cursor,
-                                              getNode(),
-                                              counter);
          }
          break;
 
@@ -2067,15 +2073,18 @@ TR::X86MemImmSymInstruction::addMetaDataForCodeAddress(uint8_t *cursor)
       }
    else if (symbol->isDebugCounter())
       {
-      TR::DebugCounterBase *counter = comp->getCounterFromStaticAddress(getSymbolReference());
-      if (counter == NULL)
+      if (comp->compileRelocatableCode())
          {
-         comp->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::X86MemImmSymInstruction::addMetaDataForCodeAddress\n");
+         TR::DebugCounterBase *counter = comp->getCounterFromStaticAddress(getSymbolReference());
+         if (counter == NULL)
+            {
+            comp->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::X86MemImmSymInstruction::addMetaDataForCodeAddress\n");
+            }
+         TR::DebugCounter::generateRelocation(comp,
+                                              cursor,
+                                              getNode(),
+                                              counter);
          }
-      TR::DebugCounter::generateRelocation(comp,
-                                           cursor,
-                                           getNode(),
-                                           counter);
       }
    else
       {
@@ -2732,15 +2741,18 @@ TR::AMD64RegImm64SymInstruction::addMetaDataForCodeAddress(uint8_t *cursor)
 
          case TR_DebugCounter:
             {
-            TR::DebugCounterBase *counter = cg()->comp()->getCounterFromStaticAddress(getSymbolReference());
-            if (counter == NULL)
+            if (cg()->comp()->compileRelocatableCode())
                {
-               cg()->comp()->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::AMD64RegImm64SymInstruction::addMetaDataForCodeAddress\n");
+               TR::DebugCounterBase *counter = cg()->comp()->getCounterFromStaticAddress(getSymbolReference());
+               if (counter == NULL)
+                  {
+                  cg()->comp()->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::AMD64RegImm64SymInstruction::addMetaDataForCodeAddress\n");
+                  }
+               TR::DebugCounter::generateRelocation(cg()->comp(),
+                                                    cursor,
+                                                    getNode(),
+                                                    counter);
                }
-            TR::DebugCounter::generateRelocation(cg()->comp(),
-                                                 cursor,
-                                                 getNode(),
-                                                 counter);
             }
             break;
 

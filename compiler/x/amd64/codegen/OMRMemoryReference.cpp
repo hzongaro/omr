@@ -451,7 +451,7 @@ OMR::X86::AMD64::MemoryReference::addMetaDataForCodeAddressWithLoad(
          }
       else if (sr.getSymbol()->isDebugCounter())
          {
-         if (cg->needRelocationsForStatics())
+         if (cg->comp()->compileRelocatableCode())
             {
             TR::DebugCounterBase *counter = cg->comp()->getCounterFromStaticAddress(&sr);
             if (counter == NULL)
