@@ -120,7 +120,7 @@ bool TR_AsyncCheckInsertion::shouldPerform()
    {
    // Don't run when profiling
    //
-   if (comp()->getProfilingMode() == JitProfiling || comp()->generateArraylets())
+   if (comp()->getProfilingMode() == JitProfiling)
       return false;
 
    // It is not safe to add an asynccheck under involuntary OSR
