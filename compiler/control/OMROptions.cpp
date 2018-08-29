@@ -2054,13 +2054,6 @@ OMR::Options::jitLatePostProcess(TR::OptionSet *optionSet, void * jitConfig)
 
    if (TR::Compiler->om.mayRequireSpineChecks())
       {
-if (feGetEnv("EnableInternalPointers") == NULL)
-      OMR::Options::getCmdLineOptions()->setOption(TR_DisableInternalPointers);
-if (feGetEnv("EnableIdiomRecognition") == NULL)
-      OMR::Options::getCmdLineOptions()->setDisabled(idiomRecognition, true);
-if (feGetEnv("EnableRematerialization") == NULL)
-      OMR::Options::getCmdLineOptions()->setDisabled(rematerialization, true);
-
       if (OMR::Options::getAOTCmdLineOptions())
          {
          OMR::Options::getAOTCmdLineOptions()->setOption(TR_DisableInternalPointers);
