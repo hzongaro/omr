@@ -60,7 +60,7 @@ TR_PrefetchInsertion::TR_PrefetchInsertion(TR::OptimizationManager *manager)
 
 int32_t TR_PrefetchInsertion::perform()
    {
-   if (comp()->requiresSpineChecks())
+   if (true || comp()->requiresSpineChecks())
       {
       // see 172692
       if (trace())

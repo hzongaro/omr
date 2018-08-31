@@ -589,7 +589,7 @@ int32_t TR_PartialRedundancy::perform()
 
        TR::Node *nextOptimalNode = supportedNodesAsArray[nextOptimalComputation];
        if (nextOptimalNode->getOpCode().isCheck() ||
-           (comp()->requiresSpineChecks() && nextOptimalNode->getOpCode().hasSymbolReference() && nextOptimalNode->getSymbol()->isArrayShadowSymbol()))
+           ((true || comp()->requiresSpineChecks()) && nextOptimalNode->getOpCode().hasSymbolReference() && nextOptimalNode->getSymbol()->isArrayShadowSymbol()))
           continue;
 
        TR::CFGNode *nextNode;

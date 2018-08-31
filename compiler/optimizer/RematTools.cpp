@@ -168,7 +168,7 @@ TR_YesNoMaybe RematTools::gatherNodesToCheck(TR::Compilation *comp,
       // cannot rematerialize an array access without also creating a spine check
       // avoiding this case for now but this case can be handled in the future by creating a spine check
       //
-      if (comp->requiresSpineChecks() && currentNode->getSymbol()->isArrayShadowSymbol())
+      if ((true || comp->requiresSpineChecks()) && currentNode->getSymbol()->isArrayShadowSymbol())
          {
          if (trace)
             traceMsg(comp, "  priv arg remat: Can't fully remat [%p] due to [%p] - array access needs spine check", privArg, currentNode);

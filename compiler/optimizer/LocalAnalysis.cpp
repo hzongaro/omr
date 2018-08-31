@@ -120,7 +120,7 @@ bool TR_LocalAnalysis::isSupportedNodeForFunctionality(TR::Node *node, TR::Compi
                                            node->getFirstChild()->getOpCode().isStore() */ )
       return false;
 
-   if (comp->requiresSpineChecks() &&
+   if ((true || comp->requiresSpineChecks()) &&
        node->getOpCode().hasSymbolReference() &&
        node->getSymbol()->isArrayShadowSymbol())
       return false;
@@ -729,7 +729,7 @@ bool TR_LocalAnalysisInfo::isCallLike(TR::Node *node) {
       if (node->isThisPointer() && !node->isNonNull())
          return true;
 
-      if (comp()->requiresSpineChecks() &&
+      if ((true || comp()->requiresSpineChecks()) &&
           //node->getOpCode().hasSymbolReference() &&
           node->getSymbol()->isArrayShadowSymbol())
          {

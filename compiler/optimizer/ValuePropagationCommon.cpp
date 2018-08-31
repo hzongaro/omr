@@ -1319,7 +1319,7 @@ void OMR::ValuePropagation::transformArrayCopyCall(TR::Node *node)
          }
 
       if (comp()->getOptions()->realTimeGC() &&
-          comp()->requiresSpineChecks() &&
+          (true || comp()->requiresSpineChecks()) &&
           (referenceArray1 || referenceArray2 || !(primitiveArray1 || primitiveArray2)))
          transformTheCall = false;
 

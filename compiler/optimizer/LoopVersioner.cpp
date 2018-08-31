@@ -698,7 +698,7 @@ int32_t TR_LoopVersioner::performWithoutDominators()
             }
          whileLoopsIt.set(&whileLoops);
 
-         if (!shouldOnlySpecializeLoops() && !refineAliases() && comp()->requiresSpineChecks())
+         if (!shouldOnlySpecializeLoops() && !refineAliases() && (true || comp()->requiresSpineChecks()))
             {
             if (!spineCheckTrees.isEmpty())
                {
@@ -2858,7 +2858,7 @@ bool opCodeIsHoistable(TR::Node *node, TR::Compilation *comp)
       // may explode. Boom is bad.
       hasEffects = (opCode.isCall() || opCodeValue == TR::New || opCodeValue == TR::newarray || opCodeValue == TR::anewarray ||
                     opCodeValue == TR::multianewarray) || symReference->isUnresolved() ||
-                    symReference->getSymbol()->isLocalObject() || (symReference->getSymbol()->isArrayShadowSymbol() && comp->requiresSpineChecks());
+                    symReference->getSymbol()->isLocalObject() || (symReference->getSymbol()->isArrayShadowSymbol() && (true || comp->requiresSpineChecks()));
       return !hasEffects;
    }
 
@@ -3566,7 +3566,7 @@ void TR_LoopVersioner::updateDefinitionsAndCollectProfiledExprs(TR::Node *parent
       if (node->hasUnresolvedSymbolReference())
          _containsCall = true;
 
-	if (_inNullCheckReference && comp()->requiresSpineChecks() &&
+	if (_inNullCheckReference && (true || comp()->requiresSpineChecks()) &&
           node->getOpCode().hasSymbolReference() &&
           node->getSymbol()->isArrayShadowSymbol())
          _containsCall = true;

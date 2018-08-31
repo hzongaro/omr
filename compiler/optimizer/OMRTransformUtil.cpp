@@ -57,7 +57,7 @@ OMR::TransformUtil::scalarizeArrayCopy(
        !comp->getOption(TR_ScalarizeSSOps) ||
        node->getOpCodeValue() != TR::arraycopy ||
        node->getNumChildren() != 3 ||
-       comp->requiresSpineChecks() ||
+       (true || comp->requiresSpineChecks()) ||
        !node->getChild(2)->getOpCode().isLoadConst() ||
        cg->getOptimizationPhaseIsComplete())
       return node;

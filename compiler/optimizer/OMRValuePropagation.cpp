@@ -7241,7 +7241,7 @@ void OMR::ValuePropagation::doDelayedTransformations()
    //       unknown arraycopies because it refactors the CFG at a higher (outer) level
    //       than the others.  To simplify the CFG it should be run first.
    //
-   if (comp()->requiresSpineChecks())
+   if (true || comp()->requiresSpineChecks())
       {
       ListIterator<TR_ArrayCopySpineCheck> acscIt(&_arrayCopySpineCheck);
       TR_ArrayCopySpineCheck *arrayCopySpineCheck;
