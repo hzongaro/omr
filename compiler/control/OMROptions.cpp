@@ -2052,7 +2052,7 @@ OMR::Options::jitLatePostProcess(TR::OptionSet *optionSet, void * jitConfig)
    if (self()->getOption(TR_EnableOSROnGuardFailure) && !self()->getOption(TR_DisableOSR))
       self()->setOption(TR_EnableOSR);
 
-   if (TR::Compiler->om.mayRequireSpineChecks())
+   if (true || TR::Compiler->om.mayRequireSpineChecks())
       {
       OMR::Options::getCmdLineOptions()->setOption(TR_DisableInternalPointers);
       OMR::Options::getCmdLineOptions()->setDisabled(idiomRecognition, true);
