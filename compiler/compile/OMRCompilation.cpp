@@ -1722,7 +1722,7 @@ OMR::Compilation::findExtraPrefetchInfo(TR::Node * node, bool use)
 
 bool OMR::Compilation::canTransformUnsafeCopyToArrayCopy()
    {
-   if (!self()->getOptions()->realTimeGC() &&
+   if (!self()->getOptions()->realTimeGC() && false &&
        !TR::Compiler->om.canGenerateArraylets() &&
        self()->cg()->canTransformUnsafeCopyToArrayCopy())
       return true;
@@ -1732,7 +1732,7 @@ bool OMR::Compilation::canTransformUnsafeCopyToArrayCopy()
 
 bool OMR::Compilation::canTransformUnsafeSetMemory()
    {
-   if (!self()->getOptions()->realTimeGC() &&
+   if (!self()->getOptions()->realTimeGC() && false &&
        !TR::Compiler->om.canGenerateArraylets() &&
        self()->cg()->canTransformUnsafeSetMemory())
       return true;

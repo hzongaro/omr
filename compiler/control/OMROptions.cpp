@@ -2634,7 +2634,7 @@ OMR::Options::jitPreProcess()
       self()->setOption(TR_EnableAnnotations);
 
       TR::Compilation* comp = TR::comp();
-      if (comp && TR::Compiler->om.canGenerateArraylets())
+      if (comp && (true || TR::Compiler->om.canGenerateArraylets()))
          {
          _disabledOptimizations[prefetchInsertion] = true;
          }

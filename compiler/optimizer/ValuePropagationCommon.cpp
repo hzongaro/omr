@@ -3532,7 +3532,7 @@ void OMR::ValuePropagation::transformObjectCloneCall(TR::TreeTop *callTree, OMR:
 void OMR::ValuePropagation::transformArrayCloneCall(TR::TreeTop *callTree, TR_OpaqueClassBlock *j9arrayClass)
    {
    static char *disableArrayCloneOpt = feGetEnv("TR_disableFastArrayClone");
-   if (disableArrayCloneOpt || TR::Compiler->om.canGenerateArraylets())
+   if (disableArrayCloneOpt || true || TR::Compiler->om.canGenerateArraylets())
       return;
 
    TR::Node *callNode = callTree->getNode()->getFirstChild();

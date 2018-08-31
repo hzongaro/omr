@@ -638,7 +638,7 @@ static bool willNotInlineCompareAndSwapNative(TR::Node *node,
    TR::SymbolReference *callSymRef = node->getSymbolReference();
    TR::MethodSymbol *methodSymbol = callSymRef->getSymbol()->castToMethodSymbol();
 
-   if (TR::Compiler->om.canGenerateArraylets() && !node->isUnsafeGetPutCASCallOnNonArray())
+   if ((true || TR::Compiler->om.canGenerateArraylets()) && !node->isUnsafeGetPutCASCallOnNonArray())
       return true;
    static char *disableCASInlining = feGetEnv("TR_DisableCASInlining");
 

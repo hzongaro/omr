@@ -5237,7 +5237,7 @@ TR::Node *constrainCall(OMR::ValuePropagation *vp, TR::Node *node)
          vp->_converterCalls.add(vp->_curTree);
       }
 
-   if (vp->lastTimeThrough() && callIsDirect && TR::Compiler->om.canGenerateArraylets() &&
+   if (vp->lastTimeThrough() && callIsDirect && (true || TR::Compiler->om.canGenerateArraylets()) &&
          node->getSymbol()->getMethodSymbol()->getMethod() &&
          (node->getSymbol()->getMethodSymbol()->getMethod()->isUnsafeWithObjectArg() ||
          (node->getSymbol()->getMethodSymbol()->getMethod()->isUnsafeCAS() && vp->comp()->getOption(TR_EnableInliningOfUnsafeForArraylets))))
