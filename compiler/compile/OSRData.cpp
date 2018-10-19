@@ -393,7 +393,7 @@ TR_OSRCompilationData::writeInstruction2SharedSlotMap(uint8_t* buffer) const
       for (int j = 0; j < (*itr).scratchBufferInfos.size(); j++)
          {
          const TR_ScratchBufferInfo info = (*itr).scratchBufferInfos[j];
-         buffer += info.writeToBuffer(buffer);
+         buffer += (uint32_t) info.writeToBuffer(buffer);
          }
       }
    uint32_t numberOfBytesWritten = buffer - initialBuffer;
