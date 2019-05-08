@@ -2443,6 +2443,7 @@ TEST(PortVmemTest, vmem_test_reserveExecutableMemory)
 }
 #endif /* defined(ENABLE_RESERVE_MEMORY_EX_TESTS) */
 
+#if defined(OMR_GC_VLHGC)
 /**
  * Try to associate memory with each NUMA node at each page size.
  *
@@ -2455,9 +2456,7 @@ TEST(PortVmemTest, vmem_test_numa)
 	OMRPORT_ACCESS_FROM_OMRPORT(portTestEnv->getPortLibrary());
 	const char *testName = "omrvmem_test_numa";
 	uintptr_t *pageSizes = NULL;
-#if defined(J9ZOS390)
 	uintptr_t *pageFlags = NULL;
-#endif /* defined(J9ZOS390) */
 	uintptr_t totalNumaNodeCount = 0;
 	intptr_t detailReturnCode = 0;
 
@@ -2466,9 +2465,7 @@ TEST(PortVmemTest, vmem_test_numa)
 
 	/* First get all the supported page sizes */
 	pageSizes = omrvmem_supported_page_sizes();
-#if defined(J9ZOS390)
 	pageFlags = omrvmem_supported_page_flags();
-#endif /* defined(J9ZOS390) */
 
 	/* Find out how many NUMA nodes are available */
 	detailReturnCode = omrvmem_numa_get_node_details(NULL, &totalNumaNodeCount);
@@ -2600,6 +2597,7 @@ exit:
 
 	reportTestExit(OMRPORTLIB, testName);
 }
+#endif /* defined(OMR_GC_VLHGC) */
 
 #define PRINT_FIND_VALID_PAGE_SIZE_INPUT(mode, pageSize, pageFlags) \
 	portTestEnv->log("Input > mode: %zu, requestedPageSize: 0x%zx, requestedPageFlags: 0x%zx\n", mode, pageSize, pageFlags)
