@@ -40,6 +40,8 @@ namespace OMR {
 namespace GC {
 
 class Forge {
+/* Friend Declarations */
+friend class ::MM_GCExtensionsBase;
 
 /* Data Members */
 private:
@@ -48,7 +50,7 @@ private:
 	OMR_GC_MemoryStatistics _statistics[AllocationCategory::CATEGORY_COUNT];
 	
 /* Function Members */
-public:
+protected:
 	/**
 	 * Initialize internal structures of the memory forge.  An instance of Forge must be initialized before
 	 * the methods allocate or free are called.
@@ -65,7 +67,8 @@ public:
 	 * 
 	 */
 	void tearDown();
-
+	
+public:
 	/**
 	 * Allocates the amount of memory requested in bytesRequested.  Returns a pointer to the allocated memory, 
 	 * or NULL if the request could not be performed.  This function is a wrapper of omrmem_allocate_memory.
