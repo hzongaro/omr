@@ -61,7 +61,6 @@ class MM_GlobalCollector;
 class MM_Heap;
 class MM_HeapMap;
 class MM_HeapRegionManager;
-
 class MM_InterRegionRememberedSet;
 class MM_MemoryManager;
 class MM_MemorySubSpace;
@@ -84,14 +83,6 @@ class MM_SweepPoolManagerAddressOrderedListBase;
 class MM_RealtimeGC;
 class MM_VerboseManagerBase;
 struct J9Pool;
-
-namespace OMR {
-namespace GC {
-#if defined(OMR_GC_VLHGC_CONCURRENT_COPY_FORWARD)
-class HeapRegionStateTable;
-#endif /* defined(OMR_GC_VLHGC_CONCURRENT_COPY_FORWARD) */
-} // namespace OMR
-} // namespace GC
 
 #if defined(OMR_ENV_DATA64)
 #define MINIMUM_TLH_SIZE 768
@@ -607,11 +598,7 @@ public:
 
 #if defined(OMR_GC_SEGREGATED_HEAP)
 	MM_SizeClasses* defaultSizeClasses;
-#endif /* defined(OMR_GC_SEGREGATED_HEAP) */
-
-#if defined(OMR_GC_VLHGC_CONCURRENT_COPY_FORWARD)
-	OMR::GC::HeapRegionStateTable *heapRegionStateTable;
-#endif /* defined(OMR_GC_VLHGC_CONCURRENT_COPY_FORWARD) */
+#endif
 
 /* OMR_GC_REALTIME (in for all -- see 82589) */
 	uint32_t distanceToYieldTimeCheck; /**< Number of condYield that can be skipped before actual checking for yield, when the quanta time has been relaxed */
@@ -1569,13 +1556,10 @@ public:
 		, globalAllocationManager(NULL)
 #if defined(OMR_GC_REALTIME) || defined(OMR_GC_SEGREGATED_HEAP)
 		, managedAllocationContextCount(0)
-#endif /* defined(OMR_GC_REALTIME) || defined(OMR_GC_SEGREGATED_HEAP) */
+#endif /* OMR_GC_REALTIME || OMR_GC_SEGREGATED_HEAP */
 #if defined(OMR_GC_SEGREGATED_HEAP)
 		, defaultSizeClasses(NULL)
-#endif /* defined(OMR_GC_SEGREGATED_HEAP) */
-#if defined(OMR_GC_VLHGC_CONCURRENT_COPY_FORWARD)
-		, heapRegionStateTable(NULL)
-#endif /* defined(OMR_GC_VLHGC_CONCURRENT_COPY_FORWARD) */
+#endif /* OMR_GC_SEGREGATED_HEAP */
 		, distanceToYieldTimeCheck(0)
 		, traceCostToCheckYield(500) /* weighted sum of marked objects and scanned pointers before we check yield in main tracing loop */
 		, sweepCostToCheckYield(500) /* weighted count of free chunks/marked objects before we check yield in sweep small loop */
