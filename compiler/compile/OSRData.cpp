@@ -180,7 +180,7 @@ TR_OSRCompilationData::findOSRMethodData(int32_t inlinedSiteIndex, TR::ResolvedM
 
 static void reportFind(TR::Compilation *comp, int32_t index, TR::ResolvedMethodSymbol *expected, TR::ResolvedMethodSymbol *actual)
 {
-traceMsg(comp, "Compiling method %s:  In findOrCreateOSRMethodData - at inlinedSiteIndex+1 == %d, expected method [%p] '%s', but found method [%p] '%s'\n", comp->getMethodSymbol()->signature(comp->trMemory()), index, expected, expected->signature(comp->trMemory()), actual, actual->signature(comp->trMemory()));
+fprintf(stderr, "Compiling method %s:  In findOrCreateOSRMethodData - at inlinedSiteIndex+1 == %d, expected method [%p] '%s', but found method [%p] '%s'\n", comp->getMethodSymbol()->signature(comp->trMemory()), index, expected, expected->signature(comp->trMemory()), actual, actual->signature(comp->trMemory()));
 }
 
 // TODO: there is currently an implicit assumption that we are calling findOrCrete from within
