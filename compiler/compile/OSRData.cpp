@@ -178,9 +178,17 @@ TR_OSRCompilationData::findOSRMethodData(int32_t inlinedSiteIndex, TR::ResolvedM
    return NULL;
    }
 
-static void reportFind(TR::Compilation *comp, int32_t index, TR::ResolvedMethodSymbol *expected, TR::ResolvedMethodSymbol *actual)
+static void checkOSREntry(TR::Compilation *comp, int32_t index, TR::ResolvedMethodSymbol *expected)
 {
+if (index < osrMethodDataArray.size())
+{
+TR_OSRMethodData *actualOSRMethodData = osrMethodDataArray[index];
+if (actualOSRMethodData != NULL && actualOSRMethodData->getInlinedSiteIndex() == inlinedSiteIndex && actualOSRMethodData->getMethodSymbol() != methodSymbol)
+{
+TR::ResolvedMethodSymbol *actual = actualOSRMethodData->getMethodSymbol();
 fprintf(stderr, "Compiling method %s:  In findOrCreateOSRMethodData - at inlinedSiteIndex+1 == %d, expected method [%p] '%s', but found method [%p] '%s'\n", comp->getMethodSymbol()->signature(comp->trMemory()), index, expected, expected->signature(comp->trMemory()), actual, actual->signature(comp->trMemory()));
+}
+}
 }
 
 // TODO: there is currently an implicit assumption that we are calling findOrCrete from within
@@ -196,14 +204,7 @@ TR_OSRCompilationData::findOrCreateOSRMethodData(int32_t inlinedSiteIndex, TR::R
       return osrMethodData;
 
    int32_t index = inlinedSiteIndex + 1;
-
-if (index < osrMethodDataArray.size())
-{
-TR_OSRMethodData *actualOSRMethodData = osrMethodDataArray[index];
-if (actualOSRMethodData != NULL && actualOSRMethodData->getInlinedSiteIndex() == inlinedSiteIndex && actualOSRMethodData->getMethodSymbol() != methodSymbol)
-{
-reportFind(comp, index, methodSymbol, actualOSRMethodData->getMethodSymbol());
-}
+                                                                                   checkOSREntry(comp, index, methodSymbol);
 }
 
    osrMethodData = new (comp->trHeapMemory()) TR_OSRMethodData(inlinedSiteIndex, methodSymbol, this);
