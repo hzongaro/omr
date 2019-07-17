@@ -1454,7 +1454,9 @@ OMR::SymbolReferenceTable::findOrCreateMethodSymbol(
       TR::ResolvedMethodSymbol *resSym = TR::ResolvedMethodSymbol::create(trHeapMemory(),resolvedMethod,comp());
       sym = resSym;
 #ifdef J9_PROJECT_SPECIFIC
-      canGCandReturn = !(resSym->canDirectNativeCall() || resSym->getRecognizedMethod()==TR::java_lang_System_arraycopy);
+      canGCandReturn = !(resSym->canDirectNativeCall()
+                           || resSym->getRecognizedMethod()==TR::java_lang_System_arraycopy_Array
+                           || resSym->getRecognizedMethod()==TR::java_lang_System_arraycopy_Object);
       canGCandExcept = !resSym->canDirectNativeCall();
 #endif
       }

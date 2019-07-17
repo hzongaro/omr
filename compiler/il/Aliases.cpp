@@ -397,7 +397,12 @@ OMR::SymbolReference::getUseDefAliasesBV(bool isDirectCall, bool includeGCSafePo
             switch (resolvedMethodSymbol->getRecognizedMethod())
                {
 #ifdef J9_PROJECT_SPECIFIC
+#ifdef J9_RECOGNIZED_METHOD_ARRAYCOPY_DISTINCT_ENUM_VALUES
+               case TR::java_lang_System_arraycopy_Object:
+               case TR::java_lang_System_arraycopy_Array:
+#else
                case TR::java_lang_System_arraycopy:
+#endif
                   {
                   TR_BitVector * aliases = new (aliasRegion) TR_BitVector(bvInitialSize, aliasRegion, growability);
                   *aliases |= symRefTab->aliasBuilder.arrayElementSymRefs();
