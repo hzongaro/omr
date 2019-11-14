@@ -56,7 +56,7 @@ class TR_PrexArgument
       _profiledClazz(profiledClazz),
       _knownObjectIndex(TR::KnownObjectTable::UNKNOWN),
       _isTypeInfoForInlinedBody(false)
-      { }
+      { TR_ASSERT(_classKind != ClassIsFixed || _class, "Fixed type must have a class"); }
 
    static const char *priorKnowledgeStrings[];
    static PrexKnowledgeLevel knowledgeLevel(TR_PrexArgument *pa);
@@ -118,6 +118,7 @@ class TR_PrexArgInfo
 
    static TR_PrexArgInfo* buildPrexArgInfoForMethodSymbol(TR::ResolvedMethodSymbol* methodSymbol, TR_InlinerTracer* tracer);
    void clearArgInfoForNonInvariantArguments(TR::ResolvedMethodSymbol* methodSymbol, TR_InlinerTracer* tracer);
+   static TR_PrexArgInfo* argInfoFromCaller(TR::Node* callNode, TR_PrexArgInfo* argInfo, TR_PrexArgInfo* callerArgInfo);
 #endif
 
    TR_ALLOC(TR_Memory::LocalOpts);
