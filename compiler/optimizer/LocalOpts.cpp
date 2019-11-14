@@ -97,6 +97,7 @@
 #include "ras/ILValidator.hpp"
 #include "ras/ILValidationStrategies.hpp"
 #include "runtime/Runtime.hpp"
+#include "env/VMAccessCriticalSection.hpp"
 
 #ifdef J9_PROJECT_SPECIFIC
 #include "control/RecompilationInfo.hpp"
@@ -6759,6 +6760,15 @@ static int32_t numSignatureChars(char *sig)
    return strchr(end,';')-sig+1;
    }
 
+void TR_InvariantArgumentPreexistence::traceIfEnabled(const char* format, ...)
+   {
+   va_list args;
+   va_start(args, format);
+   if (trace())
+      traceMsgVarArgs(comp(), format, args);
+   va_end(args);
+   }
+
 int32_t TR_InvariantArgumentPreexistence::perform()
    {
    TR::ResolvedMethodSymbol *methodSymbol = optimizer()->getMethodSymbol();
@@ -6766,8 +6776,7 @@ int32_t TR_InvariantArgumentPreexistence::perform()
 
    if (comp()->mustNotBeRecompiled())
       {
-      if (trace())
-         traceMsg(comp(), "PREX: Aborting preexistence because %s mustNotBeRecompiled\n", feMethod->signature(trMemory()));
+      traceIfEnabled("PREX: Aborting preexistence because %s mustNotBeRecompiled\n", feMethod->signature(trMemory()));
       return 0;
       }
 
@@ -6781,8 +6790,7 @@ int32_t TR_InvariantArgumentPreexistence::perform()
    _peekingSymRefTab = comp()->getPeekingSymRefTab();
    _isOutermostMethod = ((comp()->getInlineDepth() == 0) && (!comp()->isPeekingMethod()));
 
-   if (trace())
-      traceMsg(comp(), "PREX: Starting preexistence for %s\n", feMethod->signature(trMemory()));
+   traceIfEnabled("PREX: Starting preexistence for %s\n", feMethod->signature(trMemory()));
 
    int32_t numParms = methodSymbol->getParameterList().getSize();
    _parmInfo = (ParmInfo*) trMemory()->allocateStackMemory(numParms * sizeof(ParmInfo));
@@ -6811,84 +6819,65 @@ int32_t TR_InvariantArgumentPreexistence::perform()
             int32_t index = symbol->getParmSymbol()->getOrdinal();
             _parmInfo[index].setNotInvariant();
             --numInvariantArgs;
-            if (trace())
-               traceMsg(comp(), "PREX:    Arg %d (%s) is not invariant\n", index, node->getSymbolReference()->getName(comp()->getDebug()));
+            traceIfEnabled("PREX:    Arg %d (%s) is not invariant\n", index, node->getSymbolReference()->getName(comp()->getDebug()));
             }
          }
       }
 
-
+   TR::KnownObjectTable *knot = comp()->getKnownObjectTable();
    ListIterator<TR::ParameterSymbol> parms(&methodSymbol->getParameterList());
-   if (_isOutermostMethod)
-      {
-      if (trace())
-         traceMsg(comp(), "PREX:    Populating parmInfo of outermost method %s\n", feMethod->signature(trMemory()));
+   int32_t index = 0;
+   for (TR::ParameterSymbol *p = parms.getFirst(); p != NULL; p = parms.getNext(), index++)
+       {
+       ParmInfo &parmInfo = _parmInfo[index];
+       int32_t len = 0;
+       const char *sig = p->getTypeSignature(len);
+       if (*sig != 'L' || !parmInfo.isInvariant())
+          continue;
 
-      int32_t index = 0;
-      TR::ParameterSymbol *p;
-      p = parms.getFirst();
-      if (p && p->getOffset() == 0 && !feMethod->isStatic())
-         {
-         int32_t len = 0;
-         const char *sig = p->getTypeSignature(len);
-         TR_OpaqueClassBlock *clazz = fe()->getClassFromSignature(sig, len, feMethod);
-         _parmInfo[index].setSymbol(p);
-         if (clazz && !fe()->classHasBeenExtended(clazz))
-            {
-            _parmInfo[index].setClassIsCurrentlyFinal();
-            if (trace())
-               traceMsg(comp(), "PREX:      Receiver class is currently final\n");
-            }
-         _parmInfo[index].setClass(clazz);
-         if (trace())
-            traceMsg(comp(), "PREX:      Receiver class %p is %.*s\n", clazz, len, sig);
+       if (_isOutermostMethod)
+          {
+          parmInfo.setClassIsPreexistent();
+          }
 
-#if J9_PROJECT_SPECIFIC
-         TR::KnownObjectTable *knot = comp()->getOrCreateKnownObjectTable();
-         if (knot)
-            {
-            TR::KnownObjectTable::Index knotIndex = comp()->fej9()->getCompiledMethodReceiverKnownObjectIndex(comp());
-            if (knotIndex != TR::KnownObjectTable::UNKNOWN)
-               {
-               _parmInfo[index].setKnownObjectIndex(knotIndex);
-               if (trace())
-                  traceMsg(comp(), "PREX:      Receiver is obj%d\n", _parmInfo[index].getKnownObjectIndex());
-               }
-            }
-#endif
+       parmInfo.setSymbol(p);
+       TR::SymbolReference* symRef = methodSymbol->getParmSymRef(p->getSlot());
+       TR::KnownObjectTable::Index koi = symRef->getKnownObjectIndex();
+       if (koi != TR::KnownObjectTable::UNKNOWN)
+          {
+          TR::VMAccessCriticalSection setClass(comp());
+          TR_OpaqueClassBlock *fixedClazz = TR::Compiler->cls.objectClass(comp(), knot->getPointer(koi));
+          parmInfo.setClassIsFixed();
+          parmInfo.setClass(fixedClazz);
+          traceIfEnabled("PREX:      parm %d is known object obj.%d\n", index, koi);
+          }
+       else
+          {
+          TR_OpaqueClassBlock *clazz = fe()->getClassFromSignature(sig, len, feMethod);
+          if (!clazz) continue;
 
-         index++;
-         p = parms.getNext();
-         }
+          parmInfo.setClass(clazz);
+          traceIfEnabled("PREX:      parm %d class %p is %.*s\n", index, clazz, len, sig);
 
-      for (; p != NULL; index++, p = parms.getNext())
-         {
-         int32_t len = 0;
-         const char *sig = p->getTypeSignature(len);
+          if (TR::Compiler->cls.isClassFinal(comp(), clazz))
+             {
+             traceIfEnabled("PREX:      parm %d class is final\n", index);
+             parmInfo.setClassIsFixed();
+             }
+          else if (!fe()->classHasBeenExtended(clazz))
+             {
+             traceIfEnabled("PREX:      parm %d class is currently final\n", index);
+             parmInfo.setClassIsCurrentlyFinal();
+             }
+          }
+       }
 
-         if (*sig == 'L')
-            {
-            TR_OpaqueClassBlock *clazz = fe()->getClassFromSignature(sig, len, feMethod);
-            _parmInfo[index].setSymbol(p);
-            if (clazz && !fe()->classHasBeenExtended(clazz))
-               {
-               _parmInfo[index].setClassIsCurrentlyFinal();
-               if (trace())
-                  traceMsg(comp(), "PREX:      Parm %d class is currently final\n", index);
-               }
-            _parmInfo[index].setClass(clazz);
-            if (trace())
-               traceMsg(comp(), "PREX:      Parm %d class %p is %.*s\n", index, clazz, len, sig);
-            }
-         }
-      }
-   else if (comp()->isPeekingMethod() && comp()->getCurrentPeekingArgInfo())
+   if (comp()->isPeekingMethod() && comp()->getCurrentPeekingArgInfo())
    //comp()->getCurrentPeekingArgInfo() is supplied only in TR_J9EstimateCodeSize::realEstimateCodeSize,
    //so TR_InvariantArgumentPreexistence can validate preexistence args and propagate info onto parmSymbols
       {
       TR_PeekingArgInfo *peekInfo = comp()->getCurrentPeekingArgInfo();
-      if (trace())
-         traceMsg(comp(), "PREX:    Populating parmInfo of peeked method %s %p\n", feMethod->signature(trMemory()), peekInfo);
+      traceIfEnabled("PREX:    Populating parmInfo of peeked method %s %p\n", feMethod->signature(trMemory()), peekInfo);
 
       if (peekInfo)
          {
@@ -6900,27 +6889,34 @@ int32_t TR_InvariantArgumentPreexistence::perform()
 
          const char **argInfo = peekInfo->_args;
          int32_t *lenInfo = peekInfo->_lengths;
-         int32_t index = 0;
+         index = 0;
          for (TR::ParameterSymbol *p = parms.getFirst(); p != NULL; p = parms.getNext(), index++)
             {
-            const char *sig = NULL;
-            if (argInfo && argInfo[index])
+            ParmInfo &parmInfo = _parmInfo[index];
+            TR_OpaqueClassBlock *clazzFromMethod = parmInfo.getClass();
+            if (argInfo && argInfo[index] && parmInfo.isInvariant() && !parmInfo.classIsCurrentlyFinal() && clazzFromMethod)
                {
-               sig = argInfo[index];
+               const char *sig = argInfo[index];
                int32_t len = lenInfo[index];
                TR_ASSERT(((*sig == 'L') || (*sig == '[')), "non address argument cannot be of fixed ref type");
 
-               _parmInfo[index].setSymbol(p);
-
                TR_OpaqueClassBlock *clazz = fe()->getClassFromSignature(sig, len, feMethod);
-               if (clazz)
+               if (!clazz || clazz == clazzFromMethod)
+                  continue;
+
+               // Peeking arg info is not compatible with the method, looking at dead path, bail out
+               if (fe()->isInstanceOf(clazz, clazzFromMethod, true, true, true) != TR_yes)
+                  return 1;
+
+               // Clear info from method parm symbol
+               parmInfo.clear();
+               parmInfo.setSymbol(p);
+               parmInfo.setClassIsRefined();
+               parmInfo.setClass(clazz);
+
+               if (!fe()->classHasBeenExtended(clazz))
                   {
-                  if (!fe()->classHasBeenExtended(clazz))
-                     {
-                     _parmInfo[index].setClassIsCurrentlyFinal();
-                     }
-                  _parmInfo[index].setClassIsRefined();
-                  _parmInfo[index].setClass(clazz);
+                  parmInfo.setClassIsCurrentlyFinal();
                   }
                }
             }
@@ -6932,183 +6928,108 @@ int32_t TR_InvariantArgumentPreexistence::perform()
 
       if (argInfo)
          {
-         if (trace())
-            traceMsg(comp(), "PREX:    Populating parmInfo of inlined method %s from argInfo %p\n", feMethod->signature(trMemory()), argInfo);
+         traceIfEnabled("PREX:    Populating parmInfo of inlined method %s from argInfo %p\n", feMethod->signature(trMemory()), argInfo);
 
          TR_PrexArgInfo *argInfo = comp()->getCurrentInlinedCallArgInfo();
-         int32_t index = 0;
+         index = 0;
          for (TR::ParameterSymbol *p = parms.getFirst(); p != NULL; p = parms.getNext(), index++)
             {
             TR_PrexArgument *arg = argInfo->get(index);
             ParmInfo &parmInfo = _parmInfo[index];
-            if (arg)
+            TR_OpaqueClassBlock *clazzFromMethod = parmInfo.getClass();
+
+            if (!parmInfo.isInvariant())
                {
-               if (trace())
-                  traceMsg(comp(), "PREX:      Parm %d is arg %p parmInfo %p\n", index, arg, &parmInfo);
-               }
-            else
-               {
-               if (trace())
-                  traceMsg(comp(), "PREX:      No argInfo for parm %d\n", index);
+               // Clear non-invariant arg info
+               argInfo->set(index, NULL);
+               traceIfEnabled("PREX:       parm %d is not invariant\n", index);
                continue;
+               }
+
+            if (parmInfo.hasKnownObjectIndex() || !clazzFromMethod)
+               continue;
+
+            if (!arg)
+               {
+               traceIfEnabled("PREX:      No argInfo for parm %d\n", index);
+               continue;
+               }
+
+            traceIfEnabled("PREX:      Parm %d is arg %p parmInfo %p\n", index, arg, &parmInfo);
+
+            if (arg->hasKnownObjectIndex() && !(arg->getClass() && arg->classIsFixed()))
+               {
+               TR::VMAccessCriticalSection setClass(comp());
+               TR_OpaqueClassBlock *fixedClazz = TR::Compiler->cls.objectClass(comp(), knot->getPointer(arg->getKnownObjectIndex()));
+               arg->setClassIsFixed(fixedClazz);
+               traceIfEnabled("PREX:        Parm %d is known object obj%d\n", index, arg->getKnownObjectIndex());
                }
 
             bool classIsFixed       = arg->classIsFixed();
             bool classIsPreexistent = arg->classIsPreexistent();
+            if (!classIsFixed && !classIsPreexistent)
+               continue;
 
-            if (classIsFixed || classIsPreexistent)
+            TR_OpaqueClassBlock *clazz = arg->getClass() ? arg->getClass() : clazzFromMethod;
+
+            // bail out if types are not compatible, which is an indicator that we're peeking or inlining dead path
+            if (clazz != clazzFromMethod && fe()->isInstanceOf(clazz, clazzFromMethod, true, true, true) != TR_yes)
+               return 1;
+
+            parmInfo.clear();
+            parmInfo.setSymbol(p);
+            parmInfo.setKnownObjectIndex(arg->getKnownObjectIndex());
+            parmInfo.setClass(clazz);
+            char *sig = NULL;
+            if (trace())
+               sig = TR::Compiler->cls.classSignature(comp(), clazz, trMemory());
+
+            if (clazz != clazzFromMethod)
                {
-               int32_t len = 0;
-               const char   *sig = p->getTypeSignature(len);
-               TR_ASSERT(((*sig == 'L') || (*sig == '[')), "non address argument cannot be fixed/preexistent");
-
-               parmInfo.setSymbol(p);
-               TR_OpaqueClassBlock *clazz = arg->getClass();
-               TR_OpaqueClassBlock *clazzFromMethod = fe()->getClassFromSignature(sig, len, feMethod);
-               TR_ASSERT(!clazz ||
-                         !clazzFromMethod ||
-                         clazz == clazzFromMethod ||
-                         fe()->isInstanceOf(clazz, clazzFromMethod, true, true, true) == TR_yes,
-                         "Type from argInfo should be more specific clazz %p clazzFromMethod %p", clazz, clazzFromMethod);
-
-               if (classIsFixed)
-                  {
-                  parmInfo.setClassIsFixed();
-                  parmInfo.setClass(clazz);
-                  parmInfo.setClassIsCurrentlyFinal();
-                  if (trace())
-                     {
-                     char *clazzSig = TR::Compiler->cls.classSignature(comp(), clazz, trMemory());
-                     traceMsg(comp(), "PREX:        Parm %d class %p is currently final %s\n", index, clazz, clazzSig);
-                     }
-                  if (clazz != clazzFromMethod)
-                     {
-                     parmInfo.setClassIsRefined();
-                     if (trace())
-                        traceMsg(comp(), "PREX:          Parm %d class is refined -- declared as %.*s\n", index, len, sig);
-                     }
-                  }
-               else
-                  {
-                  clazz = clazz ? clazz : clazzFromMethod;
-                  if (clazz)
-                     {
-                     if (trace())
-                        traceMsg(comp(), "PREX:        Parm %d class %p is %.*s\n", index, clazz, len, sig);
-                     if (!fe()->classHasBeenExtended(clazz))
-                        {
-                        parmInfo.setClassIsCurrentlyFinal();
-                        if (trace())
-                           traceMsg(comp(), "PREX:            Parm %d class is currently final\n", index);
-                        }
-                     parmInfo.setClass(clazz);
-                     }
-                  }
+               parmInfo.setClassIsRefined();
+               traceIfEnabled("PREX:          Parm %d class is refined -- declared as %s\n", index, sig);
                }
 
-            if (arg->hasKnownObjectIndex())
+            if (classIsFixed || TR::Compiler->cls.isClassFinal(comp(), clazz))
                {
-               parmInfo.setKnownObjectIndex(arg->getKnownObjectIndex());
-               if (trace())
-                  traceMsg(comp(), "PREX:        Parm %d is known object obj%d\n", index, arg->getKnownObjectIndex());
+               parmInfo.setClassIsFixed();
+               traceIfEnabled("PREX:        Parm %d class %p is final %s\n", index, clazz, sig);
+               }
+            else // if (classIsPreexistent)
+               {
+               traceIfEnabled("PREX:        Parm %d class %p is %s\n", index, clazz, sig);
+               parmInfo.setClassIsPreexistent();
+               if (!fe()->classHasBeenExtended(clazz))
+                  {
+                  parmInfo.setClassIsCurrentlyFinal();
+                  traceIfEnabled("PREX:            Parm %d class is currently final\n", index);
+                  }
                }
             }
          }
-      else
+      else if (!_isOutermostMethod)
          {
-         if (trace())
-            traceMsg(comp(), "PREX:    No argInfo -- can't populate parmInfo for inlined method %s\n", feMethod->signature(trMemory()));
+         traceIfEnabled("PREX:    No argInfo -- can't populate parmInfo for inlined method %s\n", feMethod->signature(trMemory()));
          }
       }
 
    if (numInvariantArgs == 0)
       {
-      if (trace())
-         traceMsg(comp(), "PREX: No invariant arguments\n");
+      traceIfEnabled("PREX: No invariant arguments\n");
       return 1;
-      }
-
-   // Now that we know what args are invariant - we can go ahead and mark their symbols
-   // appropriately as being preexistent or fixed
-   //
-   if (trace())
-      traceMsg(comp(), "PREX:    Setting parm symbol info for %s\n", feMethod->signature(trMemory()));
-
-   int32_t index = 0;
-   for (TR::ParameterSymbol *p = parms.getFirst(); p != NULL; p = parms.getNext(), index++)
-      {
-      // Reset several fields on symbol, which may have been marked on a previous
-      // inlining of the same method with different arguments list.
-      p->setFixedType(NULL);
-      p->setIsPreexistent(false);
-      p->setKnownObjectIndex(TR::KnownObjectTable::UNKNOWN);
-      ParmInfo &info = _parmInfo[index];
-      if (info.getSymbol())
-         {
-         TR::ParameterSymbol *symbol = info.getSymbol();
-         if (_isOutermostMethod)
-            {
-            if (info.isInvariant())
-               {
-               symbol->setIsPreexistent(true);
-               if (trace())
-                  traceMsg(comp(), "PREX:      Parm %d symbol [%p] is preexistent\n", index, symbol);
-               if (info.hasKnownObjectIndex())
-                  {
-                  symbol->setKnownObjectIndex(info.getKnownObjectIndex());
-                  if (trace())
-                     traceMsg(comp(), "PREX:      Parm %d symbol [%p] is known object obj%d\n", index, symbol, symbol->getKnownObjectIndex());
-                  }
-               }
-            }
-
-         //comp()->getCurrentPeekingArgInfo() might have been supplied
-         //make sure this path isn't executed iff getCurrentPeekingArgInfo is provided
-         else if (info.isInvariant() && !(comp()->isPeekingMethod() && comp()->getCurrentPeekingArgInfo()))
-            {
-            // For inner methods - an arg is fixed/preexistent if
-            // its invariant here and is fixed/prexistent in the outer
-            // method
-            //
-            TR_PrexArgument *arg = comp()->getCurrentInlinedCallArgInfo()->get(index);
-            if (arg)
-               {
-               if (arg->classIsFixed())
-                  {
-                  symbol->setFixedType(arg->getClass());
-                  if (trace())
-                     traceMsg(comp(), "PREX:      Parm %d symbol [%p] has fixed type %p\n", index, symbol, symbol->getFixedType());
-                  }
-               if (arg->classIsPreexistent())
-                  {
-                  symbol->setIsPreexistent(true);
-                  if (trace())
-                     traceMsg(comp(), "PREX:      Parm %d symbol [%p] is preexistent\n", index, symbol);
-                  }
-               if (arg->hasKnownObjectIndex())
-                  {
-                  symbol->setKnownObjectIndex(arg->getKnownObjectIndex());
-                  if (trace())
-                     traceMsg(comp(), "PREX:      Parm %d symbol [%p] is known object obj%d\n", index, symbol, symbol->getKnownObjectIndex());
-                  }
-               }
-            }
-         }
       }
 
    // Walk the trees and convert indirect dispatches on the fixed parms
    // to direct calls
    //
-   if (trace())
-      traceMsg(comp(), "PREX:    Walking nodes in %s\n", feMethod->signature(trMemory()));
+   traceIfEnabled("PREX:    Walking nodes in %s\n", feMethod->signature(trMemory()));
    vcount_t visitCount = comp()->incOrResetVisitCount();
    for (tt = methodSymbol->getFirstTreeTop(); tt; tt = tt->getNextTreeTop())
       processNode(tt->getNode(), tt, visitCount);
 
    } // scope of the stack memory region
 
-   if (trace())
-      traceMsg(comp(), "PREX: Done preexistence for %s\n", feMethod->signature(trMemory()));
+   traceIfEnabled("PREX: Done preexistence for %s\n", feMethod->signature(trMemory()));
    return 3;
    }
 
@@ -7155,7 +7076,7 @@ TR_InvariantArgumentPreexistence::ParmInfo *TR_InvariantArgumentPreexistence::ge
    if (comp()->isPeekingMethod() && !info->classIsRefined())
       return NULL;
    if (!comp()->isPeekingMethod() &&
-       !symbol->getParmSymbol()->getIsPreexistent() && symbol->getParmSymbol()->getFixedType() == 0)
+       !info->classIsPreexistent() && !info->classIsFixed())
       return NULL;
 
    return info;
@@ -7175,20 +7096,65 @@ void TR_InvariantArgumentPreexistence::processNode(TR::Node *node, TR::TreeTop *
       processIndirectLoad(node, treeTop, visitCount);
    else if (node->getOpCode().isCallIndirect())
       processIndirectCall(node, treeTop, visitCount);
+   }
 
+TR_YesNoMaybe TR_InvariantArgumentPreexistence::classIsCompatibleWithMethod(TR_OpaqueClassBlock* thisClazz, TR_ResolvedMethod* method)
+   {
+   TR_OpaqueClassBlock *clazz = method->containingClass();
+
+   if (clazz)
+      {
+      if (thisClazz)
+         {
+         return fe()->isInstanceOf(thisClazz, clazz, true);
+         }
+      }
+   return TR_maybe;
+   }
+
+bool TR_InvariantArgumentPreexistence::devirtualizeCall(TR::Node *node, TR::TreeTop *treeTop, TR_OpaqueClassBlock* clazz)
+   {
+   TR::MethodSymbol   *methodSymbol   = node->getSymbol()->castToMethodSymbol();
+   TR_ResolvedMethod *resolvedMethod = methodSymbol->getResolvedMethodSymbol()? methodSymbol->getResolvedMethodSymbol()->getResolvedMethod() : NULL;
+   TR_ASSERT(classIsCompatibleWithMethod(clazz, resolvedMethod) == TR_yes, "Class should be compatible with method");
+   TR::SymbolReference *symRef = node->getSymbolReference();
+   int32_t offset = symRef->getOffset();
+   TR_ResolvedMethod *refinedMethod = symRef->getOwningMethod(comp())->getResolvedVirtualMethod(comp(), clazz, offset);
+
+   if (!performTransformation(comp(), "%sspecialize and devirtualize invoke [%p] on currently fixed or final parameter\n", optDetailString(), node))
+      return false;
+
+   if (!refinedMethod->isSameMethod(resolvedMethod))
+      {
+      TR::SymbolReference *newSymRef =
+          getSymRefTab()->findOrCreateMethodSymbol
+          (symRef->getOwningMethodIndex(), -1, refinedMethod, TR::MethodSymbol::Virtual);
+      newSymRef->copyAliasSets(symRef, getSymRefTab());
+      newSymRef->setOffset(offset);
+      node->setSymbolReference(newSymRef);
+      node->devirtualizeCall(treeTop);
+      return true;
+      }
+
+   node->devirtualizeCall(treeTop);
+
+   if (treeTop->getNode()->getOpCodeValue() == TR::ResolveCHK)
+      TR::Node::recreate(treeTop->getNode(), TR::treetop);
+   else if (treeTop->getNode()->getOpCodeValue() == TR::ResolveAndNULLCHK)
+      TR::Node::recreate(treeTop->getNode(), TR::NULLCHK);
+
+   return true;
    }
 
 void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::TreeTop *treeTop, vcount_t visitCount)
    {
 #ifdef J9_PROJECT_SPECIFIC
 
-   if (trace())
-      traceMsg(comp(), "PREX:      [%p] %s %s\n", node, node->getOpCode().getName(), node->getSymbolReference()->getName(comp()->getDebug()));
+   traceIfEnabled("PREX:      [%p] %s %s\n", node, node->getOpCode().getName(), node->getSymbolReference()->getName(comp()->getDebug()));
 
    if (!node->getSymbol()->castToMethodSymbol()->firstArgumentIsReceiver())
       {
-      if (trace())
-         traceMsg(comp(), "PREX:        - First arg is not receiver\n");
+      traceIfEnabled("PREX:        - First arg is not receiver\n");
       return;
       }
 
@@ -7201,9 +7167,12 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
    bool  devirtualize            = false;
    bool  fixedOrFinalInfoExists  = false;
    bool  isInterface             = false;
-   ParmInfo           receiverInfo;  receiverInfo.clear();
+   ParmInfo           tmpInfo;  tmpInfo.clear();
+   ParmInfo           *receiverInfo = &tmpInfo;
    TR::Symbol          *receiverSymbol = NULL;
+   bool               receiverFromParm = false;
    int32_t            receiverParmOrdinal = -1;
+   ParmInfo *existingInfo = NULL;
    TR::MethodSymbol   *methodSymbol   = node->getSymbol()->castToMethodSymbol();
 
    TR_ResolvedMethod *resolvedMethod = methodSymbol->getResolvedMethodSymbol()? methodSymbol->getResolvedMethodSymbol()->getResolvedMethod() : NULL;
@@ -7215,8 +7184,7 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
          }
       else
          {
-         if (trace())
-            traceMsg(comp(), "PREX:        - Unresolved\n");
+         traceIfEnabled("PREX:        - Unresolved\n");
          return;
          }
       }
@@ -7224,15 +7192,15 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
    TR::Node *receiver = node->getChild(node->getFirstArgumentIndex());
    if (receiver->getOpCode().isLoadDirect())
       {
-      ParmInfo *existingInfo = getSuitableParmInfo(receiver);
+      existingInfo = getSuitableParmInfo(receiver);
       if (!existingInfo)
          {
-         if (trace())
-            traceMsg(comp(), "PREX:        - No parm info for receiver\n");
+         traceIfEnabled("PREX:        - No parm info for receiver\n");
          return;
          }
 
-      receiverInfo = *existingInfo;
+      receiverInfo = existingInfo;
+      receiverFromParm = true;
 
       receiverSymbol = receiver->getSymbolReference()->getSymbol();
       receiverParmOrdinal = receiverSymbol->getParmSymbol()->getOrdinal();
@@ -7242,15 +7210,14 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
             {
             // Let's not get fancy with these guys
             // They are the java/lang/Object.newInstancePrototype special methods
-            if (trace())
-               traceMsg(comp(), "PREX:        - newInstancePrototype\n");
+            traceIfEnabled("PREX:        - newInstancePrototype\n");
             return;
             }
 
-         if (trace())
-            traceMsg(comp(), "PREX:        Receiver is %p incoming Parm %d parmInfo %p\n", receiver, receiverParmOrdinal, existingInfo);
+         traceIfEnabled("PREX:        Receiver is %p incoming Parm %d parmInfo %p\n", receiver, receiverParmOrdinal, existingInfo);
 
-         if ((receiverInfo.classIsRefined() && receiverInfo.classIsFixed()) || receiverInfo.classIsCurrentlyFinal())
+         // should devirtualize if info is fixed
+         if (receiverInfo->classIsFixed() || receiverInfo->classIsCurrentlyFinal())
             fixedOrFinalInfoExists = true;
 
          }
@@ -7258,12 +7225,12 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
 
    // Bonus goodies for known objects
    //
-   if (receiver->getSymbolReference()->hasKnownObjectIndex())
+   if (receiver->getSymbolReference() && receiver->getSymbolReference()->hasKnownObjectIndex())
       {
-      if (trace())
-         traceMsg(comp(), "PREX:          Receiver is obj%d\n", receiver->getSymbolReference()->getKnownObjectIndex());
+      traceIfEnabled("PREX:          Receiver is obj%d\n", receiver->getSymbolReference()->getKnownObjectIndex());
 
-      receiverInfo.setKnownObjectIndex(receiver->getSymbolReference()->getKnownObjectIndex());
+      receiverInfo->setKnownObjectIndex(receiver->getSymbolReference()->getKnownObjectIndex());
+      receiverInfo->setClassIsFixed();
 
       // Also set the class info
       //
@@ -7271,27 +7238,13 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
 
          {
          TR::ClassTableCriticalSection setClass(comp()->fe());
-         receiverInfo.setClass(TR::Compiler->cls.objectClass(comp(), knot->getPointer(receiver->getSymbolReference()->getKnownObjectIndex())));
-         }
-
-      receiverInfo.setClassIsFixed();
-      fixedOrFinalInfoExists = true;
-      }
-
-   if (methodSymbol->isVirtual() && fixedOrFinalInfoExists)
-      {
-      TR_OpaqueClassBlock *clazz = resolvedMethod->containingClass();
-      if (clazz)
-         {
-         TR_OpaqueClassBlock *thisClazz = receiverInfo.getClass();
-         if (thisClazz)
-            {
-            TR_YesNoMaybe isInstance = fe()->isInstanceOf(thisClazz, clazz, true);
-            if (isInstance == TR_yes)
-               devirtualize = true;
-            }
+         receiverInfo->setClass(TR::Compiler->cls.objectClass(comp(), knot->getPointer(receiver->getSymbolReference()->getKnownObjectIndex())));
          }
       }
+
+   // Quit if class is not compatible with the method
+   if (resolvedMethod && receiverInfo->getClass() && !classIsCompatibleWithMethod(receiverInfo->getClass(), resolvedMethod))
+      return;
 
    //
    // Step 2: Transform
@@ -7300,8 +7253,8 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
    if (methodSymbol->isComputed())
       {
 #ifdef J9_PROJECT_SPECIFIC
-      if (methodSymbol->getRecognizedMethod() == TR::java_lang_invoke_MethodHandle_invokeExact && receiverInfo.hasKnownObjectIndex())
-         specializeInvokeExactSymbol(node, receiverInfo.getKnownObjectIndex(), comp(), this);
+      if (methodSymbol->getRecognizedMethod() == TR::java_lang_invoke_MethodHandle_invokeExact && receiverInfo->hasKnownObjectIndex())
+         specializeInvokeExactSymbol(node, receiverInfo->getKnownObjectIndex(), comp(), this);
 
       // The method is a specialized thunk archetype, no further improvement is needed.
       // Keeping running subsequent code may result in a crash because `offset` on the symref is not valid.
@@ -7309,90 +7262,57 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
          return;
 #endif
       }
-   else if (devirtualize)
+   else if (!isInterface && receiverInfo->classIsFixed())
       {
-      // The class is fixed and the type is more refined than the signature.
-      // Try to refine the call
-
-      // We know the more specialized type for this object
-      //
-      TR::SymbolReference *symRef = node->getSymbolReference();
-      int32_t offset = symRef->getOffset();
-      TR_ResolvedMethod *refinedMethod = symRef->getOwningMethod(comp())->getResolvedVirtualMethod(comp(), receiverInfo.getClass(), offset);
-
-
-      if (refinedMethod)
-         {
-         bool isModified = false;
-         bool addAssumptions = false;
-         TR_PersistentClassInfo *classInfo = NULL;
-
-         bool needsAssumptions = false;
-         if (!(receiverInfo.classIsRefined() && receiverInfo.classIsFixed()) && receiverSymbol &&
-               (receiverSymbol->getParmSymbol()->getFixedType() == 0))
-            needsAssumptions = true;
-
-         if (comp()->ilGenRequest().details().supportsInvalidation())
-            {
-            addAssumptions = true;
-            if (needsAssumptions)
-               {
-               classInfo = comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(receiverInfo.getClass(), comp());
-
-               // if the number of recompile assumptions on this particular
-               // class has exceeded a threshold, don't do prex anymore for this class
-               //
-               if ((comp()->getMethodHotness() == warm) &&
-                     classInfo &&
-                     classInfo->getNumPrexAssumptions() > comp()->getOptions()->getMaxNumPrexAssumptions())
-                  addAssumptions = false;
-               }
-            }
-
-         if (!needsAssumptions || addAssumptions)
-            {
-            if (!refinedMethod->isSameMethod(resolvedMethod))
-               {
-               if (performTransformation(comp(), "%sspecialize and devirtualize invoke [%p] on currently fixed or final parameter %d [%p]\n", optDetailString(), node, receiverParmOrdinal, receiverSymbol))
-                  {
-                  TR::SymbolReference *newSymRef =
-                      getSymRefTab()->findOrCreateMethodSymbol
-                      (symRef->getOwningMethodIndex(), -1, refinedMethod, TR::MethodSymbol::Virtual);
-                  newSymRef->copyAliasSets(symRef, getSymRefTab());
-                  newSymRef->setOffset(offset);
-                  node->setSymbolReference(newSymRef);
-                  node->devirtualizeCall(treeTop);
-                  isModified = true;
-                  }
-               }
-            else if (performTransformation(comp(), "%sdevirtualize invoke [%p] on currently fixed or final parameter  %d [%p]\n", optDetailString(), node, receiverParmOrdinal, receiverSymbol))
-               {
-               node->devirtualizeCall(treeTop);
-               isModified = true;
-               }
-            }
-
-         if (isModified && !(receiverInfo.classIsRefined() && receiverInfo.classIsFixed()) && receiverSymbol && receiverSymbol->getParmSymbol()->getFixedType() == 0)
-            {
-            // not classIsRefined && classIsFixed ==> classIsCurrentlyFinal case
-            receiverSymbol->getParmSymbol()->setFixedType(receiverInfo.getClass());
-            TR_ASSERT(receiverInfo.getClass(), "Currently final classes must have a valid class pointer");
-            bool inc = comp()->getCHTable()->recompileOnClassExtend(comp(), receiverInfo.getClass());
-            if (classInfo && inc) classInfo->incNumPrexAssumptions();
-            _success = true;
-            }
-         }
-      else if (!TR::Compiler->cls.isInterfaceClass(comp(), receiverInfo.getClass()))
-         TR_ASSERT(0, "how can it be unresolved?");
+      devirtualizeCall(node, treeTop, receiverInfo->getClass());
       }
-   else if (receiverSymbol)
+   else if (!isInterface && receiverInfo->classIsCurrentlyFinal()
+            && comp()->ilGenRequest().details().supportsInvalidation())
+      {
+      TR_PersistentClassInfo* classInfo = comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(receiverInfo->getClass(), comp());
+      bool canDevirtualize = true;
+
+      if (comp()->getMethodHotness() == warm
+          && classInfo
+          && classInfo->getNumPrexAssumptions() > comp()->getOptions()->getMaxNumPrexAssumptions())
+         canDevirtualize = false;
+
+      if (canDevirtualize && devirtualizeCall(node, treeTop, receiverInfo->getClass()))
+         {
+         traceIfEnabled("devirtualize with assumption\n");
+         // improve receiverInfo
+         receiverInfo->setClassIsFixed();
+         // For the outer most method, we have to carry the information of fixed type to inliner,
+         // such that it can be propagated to deeper frames.
+         // The receiver type is current final, which means it's the most concrete type atm. If
+         // the receiver is from parm of the jitted method, this property applies to all call
+         // sites to this method in this compilation. Thus, it is safe to set fixed type on the
+         // parm of this method.
+         //
+         if (_isOutermostMethod && receiverFromParm)
+            {
+            receiverSymbol->getParmSymbol()->setFixedType(receiverInfo->getClass());
+            }
+         // Improve the prex arg for inlined method
+         else if (receiverFromParm && comp()->getCurrentInlinedCallArgInfo())
+            {
+            TR_PrexArgInfo *argInfo = comp()->getCurrentInlinedCallArgInfo();
+            TR_PrexArgument *arg = argInfo->get(receiverParmOrdinal);
+            if (arg && !(arg->classIsFixed() && arg->getClass()))
+               {
+               arg->setClassIsFixed(receiverInfo->getClass());
+               }
+            }
+         TR_ASSERT(receiverInfo->getClass(), "Currently final classes must have a valid class pointer");
+         bool inc = comp()->getCHTable()->recompileOnClassExtend(comp(), receiverInfo->getClass());
+         if (classInfo && inc) classInfo->incNumPrexAssumptions();
+         }
+      }
+   else if (receiverFromParm)
       {
       // If the method being called is currently not overridden, we can register
       // a recomp action on the method-override event for this method
       //
-      TR_ASSERT((fixedOrFinalInfoExists || (receiverSymbol->getParmSymbol()->getFixedType() == 0)),
-         "Symbol %p is fixed ref type - but is not marked to be currently final (fixedOrFinalInfoExists=%d, fixedType=%p)", receiverSymbol, fixedOrFinalInfoExists, receiverSymbol->getParmSymbol()->getFixedType());
-
       if (!isInterface && !resolvedMethod->virtualMethodIsOverridden() && !resolvedMethod->isAbstract())
          {
          // if the number of recompile assumptions on this particular
@@ -7413,16 +7333,14 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
          if (addAssumptions &&
                performTransformation(comp(), "%sdevirtualizing invoke [%p] on preexistent argument %d [%p]\n", optDetailString(), node, receiverParmOrdinal, receiverSymbol))
             {
-            if (trace())
-                traceMsg(comp(), "secs devirtualizing invoke on preexistent argument %d in %s\n", receiverParmOrdinal, comp()->signature());
+            traceIfEnabled("secs devirtualizing invoke on preexistent argument %d in %s\n", receiverParmOrdinal, comp()->signature());
 
             node->devirtualizeCall(treeTop);
             bool inc = comp()->getCHTable()->recompileOnMethodOverride(comp(), resolvedMethod);
             if (callInfo && inc) callInfo->incNumPrexAssumptions();
-            _success = true;
             }
          }
-      else if (receiverInfo.getClass())
+      else if (receiverInfo->getClass())
          {
 #ifdef J9_PROJECT_SPECIFIC
          TR::ClassTableCriticalSection processIndirectCall(comp()->fe());
@@ -7438,7 +7356,7 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
             // been invalidated once
             //
             TR::Recompilation *recompInfo = comp()->getRecompilationInfo();
-            if (recompInfo && recompInfo->getMethodInfo()->getNumberOfInvalidations() >= 1 && !chTable->findSingleConcreteSubClass(receiverInfo.getClass(), comp()))
+            if (recompInfo && recompInfo->getMethodInfo()->getNumberOfInvalidations() >= 1 && !chTable->findSingleConcreteSubClass(receiverInfo->getClass(), comp()))
                {
                // will exit without performing any transformation
                //fprintf(stderr, "will not perform devirt\n");
@@ -7446,39 +7364,24 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
             else if (methSymbol->isInterface())
                {
                if (comp()->getPersistentInfo()->getRuntimeAssumptionTable()->getAssumptionCount(RuntimeAssumptionOnClassExtend) < 100000)
-                  method = chTable->findSingleInterfaceImplementer(receiverInfo.getClass(), node->getSymbolReference()->getCPIndex(), node->getSymbolReference()->getOwningMethod(comp()), comp());
+                  method = chTable->findSingleInterfaceImplementer(receiverInfo->getClass(), node->getSymbolReference()->getCPIndex(), node->getSymbolReference()->getOwningMethod(comp()), comp());
                //if (method)
                //   fprintf(stderr, "%s assumptios=%d\n", comp()->signature(), comp()->getPersistentInfo()->getRuntimeAssumptionTable()->getAssumptionCount(RuntimeAssumptionOnClassExtend));
                }
             else
                {
-               TR_OpaqueClassBlock *clazz = resolvedMethod->containingClass();
-               if (clazz)
+               if (resolvedMethod->isAbstract())
+                  method = chTable->findSingleAbstractImplementer(receiverInfo->getClass(), symRef->getOffset(), node->getSymbolReference()->getOwningMethod(comp()), comp());
+               else if (!chTable->isOverriddenInThisHierarchy(resolvedMethod, receiverInfo->getClass(), symRef->getOffset(), comp()))
                   {
-                  TR_OpaqueClassBlock *thisClazz = receiverInfo.getClass();
-                  if (thisClazz)
-                        {
-                     TR_YesNoMaybe isInstance = fe()->isInstanceOf(thisClazz, clazz, true);
-                     if (isInstance == TR_yes)
-                        devirtualize = true;
-                     }
-                  }
-
-               if (devirtualize)
-                  {
-                  if (resolvedMethod->isAbstract())
-                     method = chTable->findSingleAbstractImplementer(receiverInfo.getClass(), symRef->getOffset(), node->getSymbolReference()->getOwningMethod(comp()), comp());
-                  else if (!chTable->isOverriddenInThisHierarchy(resolvedMethod, receiverInfo.getClass(), symRef->getOffset(), comp()))
-                     {
-                     method = symRef->getOwningMethod(comp())->getResolvedVirtualMethod(comp(), receiverInfo.getClass(), symRef->getOffset());
-                     newMethod = false;
-                     }
+                  method = symRef->getOwningMethod(comp())->getResolvedVirtualMethod(comp(), receiverInfo->getClass(), symRef->getOffset());
+                  newMethod = false;
                   }
                }
 
             if (method && !method->virtualMethodIsOverridden())
                {
-               TR_PersistentClassInfo *classInfo = comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(receiverInfo.getClass(), comp());
+               TR_PersistentClassInfo *classInfo = comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(receiverInfo->getClass(), comp());
 
                // if the number of recompile assumptions on this particular
                // class has exceeded a threshold, don't do prex anymore for this class
@@ -7536,7 +7439,7 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
                   else if (treeTop->getNode()->getOpCodeValue() == TR::ResolveAndNULLCHK)
                      TR::Node::recreate(treeTop->getNode(), TR::NULLCHK);
 
-                  bool doInc = comp()->getCHTable()->recompileOnNewClassExtend(comp(), receiverInfo.getClass());
+                  bool doInc = comp()->getCHTable()->recompileOnNewClassExtend(comp(), receiverInfo->getClass());
 
                   if (classInfo)
                      {
@@ -7573,7 +7476,7 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
       }
 
 
-   if (comp()->isPeekingMethod() && receiverInfo.getClass() && !isInterface)
+   if (comp()->isPeekingMethod() && receiverInfo->getClass() && !isInterface)
       {
       TR::SymbolReference *symRef = node->getSymbolReference();
       int32_t offset = symRef->getOffset();
@@ -7584,20 +7487,20 @@ void TR_InvariantArgumentPreexistence::processIndirectCall(TR::Node *node, TR::T
       TR_ResolvedMethod *originalResolvedMethod = resolvedMethod;
       TR_OpaqueClassBlock *originalClazz = originalResolvedMethod->containingClass();
       bool canRefine = true;
-      if (originalClazz != receiverInfo.getClass())
+      if (originalClazz != receiverInfo->getClass())
          {
-         TR_YesNoMaybe isInstance = fe()->isInstanceOf(originalClazz, receiverInfo.getClass(), true);
+         TR_YesNoMaybe isInstance = fe()->isInstanceOf(originalClazz, receiverInfo->getClass(), true);
          if (isInstance == TR_yes)
             canRefine = false;
 
-         isInstance = fe()->isInstanceOf(receiverInfo.getClass(), originalClazz, true);
+         isInstance = fe()->isInstanceOf(receiverInfo->getClass(), originalClazz, true);
          if (isInstance == TR_no)
             canRefine = false;
          }
 
       TR_ResolvedMethod *resolvedMethod = NULL;
       if (canRefine)
-         resolvedMethod = symRef->getOwningMethod(comp())->getResolvedVirtualMethod(comp(), receiverInfo.getClass(), offset);
+         resolvedMethod = symRef->getOwningMethod(comp())->getResolvedVirtualMethod(comp(), receiverInfo->getClass(), offset);
 
       if (resolvedMethod)
          {
