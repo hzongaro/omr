@@ -355,11 +355,11 @@ typedef struct {
  * MIN and MAX data types
  */
 #define U_8_MAX ((uint8_t)-1)
-#define I_8_MIN ((int8_t)1 << ((sizeof(int8_t) * 8) - 1))
+#define I_8_MIN ((int8_t)(1 << ((sizeof(int8_t) * 8) - 1)))
 #define I_8_MAX ((int8_t)((uint8_t)I_8_MIN - 1))
 
 #define U_16_MAX ((uint16_t)-1)
-#define I_16_MIN ((int16_t)1 << ((sizeof(int16_t) * 8) - 1))
+#define I_16_MIN ((int16_t)(1 << ((sizeof(int16_t) * 8) - 1)))
 #define I_16_MAX ((int16_t)((uint16_t)I_16_MIN - 1))
 
 #define U_32_MAX ((uint32_t)-1)
