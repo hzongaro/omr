@@ -59,7 +59,6 @@
 #include "optimizer/TransformUtil.hpp"
 #include "ras/Debug.hpp"
 
-
 #define OPT_DETAILS "O^O COPY PROPAGATION: "
 
 
@@ -2244,7 +2243,7 @@ bool TR_CopyPropagation::isCorrectToReplace(TR::Node *useNode, TR::Node *storeNo
 
 TR::Node * TR_CopyPropagation::isLoadVarWithConst(TR::Node *node)
    {
-   if (node->getOpCode().isLoadVarDirect() &&
+     if ((node->getOpCode().isLoadVarDirect() || (node->getOpCodeValue() == TR::loadaddr)) &&
        node->getSymbolReference()->getSymbol()->isAutoOrParm())
       {
       return node;
