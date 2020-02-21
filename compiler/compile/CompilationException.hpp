@@ -66,6 +66,16 @@ struct ILGenFailure : public virtual CompilationException
    };
 
 /**
+ * Unresolved value type class exception type.
+ *
+ * Thrown during IL Generation for unresolved value type class condition.
+ */
+struct UnresolvedValueTypeFailure : public virtual CompilationException
+   {
+   virtual const char* what() const throw() { return "Unresolved value type class in IL Generation"; }
+   };
+
+/**
  * Recoverable IL Generation Failure exception type.
  *
  * Thrown on an IL Generation Failure condition which the compiler can
