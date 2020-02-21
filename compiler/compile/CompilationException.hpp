@@ -66,13 +66,14 @@ struct ILGenFailure : public virtual CompilationException
    };
 
 /**
- * Unresolved value type class exception type.
+ * Unsupported value type operation exception type.
  *
- * Thrown during IL Generation for unresolved value type class condition.
+ * Thrown if an unsupported value type operation is encountered that requires
+ * compilation to be aborted.
  */
-struct UnresolvedValueTypeFailure : public virtual CompilationException
+struct UnsupportedValueTypeOperation : public virtual CompilationException
    {
-   virtual const char* what() const throw() { return "Unresolved value type class in IL Generation"; }
+   virtual const char* what() const throw() { return "Unsupported value type operation"; }
    };
 
 /**
