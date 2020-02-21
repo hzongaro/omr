@@ -30,7 +30,9 @@
 
 #include "omrport.h"
 
+#if defined(OMR_OS_WINDOWS) || defined(J9X86) || defined(J9HAMMER)
 extern intptr_t
 omrsysinfo_get_x86_description(struct OMRPortLibrary *portLibrary, OMRProcessorDesc *desc);
+#endif /* defined(OMR_OS_WINDOWS) || defined(J9X86) || defined(J9HAMMER) */
 
 #endif /* SYSINFOHELPERS_H_ */
