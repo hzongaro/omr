@@ -8068,7 +8068,7 @@ bool
 OMR::Node::markedAllocationCanBeRemoved()
    {
    TR_ASSERT(self()->getOpCodeValue() == TR::New || self()->getOpCodeValue() == TR::newarray || self()->getOpCodeValue() == TR::anewarray,
-             "Opcode must be newarray or anewarray");
+             "Opcode must be New, newarray or anewarray");
    return _flags.testAny(allocationCanBeRemoved);
    }
 
@@ -8076,7 +8076,7 @@ void
 OMR::Node::setAllocationCanBeRemoved(bool v)
    {
    TR::Compilation * c = TR::comp();
-   TR_ASSERT(self()->getOpCodeValue() == TR::New || self()->getOpCodeValue() == TR::newarray || self()->getOpCodeValue() == TR::anewarray, "Opcode must be newarray or anewarray");
+   TR_ASSERT(self()->getOpCodeValue() == TR::New || self()->getOpCodeValue() == TR::newarray || self()->getOpCodeValue() == TR::anewarray, "Opcode must be New, newarray or anewarray");
    if (performNodeTransformation2(c, "O^O NODE FLAGS: Setting allocationCanBeRemoved flag on node %p to %d\n", self(), v))
       _flags.set(allocationCanBeRemoved, v);
    }
