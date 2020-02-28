@@ -460,9 +460,9 @@ OMR::CodeGenerator::lowerTreeIfNeeded(
        node->getSymbol()->isParm() && node->getSymbol()->isCollectedReference())
       node->getSymbol()->setParmHasToBeOnStack();
 
-   if (node->getOpCode().isTernary())
+   if (node->getOpCode().isSelect())
       {
-      self()->rematerializeCmpUnderTernary(node);
+      self()->rematerializeCmpUnderSelect(node);
       }
 
    }
@@ -833,7 +833,7 @@ OMR::CodeGenerator::insertDebugCounters()
 
 
 
-void OMR::CodeGenerator::rematerializeCmpUnderTernary(TR::Node *node)
+void OMR::CodeGenerator::rematerializeCmpUnderSelect(TR::Node *node)
    {
    if (node->getFirstChild()->getOpCode().isBooleanCompare() && node->getFirstChild()->getReferenceCount() > 1)
       {

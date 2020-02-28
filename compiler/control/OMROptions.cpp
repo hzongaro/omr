@@ -781,6 +781,7 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
    {"forceLoadAOT", "M\tForce loading of relocatable code outside of class load phase from the shared cache",
     SET_OPTION_BIT(TR_ForceLoadAOT), "P", NOT_IN_SUBSET},
    {"forceNonSMP",                           "D\tforce UniP code generation.", SET_OPTION_BIT(TR_ForceNonSMP), "F"},
+   {"forceReadOnlyCode", "M\tForce generation of read-only code (no self-modifying code)\t", SET_OPTION_BIT(TR_ForceGenerateReadOnlyCode), "F", NOT_IN_SUBSET },
    {"forceUsePreexistence", "D\tPretend methods are using pre-existence. RAS feature.", SET_OPTION_BIT(TR_ForceUsePreexistence), "F"},
    {"forceVSSStackCompaction", "O\tAlways compact VariableSizeSymbols on the stack", SET_OPTION_BIT(TR_ForceVSSStackCompaction), "F"},
    {"fullInliningUnderOSRDebug", "O\tDo full inlining under OSR based debug (new FSD)", SET_OPTION_BIT(TR_FullInlineUnderOSRDebug), "F"},
@@ -1998,11 +1999,13 @@ OMR::Options::jitLatePostProcess(TR::OptionSet *optionSet, void * jitConfig)
    self()->setOption(TR_DisableNextGenHCR);
 #endif
 
-   static const char *ccr = feGetEnv("TR_DisableCCR");
-   if (ccr)
+   static const bool disableCCREnv = feGetEnv("TR_DisableCCR") != NULL;
+   if (self()->getOption(TR_PerfTool) || disableCCREnv)
       {
+      fprintf(stderr, "WARNING: Disabling code cache reclamation due to due to -Xjit:perfTool or TR_DisableCCR environment variable\n");
       self()->setOption(TR_DisableCodeCacheReclamation);
       }
+
    static const char *disableCCCF = feGetEnv("TR_DisableClearCodeCacheFullFlag");
    if (disableCCCF)
       {

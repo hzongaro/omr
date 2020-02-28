@@ -1468,7 +1468,7 @@
                 , "flags": []
                 , "return": "none"
                 , "parms": [
-                    {"name":"selectionVar","type":"constString"},
+                    {"name":"selectorValue","type":"IlValue"},
                     {"name":"defaultBuilder","type":"IlBuilder","attributes":["in_out"]},
                     {"name":"numCases","type":"int32"},
                     {"name":"cases","type":"JBCase","attributes":["array","can_be_vararg"],"array-len":"numCases"}
@@ -1479,9 +1479,9 @@
                 , "flags": []
                 , "return": "none"
                 , "parms": [
-                    {"name":"selectionVar","type":"constString"},
+                    {"name":"selectorValue","type":"IlValue"},
                     {"name":"defaultBuilder","type":"IlBuilder","attributes":["in_out"]},
-                    {"name":"generateBoundsCheck","type":"boolean"},
+                    {"name": "generateBoundsCheck", "type": "boolean"},
                     {"name":"numCases","type":"int32"},
                     {"name":"cases","type":"JBCase","attributes":["array","can_be_vararg"],"array-len":"numCases"}
                     ]
