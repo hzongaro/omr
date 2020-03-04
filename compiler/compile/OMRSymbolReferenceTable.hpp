@@ -206,6 +206,16 @@ class SymbolReferenceTable
       startPCLinkageInfoSymbol,
       instanceShapeFromROMClassSymbol,
 
+      /** \brief Performs a substitutability comparison between two objects.
+       *
+       * The comparison takes as arguments references to the two objects.
+       *
+       * If the two objects are reference types, this is equivalen to a pointer compare.
+       * If the two objects are value types, then a structural comparison betweeen the two is performed.
+       * If the two objects are of different types, the exact behaviour depends on the language.
+       */
+      substitutabilityComparisonSymbol,
+
       /** \brief
        *
        *  This symbol is used by the code generator to recognize and inline a call which emulates the following
