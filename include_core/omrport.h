@@ -53,9 +53,9 @@
 #include "omrgcconsts.h"
 #endif /* defined(OMRZTPF) */
 
-#if (defined(LINUX) || defined(RS6000) || defined (OSX))
+#if !defined(OMR_OS_WINDOWS)
 #include <unistd.h>
-#endif /* (defined(LINUX) || defined(RS6000) || defined (OSX)) */
+#endif /* !defined(OMR_OS_WINDOWS) */
 
 #if defined(J9ZOS390)
 #define PORT_ABEND_CODE	0xDED
@@ -761,8 +761,51 @@ typedef struct J9ProcessorInfos {
 #define OMRPORT_SIG_FLAG_IS_SYNC                ((uint32_t)0x08)
 #define OMRPORT_SIG_FLAG_CONTROL_BITS_MASK      ((uint32_t)0x0F)
 
-#if defined(OSX) || defined(LINUX) && !defined(_TPF_SOURCE) || defined(AIXPPC) || defined(J9ZOS390)
-/* The below macros support the unix/omrsignal.c implementation, which is used on OSX, Linux, AIX and zOS. */
+
+#if defined(OMR_OS_WINDOWS) || defined(OMRZTPF)
+/* The below macros support the [win32|win64amd|ztpf]/omrsignal.c implementations, which are used on Windows and z/TPF. */
+
+#define OMRPORT_SIG_SMALLEST_SIGNAL_FLAG         0x4
+#define OMRPORT_SIG_FLAG_SIGSEGV                 0x4
+#define OMRPORT_SIG_FLAG_SIGBUS                  0x8
+#define OMRPORT_SIG_FLAG_SIGILL                  0x10
+#define OMRPORT_SIG_FLAG_SIGFPE                  0x20
+#define OMRPORT_SIG_FLAG_SIGTRAP                 0x40
+#define OMRPORT_SIG_FLAG_SIGABEND                0x80
+#define OMRPORT_SIG_FLAG_SIGPIPE                 0x100
+#define OMRPORT_SIG_FLAG_SIGALRM                 0x200
+#define OMRPORT_SIG_FLAG_SIGQUIT                 0x400
+#define OMRPORT_SIG_FLAG_SIGABRT                 0x800
+#define OMRPORT_SIG_FLAG_SIGTERM                 0x1000
+#define OMRPORT_SIG_FLAG_SIGRECONFIG             0x2000
+#define OMRPORT_SIG_FLAG_SIGINT                  0x4000
+#define OMRPORT_SIG_FLAG_SIGXFSZ                 0x8000
+#define OMRPORT_SIG_FLAG_SIGCHLD                 0x10000
+#define OMRPORT_SIG_FLAG_SIGTSTP                 0x20000
+#define OMRPORT_SIG_FLAG_SIGFPE_DIV_BY_ZERO      (OMRPORT_SIG_FLAG_SIGFPE | 0x40000)
+#define OMRPORT_SIG_FLAG_SIGFPE_INT_DIV_BY_ZERO  (OMRPORT_SIG_FLAG_SIGFPE | 0x80000)
+#define OMRPORT_SIG_FLAG_SIGFPE_INT_OVERFLOW     (OMRPORT_SIG_FLAG_SIGFPE | 0x100000)
+#define OMRPORT_SIG_FLAG_SIGIO                   0x200000
+#define OMRPORT_SIG_FLAG_SIGHUP                  0x400000
+#define OMRPORT_SIG_FLAG_SIGCONT                 0x800000
+#define OMRPORT_SIG_FLAG_SIGWINCH                0x1000000
+#define OMRPORT_SIG_FLAG_SIGUSR1                 0x2000000
+#define OMRPORT_SIG_FLAG_SIGUSR2                 0x4000000
+#define OMRPORT_SIG_FLAG_SIGURG                  0x8000000
+#define OMRPORT_SIG_FLAG_SIGXCPU                 0x10000000
+#define OMRPORT_SIG_FLAG_SIGVTALRM               0x20000000
+#define OMRPORT_SIG_FLAG_SIGPROF                 0x40000000
+#define OMRPORT_SIG_FLAG_SIGSYS                  0x80000000
+
+#define OMRPORT_SIG_FLAG_SIGALLASYNC \
+	( OMRPORT_SIG_FLAG_SIGQUIT  | OMRPORT_SIG_FLAG_SIGABRT   | OMRPORT_SIG_FLAG_SIGTERM | OMRPORT_SIG_FLAG_SIGRECONFIG \
+	| OMRPORT_SIG_FLAG_SIGXFSZ  | OMRPORT_SIG_FLAG_SIGINT    | OMRPORT_SIG_FLAG_SIGHUP  | OMRPORT_SIG_FLAG_SIGCONT \
+	| OMRPORT_SIG_FLAG_SIGWINCH | OMRPORT_SIG_FLAG_SIGPIPE   | OMRPORT_SIG_FLAG_SIGALRM | OMRPORT_SIG_FLAG_SIGCHLD \
+	| OMRPORT_SIG_FLAG_SIGTSTP  | OMRPORT_SIG_FLAG_SIGUSR1   | OMRPORT_SIG_FLAG_SIGUSR2 | OMRPORT_SIG_FLAG_SIGURG \
+	| OMRPORT_SIG_FLAG_SIGXCPU  | OMRPORT_SIG_FLAG_SIGVTALRM | OMRPORT_SIG_FLAG_SIGPROF | OMRPORT_SIG_FLAG_SIGIO \
+	| OMRPORT_SIG_FLAG_SIGSYS )
+#else /* defined(OMR_OS_WINDOWS) || defined(OMRZTPF) */
+/* The below macros support the unix/omrsignal.c implementation, used everywhere but windows and z/TPF. */
 
 /* All signal codes include exactly one of OMRPORT_SIG_FLAG_IS_SYNC or OMRPORT_SIG_FLAG_IS_ASYNC
  * plus a multiple of this.
@@ -823,49 +866,7 @@ typedef struct J9ProcessorInfos {
 	| OMRPORT_SIG_FLAG_SIGXCPU     | OMRPORT_SIG_FLAG_SIGVTALRM | OMRPORT_SIG_FLAG_SIGPROF | OMRPORT_SIG_FLAG_SIGPIPE \
 	| OMRPORT_SIG_FLAG_SIGSYS      | OMRPORT_SIG_FLAG_SIGTTIN   | OMRPORT_SIG_FLAG_SIGTTOU | OMRPORT_SIG_FLAG_SIGINFO \
 	| OMRPORT_SIG_FLAG_SIGIOT      | OMRPORT_SIG_FLAG_SIGPOLL)
-#else /* defined(OSX) || defined(LINUX) && !defined(_TPF_SOURCE) || defined(AIXPPC) || defined(J9ZOS390) */
-/* The below macros support the [win32|win64amd|ztpf]/omrsignal.c implementations, which are used on Windows and z/TPF. */
-
-#define OMRPORT_SIG_SMALLEST_SIGNAL_FLAG         0x4
-#define OMRPORT_SIG_FLAG_SIGSEGV                 0x4
-#define OMRPORT_SIG_FLAG_SIGBUS                  0x8
-#define OMRPORT_SIG_FLAG_SIGILL                  0x10
-#define OMRPORT_SIG_FLAG_SIGFPE                  0x20
-#define OMRPORT_SIG_FLAG_SIGTRAP                 0x40
-#define OMRPORT_SIG_FLAG_SIGABEND                0x80
-#define OMRPORT_SIG_FLAG_SIGPIPE                 0x100
-#define OMRPORT_SIG_FLAG_SIGALRM                 0x200
-#define OMRPORT_SIG_FLAG_SIGQUIT                 0x400
-#define OMRPORT_SIG_FLAG_SIGABRT                 0x800
-#define OMRPORT_SIG_FLAG_SIGTERM                 0x1000
-#define OMRPORT_SIG_FLAG_SIGRECONFIG             0x2000
-#define OMRPORT_SIG_FLAG_SIGINT                  0x4000
-#define OMRPORT_SIG_FLAG_SIGXFSZ                 0x8000
-#define OMRPORT_SIG_FLAG_SIGCHLD                 0x10000
-#define OMRPORT_SIG_FLAG_SIGTSTP                 0x20000
-#define OMRPORT_SIG_FLAG_SIGFPE_DIV_BY_ZERO      (OMRPORT_SIG_FLAG_SIGFPE | 0x40000)
-#define OMRPORT_SIG_FLAG_SIGFPE_INT_DIV_BY_ZERO  (OMRPORT_SIG_FLAG_SIGFPE | 0x80000)
-#define OMRPORT_SIG_FLAG_SIGFPE_INT_OVERFLOW     (OMRPORT_SIG_FLAG_SIGFPE | 0x100000)
-#define OMRPORT_SIG_FLAG_SIGIO                   0x200000
-#define OMRPORT_SIG_FLAG_SIGHUP                  0x400000
-#define OMRPORT_SIG_FLAG_SIGCONT                 0x800000
-#define OMRPORT_SIG_FLAG_SIGWINCH                0x1000000
-#define OMRPORT_SIG_FLAG_SIGUSR1                 0x2000000
-#define OMRPORT_SIG_FLAG_SIGUSR2                 0x4000000
-#define OMRPORT_SIG_FLAG_SIGURG                  0x8000000
-#define OMRPORT_SIG_FLAG_SIGXCPU                 0x10000000
-#define OMRPORT_SIG_FLAG_SIGVTALRM               0x20000000
-#define OMRPORT_SIG_FLAG_SIGPROF                 0x40000000
-#define OMRPORT_SIG_FLAG_SIGSYS                  0x80000000
-
-#define OMRPORT_SIG_FLAG_SIGALLASYNC \
-	( OMRPORT_SIG_FLAG_SIGQUIT  | OMRPORT_SIG_FLAG_SIGABRT   | OMRPORT_SIG_FLAG_SIGTERM | OMRPORT_SIG_FLAG_SIGRECONFIG \
-	| OMRPORT_SIG_FLAG_SIGXFSZ  | OMRPORT_SIG_FLAG_SIGINT    | OMRPORT_SIG_FLAG_SIGHUP  | OMRPORT_SIG_FLAG_SIGCONT \
-	| OMRPORT_SIG_FLAG_SIGWINCH | OMRPORT_SIG_FLAG_SIGPIPE   | OMRPORT_SIG_FLAG_SIGALRM | OMRPORT_SIG_FLAG_SIGCHLD \
-	| OMRPORT_SIG_FLAG_SIGTSTP  | OMRPORT_SIG_FLAG_SIGUSR1   | OMRPORT_SIG_FLAG_SIGUSR2 | OMRPORT_SIG_FLAG_SIGURG \
-	| OMRPORT_SIG_FLAG_SIGXCPU  | OMRPORT_SIG_FLAG_SIGVTALRM | OMRPORT_SIG_FLAG_SIGPROF | OMRPORT_SIG_FLAG_SIGIO \
-	| OMRPORT_SIG_FLAG_SIGSYS )
-#endif /* defined(OSX) || defined(LINUX) && !defined(_TPF_SOURCE) || defined(AIXPPC) || defined(J9ZOS390) */
+#endif /* defined(OMR_OS_WINDOWS) || defined(OMRZTPF) */
 
 #if defined(J9ZOS390)
 #define OMRPORT_SIG_FLAG_SIGALLSYNC \
@@ -1285,8 +1286,8 @@ typedef enum OMRProcessorArchitecture {
 
 } OMRProcessorArchitecture;
 
-/* Holds processor type and features used with omrsysinfo_get_processor_description
- * and omrsysinfo_processor_has_feature
+/* Holds processor type and features used with omrsysinfo_get_processor_description,
+ * omrsysinfo_processor_has_feature and omrsysinfo_processor_disable_feature
  */
 #define OMRPORT_SYSINFO_FEATURES_SIZE 5
 typedef struct OMRProcessorDesc {
@@ -1658,6 +1659,8 @@ typedef struct OMRPortLibrary {
 	intptr_t  ( *sysinfo_get_processor_description)(struct OMRPortLibrary *portLibrary, OMRProcessorDesc *desc) ;
 	/** see @ref omrsysinfo.c::omrsysinfo_processor_has_feature "omrsysinfo_processor_has_feature"*/
 	BOOLEAN  ( *sysinfo_processor_has_feature)(struct OMRPortLibrary *portLibrary, OMRProcessorDesc *desc, uint32_t feature) ;
+	/** see @ref omrsysinfo.c::omrsysinfo_processor_disable_feature "omrsysinfo_processor_disable_feature"*/
+	intptr_t  ( *sysinfo_processor_disable_feature)(struct OMRPortLibrary *portLibrary, OMRProcessorDesc *desc, uint32_t feature) ;
 	/** see @ref omrsysinfo.c::omrsysinfo_get_OS_type "omrsysinfo_get_OS_type"*/
 	const char *(*sysinfo_get_OS_type)(struct OMRPortLibrary *portLibrary) ;
 	/** see @ref omrsysinfo.c::omrsysinfo_get_executable_name "omrsysinfo_get_executable_name"*/
@@ -2371,6 +2374,7 @@ extern J9_CFUNC int32_t omrport_getVersion(struct OMRPortLibrary *portLibrary);
 #define omrsysinfo_get_CPU_architecture() privateOmrPortLibrary->sysinfo_get_CPU_architecture(privateOmrPortLibrary)
 #define omrsysinfo_get_processor_description(param1) privateOmrPortLibrary->sysinfo_get_processor_description(privateOmrPortLibrary,param1)
 #define omrsysinfo_processor_has_feature(param1,param2) privateOmrPortLibrary->sysinfo_processor_has_feature(privateOmrPortLibrary,param1,param2)
+#define omrsysinfo_processor_disable_feature(param1,param2) privateOmrPortLibrary->sysinfo_processor_disable_feature(privateOmrPortLibrary,param1,param2)
 #define omrsysinfo_get_OS_type() privateOmrPortLibrary->sysinfo_get_OS_type(privateOmrPortLibrary)
 #define omrsysinfo_get_executable_name(param1,param2) privateOmrPortLibrary->sysinfo_get_executable_name(privateOmrPortLibrary, (param1), (param2))
 #define omrsysinfo_get_username(param1,param2) privateOmrPortLibrary->sysinfo_get_username(privateOmrPortLibrary, (param1), (param2))

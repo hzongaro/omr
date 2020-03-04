@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2019 IBM Corp. and others
+ * Copyright (c) 2015, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -49,7 +49,6 @@
 #undef OMR_GC_COMBINATION_SPEC
 #undef OMR_GC_CONCURRENT_SWEEP
 #undef OMR_GC_DEBUG_ASSERTS
-#undef OMR_GC_HEAP_CARD_TABLE
 #undef OMR_GC_IDLE_HEAP_MANAGER
 #undef OMR_GC_LARGE_OBJECT_AREA
 #undef OMR_GC_LEAF_BITS
@@ -142,17 +141,6 @@
 #undef OMR_GC_REALTIME
 #undef OMR_GC_TLH_PREFETCH_FTA
 #undef OMR_GC_VLHGC
-
-/**
- * Flag to indicate that on 64-bit platforms, the monitor slot and class slot in object headers are U32 rather than UDATA.
- */
-#undef OMR_INTERP_COMPRESSED_OBJECT_HEADER
-
-/**
- * Flag to indicate that on 64-bit platforms, the monitor slot in object headers is a U32 rather than a UDATA.
- * ifRemoved: The monitor slot is a UDATA.
- */
-#undef OMR_INTERP_SMALL_MONITOR_SLOT
 
 /**
  * Add support for CUDA
@@ -265,6 +253,10 @@
 #define OMR_USE_OSX_SEMAPHORES
 #elif defined(J9ZOS390)
 #define OMR_USE_ZOS_SEMAPHORES
+#endif
+
+#if defined(LINUX) || defined(OSX)
+#define OMR_HAVE_DLADDR
 #endif
 
 /**
