@@ -6754,7 +6754,7 @@ static int32_t numSignatureChars(char *sig)
    char *end = sig;
    while (*end == '[')
       ++end;
-   if (*end != 'L')
+   if (*end != 'L' && *end != 'Q')
       return end-sig+1;
    return strchr(end,';')-sig+1;
    }
