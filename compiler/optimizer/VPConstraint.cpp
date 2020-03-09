@@ -864,6 +864,7 @@ TR::VPConstraint *TR::VPConstraint::create(OMR::ValuePropagation *vp, const char
    switch (sig[0])
       {
       case 'L':
+      case 'Q':
       case '[':
          return TR::VPClassType::create(vp, sig, len, method, isFixedClass);
       case 'B':
@@ -3392,8 +3393,8 @@ TR::VPConstraint *TR::VPResolvedClass::intersect1(TR::VPConstraint *other, OMR::
             otherLen--;
             }
 
-         if (((*thisSig != 'L') && (*thisSig != '[')) &&
-             ((*otherSig == 'L') || (*otherSig == '[')))
+         if (((*thisSig != 'L') && (*thisSig != '[') && (*thisSig != 'Q')) &&
+             ((*otherSig == 'L') || (*otherSig == '[') || (*otherSig == 'Q')))
             return NULL;
 
          return this;
@@ -3494,7 +3495,7 @@ TR::VPConstraint *TR::VPFixedClass::intersect1(TR::VPConstraint *other, OMR::Val
             otherLen--;
             }
 
-         if ((*thisSig != 'L') && ((*otherSig == 'L') || (*otherSig == '[')))
+         if ((*thisSig != 'L') && (*thisSig != 'Q') && ((*otherSig == 'L') || (*otherSig == '[') || (*otherSig == 'Q')))
             return NULL;
 
          // retain the fact that its a fixed type
