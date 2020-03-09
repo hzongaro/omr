@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2013, 2019 IBM Corp. and others
+ * Copyright (c) 2013, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -41,15 +41,15 @@
 #define OMR_COMPATIBLE_FUNCTION_POINTER(fp) ((void*)(fp))
 #endif /* J9ZOS390 */
 
-#if !defined(OMR_GC_COMPRESSED_POINTERS)
-#define OMR_GC_FULL_POINTERS
-#endif /* !defined(OMR_GC_COMPRESSED_POINTERS) */
+#if !(defined(OMR_GC_COMPRESSED_POINTERS) || defined(OMR_GC_FULL_POINTERS))
+#error One or both of OMR_GC_COMPRESSED_POINTERS and OMR_GC_FULL_POINTERS must be defined
+#endif /* !(defined(OMR_GC_COMPRESSED_POINTERS) || defined(OMR_GC_FULL_POINTERS)) */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define OMR_OS_STACK_SIZE 256 * 1024 /* Corresponds to desktopBigStack in builder */
+#define OMR_OS_STACK_SIZE (256 * 1024)
 
 typedef enum {
 	OMR_ERROR_NONE = 0,
