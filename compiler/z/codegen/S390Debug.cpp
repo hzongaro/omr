@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -279,6 +279,9 @@ TR_Debug::printz(TR::FILE *pOutFile, TR::Instruction * instr)
          break;
       case TR::Instruction::IsNOP:
          print(pOutFile, (TR::S390NOPInstruction *) instr);
+         break;
+      case TR::Instruction::IsAlignmentNop:
+         print(pOutFile, (TR::S390AlignmentNopInstruction *) instr);
          break;
 #ifdef J9_PROJECT_SPECIFIC
       case TR::Instruction::IsVirtualGuardNOP:
@@ -700,7 +703,7 @@ TR_Debug::print(TR::FILE *pOutFile, TR::S390LabelInstruction * instr)
       if (instr->getCallSnippet())
          {
          print(pOutFile, instr->getCallSnippet()->getSnippetLabel());
-         intptrj_t labelLoc = (intptrj_t) instr->getCallSnippet()->getSnippetLabel()->getCodeLocation();
+         intptr_t labelLoc = (intptr_t) instr->getCallSnippet()->getSnippetLabel()->getCodeLocation();
          if (labelLoc)
             {
             trfprintf(pOutFile, ", labelTargetAddr=0x%p", labelLoc);
@@ -709,7 +712,7 @@ TR_Debug::print(TR::FILE *pOutFile, TR::S390LabelInstruction * instr)
       else
          {
          print(pOutFile, instr->getLabelSymbol());
-         intptrj_t labelLoc = (intptrj_t) instr->getLabelSymbol()->getCodeLocation();
+         intptr_t labelLoc = (intptr_t) instr->getLabelSymbol()->getCodeLocation();
          if (labelLoc)
             {
             trfprintf(pOutFile, ", labelTargetAddr=0x%p", labelLoc);
@@ -734,7 +737,7 @@ TR_Debug::print(TR::FILE *pOutFile, TR::S390VirtualGuardNOPInstruction * instr)
    else
       trfprintf(pOutFile, "VGNOP \t");
    print(pOutFile, instr->getLabelSymbol());
-   intptrj_t labelLoc = (intptrj_t) instr->getLabelSymbol()->getCodeLocation();
+   intptr_t labelLoc = (intptr_t) instr->getLabelSymbol()->getCodeLocation();
    if (labelLoc)
       {
       trfprintf(pOutFile, ", labelTargetAddr=0x%p", labelLoc);
@@ -765,7 +768,7 @@ TR_Debug::print(TR::FILE *pOutFile, TR::S390BranchInstruction * instr)
     if (instr->getCallSnippet())
        {
        print(pOutFile, instr->getCallSnippet()->getSnippetLabel());
-       intptrj_t labelLoc = (intptrj_t) instr->getCallSnippet()->getSnippetLabel()->getCodeLocation();
+       intptr_t labelLoc = (intptr_t) instr->getCallSnippet()->getSnippetLabel()->getCodeLocation();
        if (labelLoc)
           {
           trfprintf(pOutFile, ", labelTargetAddr=0x%p", labelLoc);
@@ -774,7 +777,7 @@ TR_Debug::print(TR::FILE *pOutFile, TR::S390BranchInstruction * instr)
     else
        {
        print(pOutFile, instr->getLabelSymbol());
-       intptrj_t labelLoc = (intptrj_t) instr->getLabelSymbol()->getCodeLocation();
+       intptr_t labelLoc = (intptr_t) instr->getLabelSymbol()->getCodeLocation();
        if (labelLoc)
           {
           trfprintf(pOutFile, ", labelTargetAddr=0x%p", labelLoc);
@@ -796,7 +799,7 @@ TR_Debug::print(TR::FILE *pOutFile, TR::S390BranchOnCountInstruction * instr)
    print(pOutFile, instr->getRegisterOperand(1));
    trfprintf(pOutFile, ",");
    print(pOutFile, instr->getLabelSymbol());
-   intptrj_t labelLoc = (intptrj_t) instr->getLabelSymbol()->getCodeLocation();
+   intptr_t labelLoc = (intptr_t) instr->getLabelSymbol()->getCodeLocation();
    if (labelLoc)
       {
       trfprintf(pOutFile, ", labelTargetAddr=0x%p", labelLoc);
@@ -832,7 +835,7 @@ TR_Debug::print(TR::FILE *pOutFile, TR::S390BranchOnIndexInstruction * instr)
       }
    trfprintf(pOutFile, ",");
    print(pOutFile, instr->getLabelSymbol());
-   intptrj_t labelLoc = (intptrj_t) instr->getLabelSymbol()->getCodeLocation();
+   intptr_t labelLoc = (intptr_t) instr->getLabelSymbol()->getCodeLocation();
    if (labelLoc)
       {
       trfprintf(pOutFile, ", labelTargetAddr=0x%p", labelLoc);
@@ -1213,8 +1216,8 @@ TR_Debug::print(TR::FILE *pOutFile, TR::S390RILInstruction * instr)
          {
          if (*cursor == 0x18) cursor += 2; //if padding NOP, skip it
          int32_t offsetInHalfWords =(int32_t) (*((int32_t *)(cursor+2)));
-         intptrj_t offset = ((intptrj_t)offsetInHalfWords) * 2;
-         intptrj_t targetAddress = (intptrj_t)cursor + offset;
+         intptr_t offset = ((intptr_t)offsetInHalfWords) * 2;
+         intptr_t targetAddress = (intptr_t)cursor + offset;
          if (_comp->target().is32Bit())
             targetAddress &= 0x7FFFFFFF;
 
@@ -1760,8 +1763,8 @@ TR_Debug::print(TR::FILE *pOutFile, TR::S390MIIInstruction * instr)
       {
       int32_t offsetInHalfWords =(int32_t) (*((int32_t *)(cursor+3)));
       offsetInHalfWords = offsetInHalfWords >> 8;
-      intptrj_t offset = ((intptrj_t)offsetInHalfWords) * 2;
-      intptrj_t targetAddress = (intptrj_t)cursor + offset;
+      intptr_t offset = ((intptr_t)offsetInHalfWords) * 2;
+      intptr_t targetAddress = (intptr_t)cursor + offset;
       if (_comp->target().is32Bit())
          targetAddress &= 0x7FFFFFFF;
       if (offsetInHalfWords<0)
@@ -2130,6 +2133,14 @@ TR_Debug::print(TR::FILE *pOutFile, TR::S390NOPInstruction * instr)
    {
    printPrefix(pOutFile, instr);
    trfprintf(pOutFile, "NOP");
+   trfflush(pOutFile);
+   }
+
+void
+TR_Debug::print(TR::FILE *pOutFile, TR::S390AlignmentNopInstruction * instr)
+   {
+   printPrefix(pOutFile, instr);
+   trfprintf(pOutFile, "%s\t; Align to %u bytes", instr->getOpCode().getMnemonicName(), instr->getAlignment());
    trfflush(pOutFile);
    }
 

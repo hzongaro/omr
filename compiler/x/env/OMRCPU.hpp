@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -57,6 +57,8 @@ protected:
 
 public:
 
+   static TR::CPU detect(OMRPortLibrary * const omrPortLib);
+
    TR_X86CPUIDBuffer *queryX86TargetCPUID();
    const char *getX86ProcessorVendorId();
    uint32_t getX86ProcessorSignature();
@@ -86,7 +88,7 @@ public:
     *
     * @return true if the target is within range; false otherwise.
     */
-   bool isTargetWithinRIPRange(intptrj_t targetAddress, intptrj_t sourceAddress)
+   bool isTargetWithinRIPRange(intptr_t targetAddress, intptr_t sourceAddress)
       {
       return targetAddress == sourceAddress + (int32_t)(targetAddress - sourceAddress);
       }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2020 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -4035,6 +4035,12 @@ generateRegInstruction(TR::Instruction *prev, TR_X86OpCodes op, TR::Register * r
    return new (cg->trHeapMemory()) TR::X86RegInstruction(reg1, op, prev, cg);
    }
 
+TR::X86RegInstruction  *
+generateRegInstruction(TR::Instruction *prev, TR_X86OpCodes op, TR::Register *reg1, TR::RegisterDependencyConditions *cond, TR::CodeGenerator *cg)
+   {
+   return new (cg->trHeapMemory()) TR::X86RegInstruction(cond, reg1, op, prev, cg);
+   }
+
 TR::X86BoundaryAvoidanceInstruction  *
 generateBoundaryAvoidanceInstruction(const TR_AtomicRegion *atomicRegions,
                                      uint8_t                boundarySpacing,
@@ -4463,6 +4469,18 @@ generateImmSymInstruction(TR_X86OpCodes                       op,
    return new (cg->trHeapMemory()) TR::X86ImmSymInstruction(op, node, imm, sr, cond, cg);
    }
 
+TR::X86ImmSymInstruction  *
+generateImmSymInstruction(TR::Instruction *prev, TR_X86OpCodes op, int32_t imm, TR::SymbolReference * sr, TR::CodeGenerator *cg)
+   {
+   return new (cg->trHeapMemory()) TR::X86ImmSymInstruction(prev, op, imm, sr, cg);
+   }
+
+TR::X86ImmSymInstruction  *
+generateImmSymInstruction(TR::Instruction *prev, TR_X86OpCodes op, int32_t imm, TR::SymbolReference *sr, TR::RegisterDependencyConditions *cond, TR::CodeGenerator *cg)
+   {
+   return new (cg->trHeapMemory()) TR::X86ImmSymInstruction(prev, op, imm, sr, cond, cg);
+   }
+
 TR::X86ImmSnippetInstruction  *
 generateImmSnippetInstruction(TR_X86OpCodes op, TR::Node * node, int32_t imm, TR::UnresolvedDataSnippet * snippet, TR::CodeGenerator *cg)
    {
@@ -4498,12 +4516,22 @@ generateCallMemInstruction(TR_X86OpCodes                       op,
    return new (cg->trHeapMemory()) TR::X86CallMemInstruction(op, node, mr, cg);
    }
 
+TR::X86CallMemInstruction  *
+generateCallMemInstruction(TR::Instruction *prevInstr,
+                           TR_X86OpCodes op,
+                           TR::MemoryReference *mr,
+                           TR::RegisterDependencyConditions *cond,
+                           TR::CodeGenerator *cg)
+   {
+   return new (cg->trHeapMemory()) TR::X86CallMemInstruction(prevInstr, op, mr, cond, cg);
+   }
+
 TR::X86ImmSymInstruction  *
 generateHelperCallInstruction(TR::Instruction * cursor, TR_RuntimeHelper index, TR::CodeGenerator *cg)
    {
    TR::SymbolReference * helperSymRef = cg->symRefTab()->findOrCreateRuntimeHelper(index, false, false, false);
    cg->resetIsLeafMethod();
-   return new (cg->trHeapMemory()) TR::X86ImmSymInstruction(cursor, CALLImm4, (uintptrj_t)helperSymRef->getMethodAddress(), helperSymRef, cg);
+   return new (cg->trHeapMemory()) TR::X86ImmSymInstruction(cursor, CALLImm4, (uintptr_t)helperSymRef->getMethodAddress(), helperSymRef, cg);
    }
 
 TR::X86ImmSymInstruction  *
@@ -4514,7 +4542,7 @@ generateHelperCallInstruction(TR::Node * node, TR_RuntimeHelper index, TR::Regis
    return generateImmSymInstruction(
          CALLImm4,
          node,
-         (uintptrj_t)helperSymRef->getMethodAddress(),
+         (uintptr_t)helperSymRef->getMethodAddress(),
          helperSymRef,
          dependencies,
          cg);

@@ -2383,13 +2383,13 @@ class S390RILInstruction : public TR::Instruction
    bool isImmediateOffsetInBytes() {return _flagsRIL.testAny(isImmediateOffsetInBytesFlag); }
    void setIsImmediateOffsetInBytes() { _flagsRIL.set(isImmediateOffsetInBytesFlag);}
 
-   uintptrj_t getTargetPtr()
-      { return  reinterpret_cast<uintptrj_t>(_targetPtr); }
-   uintptrj_t setTargetPtr(uintptrj_t tp)
+   uintptr_t getTargetPtr()
+      { return  reinterpret_cast<uintptr_t>(_targetPtr); }
+   uintptr_t setTargetPtr(uintptr_t tp)
       { TR_ASSERT(!isImmediateOffsetInBytes(), "Immediate Offset already set on RIL instruction."); _targetPtr = reinterpret_cast<void*>(tp); return tp; }
-   uintptrj_t getImmediateOffsetInBytes()
-      { TR_ASSERT(isImmediateOffsetInBytes(), "Immediate Offset not set for RIL Instruction."); return reinterpret_cast<uintptrj_t>(_targetPtr); }
-   uintptrj_t setImmediateOffsetInBytes(uintptrj_t tp)
+   uintptr_t getImmediateOffsetInBytes()
+      { TR_ASSERT(isImmediateOffsetInBytes(), "Immediate Offset not set for RIL Instruction."); return reinterpret_cast<uintptr_t>(_targetPtr); }
+   uintptr_t setImmediateOffsetInBytes(uintptr_t tp)
       { setIsImmediateOffsetInBytes(); _targetPtr = reinterpret_cast<void*>(tp); return tp; }
    TR::Snippet *getTargetSnippet()
       { return _targetSnippet; }
@@ -6069,6 +6069,39 @@ class S390NOPInstruction : public TR::Instruction
 
    virtual char *description() { return "S390NOPInstruction"; }
    virtual Kind getKind() { return IsNOP; }
+
+   virtual int32_t estimateBinaryLength(int32_t currentEstimate);
+   virtual uint8_t *generateBinaryEncoding();
+
+   };
+
+class S390AlignmentNopInstruction : public TR::Instruction
+   {
+   uint32_t _alignment;
+
+   void setAlignment(uint32_t alignment)
+      {
+      TR_ASSERT_FATAL((alignment % 2) == 0, "Alignment must be a multiple of 2");
+      _alignment = alignment != 0 ? alignment : 2;
+      }
+
+public:
+   S390AlignmentNopInstruction(TR::Node *n, uint32_t alignment, TR::CodeGenerator *cg)
+      : TR::Instruction(TR::InstOpCode::NOP, n, cg)
+      {
+      setAlignment(alignment);
+      }
+
+   S390AlignmentNopInstruction(TR::Node *n, uint32_t alignment, TR::Instruction *precedingInstruction, TR::CodeGenerator *cg)
+      : TR::Instruction(TR::InstOpCode::NOP, n, precedingInstruction, cg)
+      {
+      setAlignment(alignment);
+      }
+
+   virtual char *description() { return "S390AlignmentNopInstruction"; }
+   virtual Kind getKind() { return IsAlignmentNop; }
+
+   uint32_t getAlignment() { return _alignment; }
 
    virtual int32_t estimateBinaryLength(int32_t currentEstimate);
    virtual uint8_t *generateBinaryEncoding();

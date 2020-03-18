@@ -69,6 +69,8 @@ class OMR_EXTENSIBLE CPU : public OMR::CPU
     */
    static const char* getProcessorName(int32_t machineId);
 
+   static TR::CPU detect(OMRPortLibrary * const omrPortLib);
+
    public:
 
    bool getSupportsArch(Architecture arch);
@@ -256,11 +258,11 @@ class OMR_EXTENSIBLE CPU : public OMR::CPU
     *
     * @return true if the target is within range; false otherwise.
     */
-   bool isTargetWithinBranchRelativeRILRange(intptrj_t targetAddress, intptrj_t sourceAddress);
+   bool isTargetWithinBranchRelativeRILRange(intptr_t targetAddress, intptr_t sourceAddress);
 
    protected:
 
-   CPU();
+   CPU() : OMR::CPU(), _supportedArch(z9) {}
    CPU(const OMRProcessorDesc& processorDescription) : OMR::CPU(processorDescription) {}
 
    enum

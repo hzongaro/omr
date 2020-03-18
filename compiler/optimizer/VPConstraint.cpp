@@ -250,7 +250,7 @@ bool TR::VPConstraint::isConstString()
 // intersects with it results in a null type. It is
 // not meant to be propagated during the analysis
 //
-bool TR::VPConstraint::isSpecialClass(uintptrj_t klass)
+bool TR::VPConstraint::isSpecialClass(uintptr_t klass)
    {
    if (klass == VP_SPECIALKLASS)
       return true;
@@ -636,7 +636,7 @@ TR_YesNoMaybe TR::VPClassType::isArray()
 TR::VPResolvedClass::VPResolvedClass(TR_OpaqueClassBlock *klass, TR::Compilation * comp)
    : TR::VPClassType(ResolvedClassPriority), _class(klass)
    {
-   if (TR::VPConstraint::isSpecialClass((uintptrj_t)klass))
+   if (TR::VPConstraint::isSpecialClass((uintptr_t)klass))
       { _len = 0; _sig = 0; }
    else
       _sig = TR::Compiler->cls.classSignature_DEPRECATED(comp, klass, _len, comp->trMemory());
@@ -645,7 +645,7 @@ TR::VPResolvedClass::VPResolvedClass(TR_OpaqueClassBlock *klass, TR::Compilation
 TR::VPResolvedClass::VPResolvedClass(TR_OpaqueClassBlock *klass, TR::Compilation * comp, int32_t p)
    : TR::VPClassType(p), _class(klass)
    {
-   if (TR::VPConstraint::isSpecialClass((uintptrj_t)klass))
+   if (TR::VPConstraint::isSpecialClass((uintptr_t)klass))
       { _len = 0; _sig = 0; }
    else
       _sig = TR::Compiler->cls.classSignature_DEPRECATED(comp, klass, _len, comp->trMemory());
@@ -1155,11 +1155,11 @@ TR::VPConstraint *TR::VPClass::create(OMR::ValuePropagation *vp, TR::VPClassType
        && type != NULL
        && type->asFixedClass() != NULL
        && type->asKnownObject() == NULL
-       && !isSpecialClass((uintptrj_t)type->getClass()))
+       && !isSpecialClass((uintptr_t)type->getClass()))
       {
       TR_J9VMBase *fej9 = (TR_J9VMBase *)(vp->comp()->fe());
-      uintptrj_t objRefOffs = fej9->getOffsetOfJavaLangClassFromClassField();
-      uintptrj_t *objRef = (uintptrj_t*)(type->getClass() + objRefOffs);
+      uintptr_t objRefOffs = fej9->getOffsetOfJavaLangClassFromClassField();
+      uintptr_t *objRef = (uintptr_t*)(type->getClass() + objRefOffs);
       TR::KnownObjectTable::Index index = knot->getIndexAt(objRef);
       type = TR::VPKnownObject::createForJavaLangClass(vp, index);
       }
@@ -1167,8 +1167,8 @@ TR::VPConstraint *TR::VPClass::create(OMR::ValuePropagation *vp, TR::VPClassType
 
    // If the constraint does not already exist, create it
    //
-   int32_t hash = (((int32_t)(intptrj_t)type)>>2) + (((int32_t)(intptrj_t)presence)>>2) + (((int32_t)(intptrj_t)preexistence)>>2) +
-      (((int32_t)(intptrj_t)arrayInfo)>>2) + (((int32_t)(intptrj_t)location)>>2);
+   int32_t hash = (((int32_t)(intptr_t)type)>>2) + (((int32_t)(intptr_t)presence)>>2) + (((int32_t)(intptr_t)preexistence)>>2) +
+      (((int32_t)(intptr_t)arrayInfo)>>2) + (((int32_t)(intptr_t)location)>>2);
    hash = ((uint32_t)hash) % VP_HASH_TABLE_SIZE;
    TR::VPClass *constraint;
    OMR::ValuePropagation::ConstraintsHashTableEntry *entry;
@@ -1234,7 +1234,7 @@ TR::VPResolvedClass *TR::VPResolvedClass::create(OMR::ValuePropagation *vp, TR_O
    {
    // If the class is final, we really want to make this a fixed class
    //
-   if (!TR::VPConstraint::isSpecialClass((uintptrj_t)klass) && TR::Compiler->cls.isClassFinal(vp->comp(), klass))
+   if (!TR::VPConstraint::isSpecialClass((uintptr_t)klass) && TR::Compiler->cls.isClassFinal(vp->comp(), klass))
       {
       if (TR::Compiler->cls.isClassArray(vp->comp(), klass))
          {
@@ -1250,7 +1250,7 @@ TR::VPResolvedClass *TR::VPResolvedClass::create(OMR::ValuePropagation *vp, TR_O
 
    // If the constraint does not already exist, create it
    //
-   int32_t hash = (int32_t)((((uintptrj_t)klass) >> 2) % VP_HASH_TABLE_SIZE);
+   int32_t hash = (int32_t)((((uintptr_t)klass) >> 2) % VP_HASH_TABLE_SIZE);
    TR::VPResolvedClass *constraint;
    OMR::ValuePropagation::ConstraintsHashTableEntry *entry;
    for (entry = vp->_constraintsHashTable[hash]; entry; entry = entry->next)
@@ -1269,7 +1269,7 @@ TR::VPFixedClass *TR::VPFixedClass::create(OMR::ValuePropagation *vp, TR_OpaqueC
    {
    // If the constraint does not already exist, create it
    //
-   int32_t hash = (int32_t)((((uintptrj_t)klass) << 2) % VP_HASH_TABLE_SIZE);
+   int32_t hash = (int32_t)((((uintptr_t)klass) << 2) % VP_HASH_TABLE_SIZE);
    TR::VPFixedClass *constraint;
    OMR::ValuePropagation::ConstraintsHashTableEntry *entry;
    for (entry = vp->_constraintsHashTable[hash]; entry; entry = entry->next)
@@ -1342,13 +1342,13 @@ TR::VPConstString *TR::VPConstString::create(OMR::ValuePropagation *vp, TR::Symb
 
    if (vpConstStringCriticalSection.hasVMAccess())
       {
-      uintptrj_t stringStaticAddr = (uintptrj_t) symRef->getSymbol()->castToStaticSymbol()->getStaticAddress();
-      uintptrj_t string = vp->comp()->fej9()->getStaticReferenceFieldAtAddress(stringStaticAddr);
+      uintptr_t stringStaticAddr = (uintptr_t) symRef->getSymbol()->castToStaticSymbol()->getStaticAddress();
+      uintptr_t string = vp->comp()->fej9()->getStaticReferenceFieldAtAddress(stringStaticAddr);
       // with no vmaccess, staticAddress cannot be guaranteed to remain the same
       // during the analysis. so use a different hash input
       //
-      ////int32_t hash = ((uintptrj_t)string >> 2) % VP_HASH_TABLE_SIZE;
-      ////int32_t hash = ((uintptrj_t)(symRef->getSymbol()->castToStaticSymbol()) >> 2) % VP_HASH_TABLE_SIZE;
+      ////int32_t hash = ((uintptr_t)string >> 2) % VP_HASH_TABLE_SIZE;
+      ////int32_t hash = ((uintptr_t)(symRef->getSymbol()->castToStaticSymbol()) >> 2) % VP_HASH_TABLE_SIZE;
 
       // since vmaccess has been acquired already, chars cannot be null
       //
@@ -1358,7 +1358,7 @@ TR::VPConstString *TR::VPConstString::create(OMR::ValuePropagation *vp, TR::Symb
       for (int32_t i = 0; i < len && i < TR_MAX_CHARS_FOR_HASH; i++)
          hashValue += TR::Compiler->cls.getStringCharacter(vp->comp(), string, i);
 
-      int32_t hash = (int32_t)(((uintptrj_t)hashValue) % VP_HASH_TABLE_SIZE);
+      int32_t hash = (int32_t)(((uintptr_t)hashValue) % VP_HASH_TABLE_SIZE);
 
       OMR::ValuePropagation::ConstraintsHashTableEntry *entry;
       TR::VPConstString *constraint;
@@ -1367,7 +1367,7 @@ TR::VPConstString *TR::VPConstString::create(OMR::ValuePropagation *vp, TR::Symb
          constraint = entry->constraint->asConstString();
          if (constraint)
             {
-            uintptrj_t constraintStaticAddr = (uintptrj_t)constraint->_symRef->getSymbol()->castToStaticSymbol()->getStaticAddress();
+            uintptr_t constraintStaticAddr = (uintptr_t)constraint->_symRef->getSymbol()->castToStaticSymbol()->getStaticAddress();
             if (string == vp->comp()->fej9()->getStaticReferenceFieldAtAddress(constraintStaticAddr))
                {
                return constraint;
@@ -1391,8 +1391,8 @@ uint16_t TR::VPConstString::charAt(int32_t i, TR::Compilation * comp)
                                                       TR::VMAccessCriticalSection::tryToAcquireVMAccess);
    if (charAtCriticalSection.hasVMAccess())
       {
-      uintptrj_t stringStaticAddr = (uintptrj_t)_symRef->getSymbol()->castToStaticSymbol()->getStaticAddress();
-      uintptrj_t string = comp->fej9()->getStaticReferenceFieldAtAddress(stringStaticAddr);
+      uintptr_t stringStaticAddr = (uintptr_t)_symRef->getSymbol()->castToStaticSymbol()->getStaticAddress();
+      uintptr_t string = comp->fej9()->getStaticReferenceFieldAtAddress(stringStaticAddr);
       int32_t len = comp->fej9()->getStringLength(string);
       bool canRead = true;
       if (i < 0 || i >= len)
@@ -1414,7 +1414,7 @@ TR::VPUnresolvedClass *TR::VPUnresolvedClass::create(OMR::ValuePropagation *vp, 
    {
    // If the constraint does not already exist, create it
    //
-   int32_t hash = (((uint32_t)(uintptrj_t)method >> 2) + len) % VP_HASH_TABLE_SIZE;
+   int32_t hash = (((uint32_t)(uintptr_t)method >> 2) + len) % VP_HASH_TABLE_SIZE;
    TR::VPUnresolvedClass *constraint;
    OMR::ValuePropagation::ConstraintsHashTableEntry *entry;
    for (entry = vp->_constraintsHashTable[hash]; entry; entry = entry->next)
@@ -1445,7 +1445,7 @@ TR::VPNonNullObject *TR::VPNonNullObject::create(OMR::ValuePropagation *vp)
 TR::VPPreexistentObject *TR::VPPreexistentObject::create(OMR::ValuePropagation *vp, TR_OpaqueClassBlock *c)
    {
    TR_ASSERT(vp->comp()->ilGenRequest().details().supportsInvalidation(), "Can't use TR::VPPreexistentObject unless the compiled method supports invalidation");
-   int32_t hash = (int32_t)((((uintptrj_t)c) << 2) % VP_HASH_TABLE_SIZE);
+   int32_t hash = (int32_t)((((uintptr_t)c) << 2) % VP_HASH_TABLE_SIZE);
    TR::VPPreexistentObject *constraint;
    OMR::ValuePropagation::ConstraintsHashTableEntry *entry;
    for (entry = vp->_constraintsHashTable[hash]; entry; entry = entry->next)
@@ -1498,7 +1498,7 @@ TR::VPMergedConstraints *TR::VPMergedConstraints::create(OMR::ValuePropagation *
    {
    // If the constraint does not already exist, create it
    //
-   int32_t hash = (int32_t)(((((uintptrj_t)first) >> 2) + (((uintptrj_t)second) >> 2)) % VP_HASH_TABLE_SIZE);
+   int32_t hash = (int32_t)(((((uintptr_t)first) >> 2) + (((uintptr_t)second) >> 2)) % VP_HASH_TABLE_SIZE);
 
    TR::VPMergedConstraints *constraint;
    OMR::ValuePropagation::ConstraintsHashTableEntry *entry;
@@ -1558,7 +1558,7 @@ TR::VPMergedConstraints *TR::VPMergedConstraints::create(OMR::ValuePropagation *
       {
       if (!p1->getData()->isUnsigned())
          allUnsigned = false;
-      hash += (int32_t)(((uintptrj_t)(p1->getData())) >> 2);
+      hash += (int32_t)(((uintptr_t)(p1->getData())) >> 2);
       }
    hash = ((uint32_t)hash) % VP_HASH_TABLE_SIZE;
 
@@ -1995,7 +1995,7 @@ TR::VPConstraint *TR::VPKnownObject::merge1(TR::VPConstraint *other, OMR::ValueP
       // - even if they don't match, we may have, e.g. fixed class String.
       TR::KnownObjectTable *knot = vp->comp()->getKnownObjectTable();
       TR_ASSERT(knot, "Can't create a TR::VPKnownObject without a known-object table");
-      if (getIndex() == knot->getExistingIndexAt((uintptrj_t*)otherConstString->getSymRef()->getSymbol()->castToStaticSymbol()->getStaticAddress()))
+      if (getIndex() == knot->getExistingIndexAt((uintptr_t*)otherConstString->getSymRef()->getSymbol()->castToStaticSymbol()->getStaticAddress()))
          {
          // Now we're in an interesting position: which is stronger?  A
          // TR::VPConstString, or a TR::VPKnownObject on the same object?
@@ -2944,7 +2944,7 @@ TR::VPClassType *TR::VPClassType::classTypesCompatible(TR::VPClassType * otherTy
 // it is called directly by handlers for instanceOf, checkCast
 void TR::VPClass::typeIntersect(TR::VPClassPresence* &presence, TR::VPClassType* &type, TR::VPConstraint *other, OMR::ValuePropagation *vp)
    {
-   if (type && TR::VPConstraint::isSpecialClass((uintptrj_t)type->getClass()))
+   if (type && TR::VPConstraint::isSpecialClass((uintptr_t)type->getClass()))
       type = NULL;
 
    if (other->asClass())
@@ -2970,13 +2970,13 @@ void TR::VPClass::typeIntersect(TR::VPClassPresence* &presence, TR::VPClassType*
       if (presence && presence->isNullObject())
          return;
 
-      if (otherClass->_type && TR::VPConstraint::isSpecialClass((uintptrj_t)otherClass->_type->getClass()))
+      if (otherClass->_type && TR::VPConstraint::isSpecialClass((uintptr_t)otherClass->_type->getClass()))
          type = NULL;
       else if (type)
          {
          // any type intersecting with the specialClass will result
          // in no type
-         if (TR::VPConstraint::isSpecialClass((uintptrj_t)type->getClass()))
+         if (TR::VPConstraint::isSpecialClass((uintptr_t)type->getClass()))
             type = NULL;
          else if (otherClass->_type)
             {
@@ -3081,13 +3081,13 @@ void TR::VPClass::typeIntersect(TR::VPClassPresence* &presence, TR::VPClassType*
       {
       bool classTypeFound = false;
       TR::VPClassType *otherType = other->asClassType();
-      if (TR::VPConstraint::isSpecialClass((uintptrj_t)otherType->getClass()))
+      if (TR::VPConstraint::isSpecialClass((uintptr_t)otherType->getClass()))
          type = NULL;
       else if (type)
          {
          ///if (otherType && otherType->isClassObject() == TR_yes)
          ///   dumpOptDetails(vp->comp(), "type is classobject: %d\n", TR_yes);
-         if (TR::VPConstraint::isSpecialClass((uintptrj_t)type->getClass()))
+         if (TR::VPConstraint::isSpecialClass((uintptr_t)type->getClass()))
             {
             type = NULL;
             classTypeFound = true;
@@ -3168,7 +3168,7 @@ TR::VPConstraint *TR::VPClass::intersect1(TR::VPConstraint *other, OMR::ValuePro
       // represented class, about which nonClassObj has no information.
       // Make sure to avoid propagating the "special class" constraint.
       type = classObj->getClassType();
-      if (type != NULL && isSpecialClass((uintptrj_t)type->getClass()))
+      if (type != NULL && isSpecialClass((uintptr_t)type->getClass()))
          type = NULL;
 
       arrayInfo = NULL; // doesn't apply to classes
@@ -3190,8 +3190,8 @@ TR::VPConstraint *TR::VPClass::intersect1(TR::VPConstraint *other, OMR::ValuePro
       // If intersection of types failed, return null
       if (!type && _type && otherClass->_type)
          {
-         if (TR::VPConstraint::isSpecialClass((uintptrj_t)_type->getClass()) ||
-               TR::VPConstraint::isSpecialClass((uintptrj_t)otherClass->_type->getClass()))
+         if (TR::VPConstraint::isSpecialClass((uintptr_t)_type->getClass()) ||
+               TR::VPConstraint::isSpecialClass((uintptr_t)otherClass->_type->getClass()))
             ; // do nothing
          else if ((_presence && _presence->isNonNullObject()) || (other->asClassPresence() && other->asClassPresence()->isNonNullObject()))
             return NULL;
@@ -3238,8 +3238,8 @@ TR::VPConstraint *TR::VPClass::intersect1(TR::VPConstraint *other, OMR::ValuePro
       // If intersection of types failed, return null
       if (!type && _type && otherType)
          {
-         if (TR::VPConstraint::isSpecialClass((uintptrj_t)_type->getClass()) ||
-               TR::VPConstraint::isSpecialClass((uintptrj_t)otherType->getClass()))
+         if (TR::VPConstraint::isSpecialClass((uintptr_t)_type->getClass()) ||
+               TR::VPConstraint::isSpecialClass((uintptr_t)otherType->getClass()))
             ; // do nothing
          else if (_presence && _presence->isNonNullObject())
             return NULL;
@@ -3496,7 +3496,10 @@ TR::VPConstraint *TR::VPFixedClass::intersect1(TR::VPConstraint *other, OMR::Val
             }
 
          if ((*thisSig != 'L') && (*thisSig != 'Q') && ((*otherSig == 'L') || (*otherSig == '[') || (*otherSig == 'Q')))
-            return NULL;
+            {
+            if (! ((*thisSig == '[') && (otherLen == 18 && !strncmp(otherSig, "Ljava/lang/Object;", 18))) )
+               return NULL;
+            }
 
          // retain the fact that its a fixed type
          return this;
@@ -3557,7 +3560,7 @@ TR::VPConstraint *TR::VPKnownObject::intersect1(TR::VPConstraint *other, OMR::Va
       // - known object should be more specific (though it allows null).
       TR::KnownObjectTable *knot = vp->comp()->getKnownObjectTable();
       TR_ASSERT(knot, "Can't create a TR::VPKnownObject without a known-object table");
-      if (getIndex() == knot->getIndexAt((uintptrj_t*)otherConstString->getSymRef()->getSymbol()->castToStaticSymbol()->getStaticAddress()))
+      if (getIndex() == knot->getIndexAt((uintptr_t*)otherConstString->getSymRef()->getSymbol()->castToStaticSymbol()->getStaticAddress()))
          return other; // A const string constraint is more specific than known object
       else
          return NULL; // Two different objects
@@ -5795,7 +5798,7 @@ void TR::VPResolvedClass::print(TR::Compilation *comp, TR::FILE *outFile)
 
    int32_t len = _len;
    const char *sig = _sig;
-   if (isSpecialClass((uintptrj_t)_class))
+   if (isSpecialClass((uintptr_t)_class))
       {
       sig = "<special>";
       len = strlen(sig);
@@ -5825,8 +5828,8 @@ void TR::VPConstString::print(TR::Compilation * comp, TR::FILE *outFile)
                                                                      TR::VMAccessCriticalSection::tryToAcquireVMAccess);
       if (vpConstStringPrintCriticalSection.hasVMAccess())
          {
-         uintptrj_t stringStaticAddr = (uintptrj_t)_symRef->getSymbol()->castToStaticSymbol()->getStaticAddress();
-         uintptrj_t string = comp->fej9()->getStaticReferenceFieldAtAddress(stringStaticAddr);
+         uintptr_t stringStaticAddr = (uintptr_t)_symRef->getSymbol()->castToStaticSymbol()->getStaticAddress();
+         uintptr_t string = comp->fej9()->getStaticReferenceFieldAtAddress(stringStaticAddr);
          int32_t len = comp->fej9()->getStringLength(string);
          for (int32_t i = 0; i < len; ++i)
             trfprintf(outFile, "%c", TR::Compiler->cls.getStringCharacter(comp, string, i));

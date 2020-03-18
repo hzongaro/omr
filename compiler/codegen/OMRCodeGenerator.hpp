@@ -552,7 +552,7 @@ class OMR_EXTENSIBLE CodeGenerator
    // --------------------------------------------------------------------------
    // P only
    //
-   intptrj_t hiValue(intptrj_t address);
+   intptr_t hiValue(intptr_t address);
 
    // --------------------------------------------------------------------------
    // Lower trees
@@ -1394,7 +1394,7 @@ class OMR_EXTENSIBLE CodeGenerator
     *
     * @return : true, but will assert fatally before returning.
     */
-   bool directCallRequiresTrampoline(intptrj_t targetAddress, intptrj_t sourceAddress)
+   bool directCallRequiresTrampoline(intptr_t targetAddress, intptr_t sourceAddress)
       {
       TR_ASSERT_FATAL(0, "An architecture specialization of this function must be provided.");
       return true;
@@ -1506,7 +1506,6 @@ class OMR_EXTENSIBLE CodeGenerator
    bool getSupportsArrayTranslateTRxx() {return _flags2.testAny(SupportsArrayTranslate);}
    void setSupportsArrayTranslateTRxx() {_flags2.set(SupportsArrayTranslate);}
 
-   bool getSupportsTernary() {return _flags2.testAny(SupportsSelect);}
    bool getSupportsSelect() {return _flags2.testAny(SupportsSelect);}
    void setSupportsSelect() {_flags2.set(SupportsSelect);}
 
