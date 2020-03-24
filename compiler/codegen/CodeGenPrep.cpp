@@ -238,6 +238,8 @@ lowerNewValue(TR::Compilation *comp, TR::Node *node, TR::TreeTop *tt)
    // Transmute newvalue node into new.
    // Importantly, the helper symref of the newvalue node is preserved.
    TR::Node::recreate(node, TR::New);
+   node->setCanSkipZeroInitialization(true);
+   node->setIdentityless(false);
 
    auto* valueClass = static_cast<TR_OpaqueClassBlock *>(node->getFirstChild()->getSymbol()->getStaticSymbol()->getStaticAddress());
    const TR::TypeLayout* typeLayout = comp->typeLayout(valueClass);
