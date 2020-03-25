@@ -105,8 +105,6 @@ typedef uint16_t   vcount_t;
 #define TR_MAX_CHARS_FOR_HASH 32
 #define TR_DECIMAL_HASH 7
 
-/// to be removed when the downstream project is properly updated
-#define OLD_MONITOR_API 1
 /// used to indicate the monitor object is identity type
 #define IDENTITY_CLASS_PLACEHOLDER -1
 
