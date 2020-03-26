@@ -83,6 +83,20 @@ public:
    bool isPrimitiveClass(TR::Compilation *comp, TR_OpaqueClassBlock *clazz) { return false; }
    bool isAnonymousClass(TR::Compilation *comp, TR_OpaqueClassBlock *clazz) { return false; }
    bool isValueTypeClass(TR_OpaqueClassBlock *) { return false; }
+
+   /**
+    * \brief
+    *    Checks whether the specified class has fields that are value types that have not been expanded
+    *    (flattened) into their own components.
+    *
+    * \param clazz
+    *    The class that is to be checked for unflattened value type fields
+    *
+    * \return
+    *    `true` if the specified class has unexpanded value type fields;
+    *    `false` otherwise
+    */
+   bool hasUnflattenedValueTypeField(TR_OpaqueClassBlock *clazz) { return false; }
    bool isPrimitiveArray(TR::Compilation *comp, TR_OpaqueClassBlock *) { return false; }
    bool isReferenceArray(TR::Compilation *comp, TR_OpaqueClassBlock *) { return false; }
    bool isClassArray(TR::Compilation *comp, TR_OpaqueClassBlock *) { return false; }
