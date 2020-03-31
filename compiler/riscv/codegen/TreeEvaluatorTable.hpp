@@ -128,15 +128,15 @@
     TR::TreeEvaluator::ddivEvaluator, // TR::ddiv		// divide 2 doubles                 (child1 / child2)
     TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::bdivEvaluator ,	// TR::bdiv		// divide 2 bytes                   (child1 / child2)
     TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::sdivEvaluator ,	// TR::sdiv		// divide 2 short integers          (child1 / child2)
-    TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::iudivEvaluator ,	// TR::iudiv		// divide 2 unsigned integers       (child1 / child2)
-    TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::ludivEvaluator ,	// TR::ludiv		// divide 2 unsigned long integers  (child1 / child2)
+    TR::TreeEvaluator::iudivEvaluator ,	// TR::iudiv		// divide 2 unsigned integers       (child1 / child2)
+    TR::TreeEvaluator::ludivEvaluator ,	// TR::ludiv		// divide 2 unsigned long integers  (child1 / child2)
     TR::TreeEvaluator::iremEvaluator, // TR::irem		// remainder of 2 integers                (child1 % child2)
     TR::TreeEvaluator::lremEvaluator, // TR::lrem		// remainder of 2 long integers           (child1 % child2)
     TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::fremEvaluator ,	// TR::frem		// remainder of 2 floats                  (child1 % child2)
     TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::dremEvaluator ,	// TR::drem		// remainder of 2 doubles                 (child1 % child2)
     TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::bremEvaluator ,	// TR::brem		// remainder of 2 bytes                   (child1 % child2)
     TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::sremEvaluator ,	// TR::srem		// remainder of 2 short integers          (child1 % child2)
-    TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::iuremEvaluator ,	// TR::iurem		// remainder of 2 unsigned integers       (child1 % child2)
+    TR::TreeEvaluator::iuremEvaluator ,	// TR::iurem		// remainder of 2 unsigned integers       (child1 % child2)
     TR::TreeEvaluator::inegEvaluator, // TR::ineg		// negate an integer
     TR::TreeEvaluator::inegEvaluator, // TR::lneg		// negate a long integer
     TR::TreeEvaluator::fnegEvaluator, // TR::fneg		// negate a float
@@ -408,13 +408,13 @@
     TR::TreeEvaluator::iRegStoreEvaluator, // TR::sRegStore		// Store short global register
     TR::TreeEvaluator::iRegStoreEvaluator, // TR::bRegStore		// Store byte global register
     TR::TreeEvaluator::GlRegDepsEvaluator, // TR::GlRegDeps		// Global Register Dependency List
-    TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::iselectEvaluator ,	// TR::iselect		// Select Operator:  Based on the result of the first child; take the value of the
-    TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::lselectEvaluator ,	// TR::lselect		//   second (first child evaluates to true) or third(first child evaluates to false) child
-    TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::bselectEvaluator ,	// TR::bselect   
-    TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::sselectEvaluator ,	// TR::sselect   
-    TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::aselectEvaluator ,	// TR::aselect   
-    TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::fselectEvaluator ,	// TR::fselect   
-    TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::dselectEvaluator ,	// TR::dselect   
+    TR::TreeEvaluator::iselectEvaluator ,	// TR::iselect		// Select Operator:  Based on the result of the first child; take the value of the
+    TR::TreeEvaluator::iselectEvaluator ,	// TR::lselect		//   second (first child evaluates to true) or third(first child evaluates to false) child
+    TR::TreeEvaluator::iselectEvaluator ,	// TR::bselect
+    TR::TreeEvaluator::iselectEvaluator ,	// TR::sselect
+    TR::TreeEvaluator::iselectEvaluator ,	// TR::aselect
+    TR::TreeEvaluator::fselectEvaluator ,	// TR::fselect
+    TR::TreeEvaluator::dselectEvaluator ,	// TR::dselect
     TR::TreeEvaluator::treetopEvaluator, // TR::treetop		// tree top to anchor subtrees with side-effects
     TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::MethodEnterHookEvaluator ,	// TR::MethodEnterHook	// called after a frame is built; temps initialized; and monitor acquired (if necessary)
     TR::TreeEvaluator::unImpOpEvaluator ,        // TODO:RV: Enable when Implemented: TR::TreeEvaluator::MethodExitHookEvaluator ,	// TR::MethodExitHook	// called immediately before returning; frame not yet collapsed; monitor released (if necessary)

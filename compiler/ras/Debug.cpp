@@ -492,6 +492,16 @@ TR_Debug::getDiagnosticFormat(const char *format, char *buffer, int32_t length)
 bool
 TR_Debug::performTransformationImpl(bool canOmitTransformation, const char * format, ...)
    {
+   int32_t optIndex = _comp->getOptIndex();
+   int32_t firstOptIndex = _comp->getOptions()->getFirstOptIndex();
+   int32_t lastOptIndex = _comp->getOptions()->getLastOptIndex();
+   // An opt that is marked as MustBeDone will always run.
+   // However, we need to omit optional transformations when the opt is supposed
+   // to be prohibited by firstOptIndex and lastOptIndex
+   //
+   if (canOmitTransformation && (optIndex < firstOptIndex || optIndex > lastOptIndex))
+      return false;
+
    if (_comp->getOptimizer())
       _comp->getOptimizer()->incOptMessageIndex();
 
@@ -536,14 +546,14 @@ TR_Debug::performTransformationImpl(bool canOmitTransformation, const char * for
           curTransformationIndex > _comp->getOptions()->getLastOptTransformationIndex())
          return false;
 
-      if (  _comp->getOptIndex() == _comp->getOptions()->getLastOptIndex()
+      if (optIndex == lastOptIndex
          && _comp->getOptSubIndex() > _comp->getOptions()->getLastOptSubIndex())
          return false;
 
       //
       // Ok, we're doing this transformation
       //
-      if (comp()->getOptIndex() == comp()->getLastBegunOptIndex())
+      if (optIndex == comp()->getLastBegunOptIndex())
          comp()->recordPerformedOptTransformation();
       }
 
@@ -558,9 +568,9 @@ TR_Debug::performTransformationImpl(bool canOmitTransformation, const char * for
          trfprintf(_file, "\n"); // traceRA convention is a newline at the start rather than the end
 
       trfprintf(_file, "[%6d] ", curTransformationIndex);
-      if (_comp->getOptIndex() == _comp->getOptions()->getLastOptIndex())
+      if (optIndex == lastOptIndex)
          {
-         trfprintf(_file, "%3d.%-4d ", _comp->getOptIndex(), _comp->getOptSubIndex());
+         trfprintf(_file, "%3d.%-4d ", optIndex, _comp->getOptSubIndex());
          }
 
       if ((format[0] == '%' && format[1] == 's') || (format[0] == 'O' && format[1] == '^' && format[2] == 'O'))
@@ -4015,7 +4025,6 @@ TR_Debug::getRuntimeHelperName(int32_t index)
          case TR_PPCarrayAnd:                                      return "_arrayand";
          case TR_PPCarrayCmp:                                      return "_arraycmp";
          case TR_PPCoverlapArrayCopy:                              return "overlapArrayCopy";
-         case TR_PPCarrayTranslateTRTOSimpleVMX:                   return "__arrayTranslateTRTOSimpleVMX";
          case TR_PPCarrayCmpVMX:                                   return "__arrayCmpVMX";
          case TR_PPCarrayCmpLenVMX:                                return "__arrayCmpLenVMX";
          case TR_PPCarrayCmpScalar:                                return "__arrayCmpScalar";
