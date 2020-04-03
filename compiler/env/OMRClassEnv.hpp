@@ -86,17 +86,17 @@ public:
 
    /**
     * \brief
-    *    Checks whether the specified class has fields that are value types that have not been expanded
-    *    (flattened) into their own components.
+    *    Checks whether instances of the specified class can be trivially initialized by
+    *    "zeroing" their fields
     *
     * \param clazz
-    *    The class that is to be checked for unflattened value type fields
+    *    The class that is to be checked
     *
     * \return
-    *    `true` if the specified class has unexpanded value type fields;
-    *    `false` otherwise
+    *    `true` if instances of the specified class can be initialized by zeroing their fields;
+    *    `false` otherwise (if some special initialization is required for some fields)
     */
-   bool hasUnflattenedValueTypeField(TR_OpaqueClassBlock *clazz) { return false; }
+   bool isZeroInitializable(TR_OpaqueClassBlock *clazz) { return true; }
    bool isPrimitiveArray(TR::Compilation *comp, TR_OpaqueClassBlock *) { return false; }
    bool isReferenceArray(TR::Compilation *comp, TR_OpaqueClassBlock *) { return false; }
    bool isClassArray(TR::Compilation *comp, TR_OpaqueClassBlock *) { return false; }

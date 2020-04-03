@@ -463,7 +463,7 @@ static bool tryFoldCompileTimeLoad(
          else if (knot && constraint->isConstString())
             {
             baseExpression  = curNode;
-            baseKnownObject = knot->getIndexAt((uintptr_t*)constraint->getConstString()->getSymRef()->getSymbol()->castToStaticSymbol()->getStaticAddress());
+            baseKnownObject = knot->getOrCreateIndexAt((uintptr_t*)constraint->getConstString()->getSymRef()->getSymbol()->castToStaticSymbol()->getStaticAddress());
             if (vp->trace())
                traceMsg(vp->comp(), "  - %s %p is string obj%d\n", baseExpression->getOpCode().getName(), baseExpression, baseKnownObject);
             break;
@@ -1569,7 +1569,7 @@ static const char *getFieldSignature(OMR::ValuePropagation *vp, TR::Node *node, 
  */
 static bool addKnownObjectConstraints(OMR::ValuePropagation *vp, TR::Node *node)
    {
-   // Access to VM for multiple operations including KnownObjectTable::getIndex()
+   // Access to VM for multiple operations including KnownObjectTable::getOrCreateIndex()
    // is not supported at the server for OMR.
    if (vp->comp()->isOutOfProcessCompilation())
       return false;
@@ -1610,7 +1610,7 @@ static bool addKnownObjectConstraints(OMR::ValuePropagation *vp, TR::Node *node)
             //
             clazz = TR::Compiler->cls.classFromJavaLangClass(vp->comp(), objectReference);
             }
-         knownObjectIndex = knot->getIndex(objectReference);
+         knownObjectIndex = knot->getOrCreateIndex(objectReference);
          }
 
 
@@ -2299,7 +2299,7 @@ TR::Node *constrainIaload(OMR::ValuePropagation *vp, TR::Node *node)
                         if(!TR::Compiler->cls.isClassArray(vp->comp(), fieldObjectClazz))
                            {
                            traceMsg(vp->comp(), "Recognized known object field node %p \n", node);
-                           TR::KnownObjectTable::Index fieldObjectKnotIndex = knot->getIndex(fieldObject);
+                           TR::KnownObjectTable::Index fieldObjectKnotIndex = knot->getOrCreateIndex(fieldObject);
                            // Global constraints should work here, as field loads get fresh value numbers
                            constraint = TR::VPClass::create(vp,
                                  TR::VPKnownObject::create(vp, fieldObjectKnotIndex),
@@ -2386,7 +2386,7 @@ TR::Node *constrainIaload(OMR::ValuePropagation *vp, TR::Node *node)
          if (knot && symRef == vp->comp()->getSymRefTab()->findJavaLangClassFromClassSymbolRef())
             {
             TR_J9VMBase *fej9 = (TR_J9VMBase *)(vp->comp()->fe());
-            TR::KnownObjectTable::Index knownObjectIndex = knot->getIndexAt((uintptr_t*)(base->getClass() + fej9->getOffsetOfJavaLangClassFromClassField()));
+            TR::KnownObjectTable::Index knownObjectIndex = knot->getOrCreateIndexAt((uintptr_t*)(base->getClass() + fej9->getOffsetOfJavaLangClassFromClassField()));
             vp->addBlockOrGlobalConstraint(node,
                   TR::VPClass::create(vp,
                      TR::VPKnownObject::createForJavaLangClass(vp, knownObjectIndex),
@@ -9898,7 +9898,13 @@ static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, b
                       methodSymbol->isInterface()  ? TR_InterfaceGuard :
                       TR::Compiler->cls.isAbstractClass(vp->comp(), objectClass) ? TR_AbstractGuard : TR_HierarchyGuard;
 
-                   addDelayedConvertedGuard(node, callNode, cMethodSymbol, vGuard, vp, guardKind, TR_VftTest, objectClass);
+                   TR_VirtualGuardTestType testType = guardKind == TR_HierarchyGuard ? TR_VftTest : TR_MethodTest;
+
+                   bool doThisTransformation = (guardKind == TR_HierarchyGuard && !vp->comp()->getOption(TR_DisableHierarchyInlining)) ||
+                                               (guardKind == TR_AbstractGuard && !vp->comp()->getOption(TR_DisableAbstractInlining)) ||
+                                               (guardKind == TR_InterfaceGuard && !vp->comp()->getOption(TR_DisableInterfaceInlining));
+                   if (doThisTransformation)
+                      addDelayedConvertedGuard(node, callNode, cMethodSymbol, vGuard, vp, guardKind, testType, objectClass);
                    }
                 }
              }
