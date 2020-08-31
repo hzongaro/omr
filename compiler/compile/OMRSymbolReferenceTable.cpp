@@ -2066,6 +2066,20 @@ OMR::SymbolReferenceTable::findOrCreateEAEscapeHelperSymbolRef()
    }
 
 TR::SymbolReference *
+OMR::SymbolReferenceTable::findOrCreateUnsupportedJITOperationSymbolRef()
+   {
+   if (!element(unsupportedJITOperationSymbol))
+      {
+      TR::MethodSymbol* sym = TR::MethodSymbol::create(trHeapMemory(), TR_None);
+      sym->setHelper();
+      TR::SymbolReference* symRef = new (trHeapMemory()) TR::SymbolReference(self(), unsupportedJITOperationSymbol, sym);
+      symRef->setCanGCandReturn();
+      element(unsupportedJITOperationSymbol) = symRef;
+      }
+   return element(unsupportedJITOperationSymbol);
+   }
+
+TR::SymbolReference *
 OMR::SymbolReferenceTable::getOriginalUnimprovedSymRef(TR::SymbolReference *symRef)
    {
    auto entry = _originalUnimprovedSymRefs.find(symRef->getReferenceNumber());

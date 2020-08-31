@@ -138,6 +138,12 @@ OMR::SymbolReference::getUseonlyAliasesBV(TR::SymbolReferenceTable * symRefTab)
             {
             return &symRefTab->aliasBuilder.defaultMethodUseAliases();
             }
+
+         if (symRefTab->isNonHelper(self(), TR::SymbolReferenceTable::unsupportedJITOperationSymbol))
+            {
+            return &symRefTab->aliasBuilder.defaultMethodUseAliases();
+            }
+
          if (symRefTab->isNonHelper(self(), TR::SymbolReferenceTable::objectEqualityComparisonSymbol))
             {
             return &symRefTab->aliasBuilder.defaultMethodUseAliases();
@@ -328,6 +334,7 @@ OMR::SymbolReference::getUseDefAliasesBV(bool isDirectCall, bool includeGCSafePo
              symRefTab->isNonHelper(self(), TR::SymbolReferenceTable::osrFearPointHelperSymbol) ||
              symRefTab->isNonHelper(self(), TR::SymbolReferenceTable::potentialOSRPointHelperSymbol) ||
              symRefTab->isNonHelper(self(), TR::SymbolReferenceTable::eaEscapeHelperSymbol) ||
+             symRefTab->isNonHelper(self(), TR::SymbolReferenceTable::unsupportedJITOperationSymbol) ||
              symRefTab->isNonHelper(self(), TR::SymbolReferenceTable::objectEqualityComparisonSymbol))
             {
             return &symRefTab->aliasBuilder.defaultMethodDefAliases();

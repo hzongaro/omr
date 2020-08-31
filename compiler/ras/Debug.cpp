@@ -1660,6 +1660,8 @@ TR_Debug::getName(TR::SymbolReference * symRef)
              return "<osrFearPointHelper>";
          case TR::SymbolReferenceTable::eaEscapeHelperSymbol:
              return "<eaEscapeHelper>";
+         case TR::SymbolReferenceTable::unsupportedJITOperationSymbol:
+             return "<unsupportedJITOperation>";
          }
       }
 
@@ -2118,6 +2120,7 @@ static const char *commonNonhelperSymbolNames[] =
    "<atomicCompareAndSwapReturnValue>",
    "<jProfileValueSymbol>",
    "<jProfileValueWithNullCHKSymbol>",
+   "<unsupportedJITOperation>",
    };
 
 const char *

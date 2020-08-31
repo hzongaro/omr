@@ -368,6 +368,7 @@ class SymbolReferenceTable
        */
       jProfileValueSymbol, 
       jProfileValueWithNullCHKSymbol,
+      unsupportedJITOperationSymbol,
 
       firstPerCodeCacheHelperSymbol,
       lastPerCodeCacheHelperSymbol = firstPerCodeCacheHelperSymbol + TR_numCCPreLoadedCode - 1,
@@ -484,6 +485,7 @@ class SymbolReferenceTable
    TR::SymbolReference * findOrCreatePotentialOSRPointHelperSymbolRef();
    TR::SymbolReference * findOrCreateOSRFearPointHelperSymbolRef();
    TR::SymbolReference * findOrCreateEAEscapeHelperSymbolRef();
+   TR::SymbolReference * findOrCreateUnsupportedJITOperationSymbolRef();
    TR::SymbolReference * findOrCreateInduceOSRSymbolRef(TR_RuntimeHelper induceOSRHelper);
 
    TR::ParameterSymbol * createParameterSymbol(TR::ResolvedMethodSymbol * owningMethodSymbol, int32_t slot, TR::DataType, TR::KnownObjectTable::Index knownObjectIndex = TR::KnownObjectTable::UNKNOWN);

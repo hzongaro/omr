@@ -306,6 +306,8 @@ public:
     */
    static TR::Node *createEAEscapeHelperCall(TR::Node *originatingByteCodeNode, int32_t numChildren);
 
+   static TR::Node *createUnsupportedJITOperationCall(int32_t numChildren);
+
    static TR::Node *createLoad(TR::SymbolReference * symRef);
    static TR::Node *createLoad(TR::Node *originatingByteCodeNode, TR::SymbolReference *);
 
@@ -611,6 +613,8 @@ public:
     *    Return true if the node is a call with eaEscapeHelperSymbol
     */
    bool                   isEAEscapeHelperCall();
+
+   bool                   isUnsupportedJITOperationCall();
 
    // A common query used by the optimizer
    inline bool            isSingleRef();
