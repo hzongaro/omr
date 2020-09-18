@@ -1606,6 +1606,8 @@ TR_Debug::getName(TR::SymbolReference * symRef)
             return "<indexable-size>";
          case TR::SymbolReferenceTable::resolveCheckSymbol:
             return "<resolve check>";
+         case TR::SymbolReferenceTable::resolveCheckRequestRecompileSymbol:
+            return "<resolve-check-recompile>";
          case TR::SymbolReferenceTable::arraySetSymbol:
             return "<arrayset>";
          case TR::SymbolReferenceTable::arrayCopySymbol:
@@ -2062,6 +2064,7 @@ static const char *commonNonhelperSymbolNames[] =
    "<excp>",
    "<indexableSize>",
    "<resolveCheck>",
+   "<resolveCheckRecompile>",
    "<arrayTranslate>",
    "<arrayTranslateAndTest>",
    "<long2String>",

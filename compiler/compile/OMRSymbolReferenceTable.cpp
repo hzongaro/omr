@@ -887,6 +887,22 @@ OMR::SymbolReferenceTable::findOrCreateResolveCheckSymbolRef(TR::ResolvedMethodS
 
 
 TR::SymbolReference *
+OMR::SymbolReferenceTable::findOrCreateResolveCheckRequestRecompileSymbolRef(TR::ResolvedMethodSymbol * owningMethodSymbol)
+   {
+   if (!element(resolveCheckRequestRecompileSymbol))
+      {
+      // Resolve check symbol will just re-use the helper method for null check
+      // It is never used to call a helper, but we need a separate symbol
+      // reference for aliasing purposes.
+      //
+      TR::SymbolReference *symRef = findOrCreateNullCheckSymbolRef(owningMethodSymbol);
+      element(resolveCheckRequestRecompileSymbol) = new (trHeapMemory()) TR::SymbolReference(self(), resolveCheckRequestRecompileSymbol, symRef->getSymbol());
+      }
+   return element(resolveCheckRequestRecompileSymbol);
+   }
+
+
+TR::SymbolReference *
 OMR::SymbolReferenceTable::findOrCreateArrayBoundsCheckSymbolRef(TR::ResolvedMethodSymbol *)
    {
    return findOrCreateRuntimeHelper(TR_arrayBoundsCheck, false, true, true);

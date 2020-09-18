@@ -121,6 +121,7 @@ class SymbolReferenceTable
       excpSymbol,
       indexableSizeSymbol,
       resolveCheckSymbol,
+      resolveCheckRequestRecompileSymbol,
       arrayTranslateSymbol,
       arrayTranslateAndTestSymbol,
       long2StringSymbol,
@@ -680,6 +681,7 @@ class SymbolReferenceTable
 
    // fe, base node
    TR::SymbolReference * findOrCreateResolveCheckSymbolRef(TR::ResolvedMethodSymbol * owningMethodSymbol);
+   TR::SymbolReference * findOrCreateResolveCheckRequestRecompileSymbolRef(TR::ResolvedMethodSymbol * owningMethodSymbol);
 
    TR::SymbolReference * findOrCreateVolatileReadLongSymbolRef(TR::ResolvedMethodSymbol * owningMethodSymbol);
    TR::SymbolReference * findOrCreateVolatileWriteLongSymbolRef(TR::ResolvedMethodSymbol * owningMethodSymbol);

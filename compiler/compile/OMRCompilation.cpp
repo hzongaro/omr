@@ -660,8 +660,14 @@ bool OMR::Compilation::isPotentialOSRPoint(TR::Node *node, TR::Node **osrPointNo
    bool potentialOSRPoint = false;
    if (self()->isOSRTransitionTarget(TR::postExecutionOSR))
       {
-      if (node->getOpCodeValue() == TR::treetop || node->getOpCode().isCheck())
+      if (node->getOpCode().isCheck() && node->getSymbolReference() == getSymRefTab()->findOrCreateResolveCheckRequestRecompileSymbolRef(self()->getMethodSymbol()))
+         {
+         potentialOSRPoint = true;
+         }
+      else if (node->getOpCodeValue() == TR::treetop || node->getOpCode().isCheck())
+         {
          node = node->getFirstChild();
+         }
 
       if (_osrInfrastructureRemoved && !ignoreInfra)
          potentialOSRPoint = false;
