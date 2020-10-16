@@ -1131,11 +1131,9 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
    {"traceGlobalLiveVariablesForGC",    "L\ttrace global live variables for GC",           TR::Options::traceOptimization, globalLiveVariablesForGC, 0, "P"},
    {"traceGlobalVP",                    "L\ttrace global value propagation",               TR::Options::traceOptimization, globalValuePropagation, 0, "P"},
    {"traceGLU",                         "L\ttrace general loop unroller",                  TR::Options::traceOptimization, generalLoopUnroller, 0, "P"},
-#ifdef J9_PROJECT_SPECIFIC
-   {"traceHandleRecompilationOps",      "L\ttrace handle recompilation operations",        TR::Options::traceOptimization, handleRecompilationOps, 0, "P"},
-#endif
    {"traceGRA",                         "L\ttrace tree based global register allocator",   TR::Options::traceOptimization, tacticalGlobalRegisterAllocator, 0, "P"},
 #ifdef J9_PROJECT_SPECIFIC
+   {"traceHandleRecompilationOps",      "L\ttrace handle recompilation operations",        TR::Options::traceOptimization, handleRecompilationOps, 0, "P"},
    {"traceIdiomRecognition",            "L\ttrace idiom recognition",                      TR::Options::traceOptimization, idiomRecognition, 0, "P"},
 #endif
    {"traceILGen",                       "L\ttrace IL generator",                           SET_OPTION_BIT(TR_TraceILGen), "F"},
