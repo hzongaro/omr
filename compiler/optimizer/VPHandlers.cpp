@@ -12223,7 +12223,7 @@ static TR_YesNoMaybe isArrayCompTypeValueType(OMR::ValuePropagation *vp, TR::VPC
          {
          isValueType = TR_yes;
          }
-      else if (TR::Compiler->cls.isAbstractClass(vp->comp(), arrayComponentClass))
+      else if (TR::Compiler->cls.isConcreteClass(vp->comp(), arrayComponentClass))
          {
          isValueType = TR_maybe;
          }
