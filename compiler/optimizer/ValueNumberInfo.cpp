@@ -403,7 +403,7 @@ bool TR_ValueNumberInfo::congruentNodes(TR::Node * node, TR::Node * entryNode)
        {
        int32_t nodeStride = node->getArrayStride();
        int32_t entryNodeStride = entryNode->getArrayStride();
-       return(nodeStride == entryNodeStride);
+       return(nodeStride != 0 && nodeStride == entryNodeStride);
        }
     else
        return true;
@@ -601,7 +601,7 @@ void TR_ValueNumberInfo::initializeNode(TR::Node *node, int32_t &negativeValueNu
          int32_t nodeStride = node->getArrayStride();
          int32_t entryNodeStride = entryNode->getArrayStride();
 
-         if (nodeStride == entryNodeStride)
+         if (nodeStride != 0 && nodeStride == entryNodeStride)
             break;
          }
       else

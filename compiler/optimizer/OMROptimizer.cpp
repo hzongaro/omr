@@ -2502,7 +2502,7 @@ bool OMR::Optimizer::areNodesEquivalent(TR::Node *node1, TR::Node *node2,  TR::C
          }
       else if (opCode1.isArrayLength())
          {
-         if (node1->getArrayStride() != node2->getArrayStride())
+         if (node1->getArrayStride() != node2->getArrayStride() || node1->getArrayStride() == 0)
             return false;
          }
 #ifdef J9_PROJECT_SPECIFIC
