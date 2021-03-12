@@ -4844,6 +4844,16 @@ TR::Node *constrainArraylength(OMR::ValuePropagation *vp, TR::Node *node)
          lowerBoundLimit = arrayInfo->lowBound();
          upperBoundLimit = arrayInfo->highBound();
          elementSize     = arrayInfo->elementSize();
+
+         if (node->getArrayStride() == 0)
+            {
+            TR_YesNoMaybe arrayCompIsValueType = vp->isArrayCompTypeValueType(constraint);
+
+            if (arrayCompIsValueType == TR_no)
+               {
+               node->setArrayStride(elementSize);
+               }
+            }
          }
 #ifdef J9_PROJECT_SPECIFIC
       TR::KnownObjectTable *knot = vp->comp()->getKnownObjectTable();
@@ -12189,64 +12199,6 @@ TR::Node *constrainArrayCopyBndChk(OMR::ValuePropagation *vp, TR::Node *node)
    return node;
    }
 
-/**
- * Determine whether the component type of an array is, or might be, a value
- * type.
- * \param vp The \ref OMR::ValuePropagation object
- * \param arrayConstraint The \ref TR::VPConstraint type constraint for the array reference
- * \returns \c TR_yes if the array's component type is definitely a value type;\n
- *          \c TR_no if it is definitely not a value type; or\n
- *          \c TR_maybe otherwise.
- */
-static TR_YesNoMaybe isArrayCompTypeValueType(OMR::ValuePropagation *vp, TR::VPConstraint *arrayConstraint)
-   {
-   TR_YesNoMaybe isValueType = TR_maybe;
-
-   if (!TR::Compiler->om.areValueTypesEnabled())
-      {
-      isValueType = TR_no;
-      }
-   else if (!(arrayConstraint && arrayConstraint->getClass()
-              && arrayConstraint->getClassType()->isArray() == TR_yes))
-      {
-      isValueType = TR_maybe;
-      }
-   else
-      {
-      TR_OpaqueClassBlock *arrayComponentClass = vp->fe()->getComponentClassFromArrayClass(arrayConstraint->getClass());
-
-      if (!arrayComponentClass)
-         {
-         isValueType = TR_maybe;
-         }
-      else if (TR::Compiler->cls.isValueTypeClass(arrayComponentClass))
-         {
-         isValueType = TR_yes;
-         }
-      else if (TR::Compiler->cls.isConcreteClass(vp->comp(), arrayComponentClass))
-         {
-         isValueType = TR_maybe;
-         }
-      else
-         {
-         int32_t len;
-         const char *sig = arrayConstraint->getClassSignature(len);
-
-         if (!sig || !arrayConstraint->isFixedClass() && sig[0] == '[' && len == 19
-                     && !strncmp(sig, "[Ljava/lang/Object;", 19))
-            {
-            isValueType = TR_maybe;
-            }
-         else
-            {
-            isValueType = TR_no;
-            }
-         }
-      }
-
-   return isValueType;
-   }
-
 TR::Node *constrainArrayStoreChk(OMR::ValuePropagation *vp, TR::Node *node)
    {
    constrainChildren(vp, node);
@@ -12282,7 +12234,7 @@ TR::Node *constrainArrayStoreChk(OMR::ValuePropagation *vp, TR::Node *node)
       TR::VPConstraint *object = vp->getConstraint(objectRef, isGlobal);
       TR::VPConstraint *array  = vp->getConstraint(arrayRef, isGlobal);
 
-      TR_YesNoMaybe arrayCompIsValueType = isArrayCompTypeValueType(vp, array);
+      TR_YesNoMaybe arrayCompIsValueType = vp->isArrayCompTypeValueType(array);
 
       // If the object reference is null we can remove this check, if the
       // array's element type is not a value type
