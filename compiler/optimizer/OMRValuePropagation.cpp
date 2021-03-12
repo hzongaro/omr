@@ -1689,6 +1689,56 @@ TR_YesNoMaybe OMR::ValuePropagation::isCastClassObject(TR::VPClassType *type)
    return TR_maybe;
    }
 
+
+TR_YesNoMaybe OMR::ValuePropagation::isArrayCompTypeValueType(TR::VPConstraint *arrayConstraint)
+   {
+   TR_YesNoMaybe isValueType = TR_maybe;
+
+   if (!TR::Compiler->om.areValueTypesEnabled())
+      {
+      isValueType = TR_no;
+      }
+   else if (!(arrayConstraint && arrayConstraint->getClass()
+              && arrayConstraint->getClassType()->isArray() == TR_yes))
+      {
+      isValueType = TR_maybe;
+      }
+   else
+      {
+      TR_OpaqueClassBlock *arrayComponentClass = fe()->getComponentClassFromArrayClass(arrayConstraint->getClass());
+
+      if (!arrayComponentClass)
+         {
+         isValueType = TR_maybe;
+         }
+      else if (TR::Compiler->cls.isValueTypeClass(arrayComponentClass))
+         {
+         isValueType = TR_yes;
+         }
+      else if (!TR::Compiler->cls.isConcreteClass(comp(), arrayComponentClass))
+         {
+         isValueType = TR_maybe;
+         }
+      else
+         {
+         int32_t len;
+         const char *sig = arrayConstraint->getClassSignature(len);
+
+         if (!sig || !arrayConstraint->isFixedClass() && sig[0] == '[' && len == 19
+                     && !strncmp(sig, "[Ljava/lang/Object;", 19))
+            {
+            isValueType = TR_maybe;
+            }
+         else
+            {
+            isValueType = TR_no;
+            }
+         }
+      }
+
+   return isValueType;
+   }
+
 void OMR::ValuePropagation::checkTypeRelationship(TR::VPConstraint *lhs, TR::VPConstraint *rhs,
                                                 int32_t &value, bool isInstanceOf, bool isCheckCast)
    {
@@ -6413,7 +6463,7 @@ void OMR::ValuePropagation::buildBoundCheckComparisonNodes(BlockVersionInfo *blo
 
             temp.add(nextComparisonNode);
 
-            if (arrayIndex->_baseNode && arrayIndex->_instanceOfClass && 
+            if (arrayIndex->_baseNode && arrayIndex->_instanceOfClass &&
                 arrayIndex->_baseNode->getOpCode().getOpCodeValue() == TR::iloadi)
                {
                // InstanceOf check for the object we load the array index from
