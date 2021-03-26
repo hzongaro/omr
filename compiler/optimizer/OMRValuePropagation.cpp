@@ -1721,7 +1721,17 @@ TR_YesNoMaybe OMR::ValuePropagation::isArrayCompTypeValueType(TR::VPConstraint *
          }
       else if (!TR::Compiler->cls.isConcreteClass(comp(), arrayComponentClass))
          {
-         isValueType = TR_maybe;
+         TR_OpaqueClassBlock *identityInterface = comp()->fe()->getClassFromSignature("java/lang/IdentityObject", 24,
+                                                                                      comp()->getCurrentMethod());
+
+         if (identityInterface != NULL && comp()->fe()->isInstanceOf(arrayComponentClass, identityInterface, true, true) == TR_yes)
+            {
+            isValueType = TR_no;
+            }
+         else
+            {
+            isValueType = TR_maybe;
+            }
          }
       else
          {
