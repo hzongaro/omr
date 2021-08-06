@@ -152,10 +152,9 @@ void TR_UseDefInfo::prepareUseDefInfo(bool requiresGlobals, bool prefersGlobals,
    TR::SymbolReferenceTable *symRefTab = comp()->getSymRefTab();
    int32_t numSymRefs = comp()->getSymRefCount();
 
-
    if (_hasLoadsAsDefs &&
        !cannotOmitTrivialDefs &&
-       (comp()->getMethodHotness() < warm))
+       (comp()->getMethodHotness() < hot))
       {
       for (int32_t j = 0; j < numSymRefs; j++)
          {
