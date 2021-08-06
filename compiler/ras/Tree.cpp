@@ -2208,10 +2208,10 @@ TR_Debug::verifyGlobalIndices(TR::Node * node, TR::Node **nodesByGlobalIndex)
 void
 TR_Debug::verifyTrees(TR::ResolvedMethodSymbol *methodSymbol)
    {
-#ifndef ASSUMES
-   if (getFile() == NULL)
-      return;
-#endif
+//#ifndef ASSUMES
+//   if (getFile() == NULL)
+//      return;
+//#endif
 
    // Pre-allocate the bitvector to the correct size.
    // This prevents un-necessary growing and memory waste
@@ -2293,7 +2293,7 @@ TR_Debug::verifyTreesPass1(TR::Node *node)
                             getName(childType),
                             getName(expectedType));
                   }
-               TR_ASSERT( debug("fixTrees"), "Tree verification error");
+               TR_ASSERT_FATAL( debug("fixTrees"), "Tree verification error");
                }
             }
          }
@@ -2321,7 +2321,7 @@ TR_Debug::verifyTreesPass2(TR::Node *node, bool isTreeTop)
             if (getFile() != NULL)
                trfprintf(getFile(), "TREE VERIFICATION ERROR -- treetop node [%s] with ref count %d\n",
                     getName(node), node->getReferenceCount());
-            TR_ASSERT( debug("fixTrees"), "Tree verification error");
+            TR_ASSERT_FATAL( debug("fixTrees"), "Tree verification error");
             node->setReferenceCount(0);
             }
          }
@@ -2332,7 +2332,7 @@ TR_Debug::verifyTreesPass2(TR::Node *node, bool isTreeTop)
          if (getFile() != NULL)
             trfprintf(getFile(), "TREE VERIFICATION ERROR -- void call node [%s] with ref count %d\n",
                   getName(node), node->getReferenceCount());
-         TR_ASSERT( debug("fixTrees"), "Tree verification error");
+         TR_ASSERT_FATAL( debug("fixTrees"), "Tree verification error");
          }
 
       if (node->getReferenceCount() != node->getLocalIndex())
@@ -2340,7 +2340,7 @@ TR_Debug::verifyTreesPass2(TR::Node *node, bool isTreeTop)
          if (getFile() != NULL)
             trfprintf(getFile(), "TREE VERIFICATION ERROR -- node [%s] ref count is %d and should be %d\n",
                  getName(node), node->getReferenceCount(), node->getLocalIndex());
-         TR_ASSERT(debug("fixTrees"), "Tree verification error");
+         TR_ASSERT_FATAL(debug("fixTrees"), "Tree verification error");
          // if there is logging, don't fix the ref count!
          if (getFile() == NULL)
             node->setReferenceCount(node->getLocalIndex());
@@ -2492,7 +2492,7 @@ TR_Debug::verifyBlocksPass2(TR::Node *node)
                  getName(node), node->getLocalIndex());
          if (getFile() != NULL)
             trfprintf(getFile(), buffer);
-         TR_ASSERT( debug("fixTrees"), buffer);
+         TR_ASSERT_FATAL( debug("fixTrees"), buffer);
          }
       }
    }
