@@ -1656,6 +1656,8 @@ TR_Debug::getName(TR::SymbolReference * symRef)
              return "<j9VMThreadFloatTemp1Symbol>";
          case TR::SymbolReferenceTable::objectEqualityComparisonSymbol:
              return "<objectEqualityComparison>";
+         case TR::SymbolReferenceTable::objectInequalityComparisonSymbol:
+             return "<objectInequalityComparison>";
          case TR::SymbolReferenceTable::nonNullableArrayNullStoreCheckSymbol:
              return "<nonNullableArrayNullStoreCheck>";
          }
@@ -2104,6 +2106,7 @@ static const char *commonNonhelperSymbolNames[] =
    "<startPCLinkageInfo>",
    "<instanceShapeFromROMClass>",
    "<objectEqualityComparison>",
+   "<objectInequalityComparison>",
    "<nonNullableArrayNullStoreCheck>",
    "<synchronizedFieldLoad>",
    "<atomicAdd>",
