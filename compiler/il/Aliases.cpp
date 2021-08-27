@@ -193,6 +193,7 @@ OMR::SymbolReference::getUseonlyAliasesBV(TR::SymbolReferenceTable * symRefTab)
             case TR_newObject:
             case TR_newObjectNoZeroInit:
             case TR_acmpHelper:
+            case TR_acmpNEHelper:
             case TR_newValue:
             case TR_newValueNoZeroInit:
             case TR_newArray:
@@ -382,6 +383,7 @@ OMR::SymbolReference::getUseDefAliasesBV(bool isDirectCall, bool includeGCSafePo
             case TR_writeBarrierStoreRealTimeGC:
             case TR_aNewArray:
             case TR_acmpHelper:
+            case TR_acmpNEHelper:
             case TR_newValue:
             case TR_newValueNoZeroInit:
             case TR_newObject:
