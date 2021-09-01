@@ -2355,7 +2355,8 @@ OMR::Options::jitLatePostProcess(TR::OptionSet *optionSet, void * jitConfig)
    // Unfortunately, the design of the option processing framework requires
    // the disabling code to be in OMR (rather than OpenJ9) and guarded
    // with J9_PROJECT_SPECIFIC.
-   if (TR::Compiler->om.areValueTypesEnabled())
+static char *disableValueTypes = feGetEnv("TR_disableVT1");
+   if (!disableValueTypes && TR::Compiler->om.areValueTypesEnabled())
       {
       _disabledOptimizations[regDepCopyRemoval] = true;
       }
