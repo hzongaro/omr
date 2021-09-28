@@ -471,9 +471,9 @@ bool TR_FieldPrivatizer::containsEscapePoints(TR_Structure *structure, bool &con
          //   (1) Exceptions that might be thrown
          //   (2) A virtual guard or instanceof, as it might guard access of a field
          //       that might not be valid in any particular execution of the loop.
-	 //       The checks for virtual guards and instanceof could be refined
-	 //       further, as they might be unrelated to the fields that are of
-	 //       interest.
+         //       The checks for virtual guards and instanceof could be refined
+         //       further, as they might be unrelated to the fields that are of
+         //       interest.
          if (currentNode->exceptionsRaised()
              || currentNode->isTheVirtualGuardForAGuardedInlinedCall()
              || subtreeHasInstanceOf(currentNode))
