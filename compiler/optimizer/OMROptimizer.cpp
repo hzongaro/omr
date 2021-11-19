@@ -531,7 +531,6 @@ const OptimizationStrategy finalGlobalOpts[] =
 static const OptimizationStrategy ilgenStrategyOpts[] =
    {
 #ifdef J9_PROJECT_SPECIFIC
-   { forceHelperTransform,                         },
    { osrLiveRangeAnalysis,          IfOSR   },
    { osrDefAnalysis,                IfInvoluntaryOSR },
    { methodHandleTransformer,                      },
@@ -543,6 +542,7 @@ static const OptimizationStrategy ilgenStrategyOpts[] =
    { CFGSimplification                             },
    { allocationSinking,             IfNews         },
    { invariantArgumentPreexistence, IfNotClassLoadPhaseAndNotProfiling }, // Should not run if a recompilation is possible
+   { forceHelperTransform,                         },
 #endif
    { endOpts },
    };
