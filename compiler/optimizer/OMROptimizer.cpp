@@ -531,12 +531,12 @@ const OptimizationStrategy finalGlobalOpts[] =
 static const OptimizationStrategy ilgenStrategyOpts[] =
    {
 #ifdef J9_PROJECT_SPECIFIC
-   { forceHelperTransform,                         },
    { osrLiveRangeAnalysis,          IfOSR   },
    { osrDefAnalysis,                IfInvoluntaryOSR },
    { methodHandleTransformer,                      },
    { varHandleTransformer,          MustBeDone     },
    { handleRecompilationOps,        MustBeDone     },
+   { forceHelperTransform,                         },
    { unsafeFastPath                                },
    { recognizedCallTransformer                     },
    { coldBlockMarker                               },
