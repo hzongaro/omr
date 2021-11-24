@@ -1126,6 +1126,7 @@ int32_t OMR::Compilation::compile()
          char callerBuf[501], calleeBuf[501];
          TR_VerboseLog::vlogAcquire();
          TR_VerboseLog::writeLine(TR_Vlog_INL, "%d methods inlined into %x %s @ %p", self()->getNumInlinedCallSites(), jittedBodyHash, self()->signature(), self()->cg()->getCodeStart());
+#if 0
          for (int32_t i = 0; i < self()->getNumInlinedCallSites(); i++)
             {
             TR_InlinedCallSite &site = self()->getInlinedCallSite(i);
@@ -1182,6 +1183,7 @@ int32_t OMR::Compilation::compile()
                   }
                }
             }
+#endif
          TR_VerboseLog::vlogRelease();
          }
 #endif
