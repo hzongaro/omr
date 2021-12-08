@@ -181,6 +181,7 @@ const OptimizationStrategy eachEscapeAnalysisPassOpts[] =
 const OptimizationStrategy veryCheapGlobalValuePropagationOpts[] =
    {
    { globalValuePropagation,     IfMoreThanOneBlock},
+   { globalValuePropagation,     IfMoreThanOneBlock},
    { endGroup                               }
    };
 
@@ -191,6 +192,7 @@ const OptimizationStrategy cheapGlobalValuePropagationOpts[] =
    { treeSimplification,          IfOptServer }, // for WAS trace folding
    { localCSE,                    IfEnabledAndOptServer }, // for WAS trace folding
    { treeSimplification,          IfEnabledAndOptServer }, // for WAS trace folding
+   { globalValuePropagation,      IfMoreThanOneBlock },
    { globalValuePropagation,      IfMoreThanOneBlock },
    { localValuePropagation,       IfOneBlock },
    { treeSimplification,          IfEnabled },
@@ -215,6 +217,7 @@ const OptimizationStrategy expensiveGlobalValuePropagationOpts[] =
    { localCSE,                           IfEnabledAndOptServer }, // for WAS trace folding
    { treeSimplification,                 IfEnabled }, // may be enabled by inner prex
    { globalValuePropagation,             IfMoreThanOneBlock },
+   { globalValuePropagation,             IfMoreThanOneBlock },
    { treeSimplification,                 IfEnabled },
    { deadTreesElimination                          }, // clean up left-over accesses before escape analysis
 #ifdef J9_PROJECT_SPECIFIC
@@ -238,6 +241,7 @@ const OptimizationStrategy eachExpensiveGlobalValuePropagationOpts[] =
    {
    //{ blockSplitter                                        },
    ///   { innerPreexistence                                      },
+   { globalValuePropagation,                      IfMoreThanOneBlock },
    { globalValuePropagation,                      IfMoreThanOneBlock },
    { treeSimplification,                          IfEnabled },
    { veryCheapGlobalValuePropagationGroup,        IfEnabled }, // enabled by blockversioner
