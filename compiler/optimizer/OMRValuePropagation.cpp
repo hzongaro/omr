@@ -89,7 +89,7 @@
 #endif
 
 
-#define OPT_DETAILS "O^O VALUE PROPAGATION: "
+#define OPT_DETAILS optDetailString()
 #define NEED_WRITE_BARRIER 1
 #define NEED_ARRAYSTORE_CHECK 2
 #define NEED_ARRAYSTORE_CHECK_AND_WRITE_BARRIER 3
@@ -4916,6 +4916,12 @@ const char *
 TR::GlobalValuePropagation::optDetailString() const throw()
    {
    return "O^O GLOBAL VALUE PROPAGATION: ";
+   }
+
+const char *
+TR::GlobalValuePropagationP2::optDetailString() const throw()
+   {
+   return "O^O GLOBAL VALUE PROPAGATION PASS 2: ";
    }
 
 TR::CFGEdge *OMR::ValuePropagation::findOutEdge(TR::CFGEdgeList &edges, TR::CFGNode *target)

@@ -51,7 +51,7 @@
 
 class TR_OpaqueClassBlock;
 
-#define OPT_DETAILS "O^O VALUE PROPAGATION: "
+#define OPT_DETAILS (vp->optDetailString())
 
 TR::Node *constrainCall(OMR::ValuePropagation *vp, TR::Node *node);
 

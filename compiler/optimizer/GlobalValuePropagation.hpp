@@ -75,5 +75,18 @@ class GlobalValuePropagation : public TR::ValuePropagation
    TR_BitVector *_blocksToProcess;
 
    };
+
+class GlobalValuePropagationP2 : public GlobalValuePropagation
+   {
+   public:
+
+   GlobalValuePropagationP2(TR::OptimizationManager *manager) : GlobalValuePropagation(manager) {}
+   static TR::Optimization *create(TR::OptimizationManager *manager)
+      {
+      return new (manager->allocator()) TR::GlobalValuePropagationP2(manager);
+      }
+
+   virtual const char * optDetailString() const throw();
+   };
 }
 #endif

@@ -89,7 +89,7 @@
 #include "optimizer/VPBCDConstraint.hpp"
 #endif
 
-#define OPT_DETAILS "O^O VALUE PROPAGATION: "
+#define OPT_DETAILS (vp->optDetailString())
 
 extern TR::Node *constrainChildren(OMR::ValuePropagation *vp, TR::Node *node);
 extern TR::Node *constrainVcall(OMR::ValuePropagation *vp, TR::Node *node);
