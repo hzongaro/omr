@@ -97,6 +97,7 @@ OMR::OptimizationManager::OptimizationManager(TR::Optimizer *o, OptimizationFact
          _flags.set(requiresStructure | checkStructure | dumpStructure);
          break;
       case OMR::globalValuePropagation:
+      case OMR::globalValuePropagationP2:
          _flags.set(requiresStructure | checkStructure | dumpStructure |
                     requiresLocalsUseDefInfo | requiresLocalsValueNumbering);
          break;

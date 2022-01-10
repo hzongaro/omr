@@ -334,6 +334,7 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
    {"disableGlobalLiveVariablesForGC",    "O\tdisable global live variables for GC",           TR::Options::disableOptimization, globalLiveVariablesForGC, 0, "P"},
    {"disableGlobalStaticBaseRegister",    "O\tdisable global static base register ",           SET_OPTION_BIT(TR_DisableGlobalStaticBaseRegister), "F"},
    {"disableGlobalVP",                    "O\tdisable global value propagation",               TR::Options::disableOptimization, globalValuePropagation, 0, "P"},
+   {"disableGlobalVPP2",                  "O\tdisable global value propagation",               TR::Options::disableOptimization, globalValuePropagationP2, 0, "P"},
    {"disableGLU",                         "O\tdisable general loop unroller",                  TR::Options::disableOptimization, generalLoopUnroller, 0, "P"},
 
    {"disableGLUColdRedirection",          "O\tdisable general loop unroller redirection of cold edges to loop header", SET_OPTION_BIT(TR_DisableGLUColdRedirection), "F"},
@@ -1135,6 +1136,7 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
    {"traceGlobalDSE",                   "L\ttrace global dead store elimination",          TR::Options::traceOptimization, globalDeadStoreElimination, 0, "P"},
    {"traceGlobalLiveVariablesForGC",    "L\ttrace global live variables for GC",           TR::Options::traceOptimization, globalLiveVariablesForGC, 0, "P"},
    {"traceGlobalVP",                    "L\ttrace global value propagation",               TR::Options::traceOptimization, globalValuePropagation, 0, "P"},
+   {"traceGlobalVPP2",                  "L\ttrace global value propagation pass 2",        TR::Options::traceOptimization, globalValuePropagationP2, 0, "P"},
    {"traceGLU",                         "L\ttrace general loop unroller",                  TR::Options::traceOptimization, generalLoopUnroller, 0, "P"},
    {"traceGRA",                         "L\ttrace tree based global register allocator",   TR::Options::traceOptimization, tacticalGlobalRegisterAllocator, 0, "P"},
 #ifdef J9_PROJECT_SPECIFIC

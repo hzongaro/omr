@@ -181,7 +181,7 @@ const OptimizationStrategy eachEscapeAnalysisPassOpts[] =
 const OptimizationStrategy veryCheapGlobalValuePropagationOpts[] =
    {
    { globalValuePropagation,     IfMoreThanOneBlock},
-   { globalValuePropagation,     IfMoreThanOneBlock},
+   { globalValuePropagationP2,     IfMoreThanOneBlock},
    { endGroup                               }
    };
 
@@ -193,7 +193,7 @@ const OptimizationStrategy cheapGlobalValuePropagationOpts[] =
    { localCSE,                    IfEnabledAndOptServer }, // for WAS trace folding
    { treeSimplification,          IfEnabledAndOptServer }, // for WAS trace folding
    { globalValuePropagation,      IfMoreThanOneBlock },
-   { globalValuePropagation,      IfMoreThanOneBlock },
+   { globalValuePropagationP2,      IfMoreThanOneBlock },
    { localValuePropagation,       IfOneBlock },
    { treeSimplification,          IfEnabled },
    { cheapObjectAllocationGroup             },
@@ -217,7 +217,7 @@ const OptimizationStrategy expensiveGlobalValuePropagationOpts[] =
    { localCSE,                           IfEnabledAndOptServer }, // for WAS trace folding
    { treeSimplification,                 IfEnabled }, // may be enabled by inner prex
    { globalValuePropagation,             IfMoreThanOneBlock },
-   { globalValuePropagation,             IfMoreThanOneBlock },
+   { globalValuePropagationP2,             IfMoreThanOneBlock },
    { treeSimplification,                 IfEnabled },
    { deadTreesElimination                          }, // clean up left-over accesses before escape analysis
 #ifdef J9_PROJECT_SPECIFIC
@@ -242,7 +242,7 @@ const OptimizationStrategy eachExpensiveGlobalValuePropagationOpts[] =
    //{ blockSplitter                                        },
    ///   { innerPreexistence                                      },
    { globalValuePropagation,                      IfMoreThanOneBlock },
-   { globalValuePropagation,                      IfMoreThanOneBlock },
+   { globalValuePropagationP2,                      IfMoreThanOneBlock },
    { treeSimplification,                          IfEnabled },
    { veryCheapGlobalValuePropagationGroup,        IfEnabled }, // enabled by blockversioner
    { deadTreesElimination                          }, // clean up left-over accesses before escape analysis
@@ -828,6 +828,8 @@ OMR::Optimizer::Optimizer(TR::Compilation *comp, TR::ResolvedMethodSymbol *metho
       new (comp->allocator()) TR::OptimizationManager(self(), TR_GeneralSinkStores::create, OMR::generalStoreSinking);
    _opts[OMR::globalValuePropagation] =
       new (comp->allocator()) TR::OptimizationManager(self(), TR::GlobalValuePropagation::create, OMR::globalValuePropagation);
+   _opts[OMR::globalValuePropagationP2] =
+      new (comp->allocator()) TR::OptimizationManager(self(), TR::GlobalValuePropagationP2::create, OMR::globalValuePropagationP2);
    _opts[OMR::localValuePropagation] =
       new (comp->allocator()) TR::OptimizationManager(self(), TR::LocalValuePropagation::create, OMR::localValuePropagation);
    _opts[OMR::redundantInductionVarElimination] =

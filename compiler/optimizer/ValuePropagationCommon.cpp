@@ -93,7 +93,7 @@
 namespace TR { class CFGNode; }
 namespace TR { class OptimizationManager; }
 
-#define OPT_DETAILS "O^O VALUE PROPAGATION: "
+#define OPT_DETAILS optDetailString()
 #define NEED_WRITE_BARRIER 1
 #define NEED_ARRAYSTORE_CHECK 2
 #define NEED_ARRAYSTORE_CHECK_AND_WRITE_BARRIER 3

@@ -46,6 +46,7 @@
    OPTIMIZATION(staticFinalFieldFolding)
    OPTIMIZATION(explicitNewInitialization)
    OPTIMIZATION(globalValuePropagation)
+   OPTIMIZATION(globalValuePropagationP2)
    OPTIMIZATION(redundantMonitorElimination)
    OPTIMIZATION(partialRedundancyElimination)
    OPTIMIZATION(globalCopyPropagation)
