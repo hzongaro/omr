@@ -12198,12 +12198,10 @@ TR::Node *constrainArrayStoreChk(OMR::ValuePropagation *vp, TR::Node *node)
    constrainChildren(vp, node);
 
    TR::Node *child = node->getFirstChild();
-   TR::Node *objectRef;
-   TR::Node *arrayRef;
+   TR::Node *objectRef = child->getSecondChild();
+   TR::Node *arrayRef = child->getChild(2);
    bool mustFail = false;
-
-   objectRef = child->getSecondChild();
-   arrayRef = child->getChild(2);
+   bool valueIsFromSameArray = false;
 
    if (objectRef->getOpCode().isLoadVar() &&
        objectRef->getOpCode().isIndirect() &&
@@ -12216,11 +12214,14 @@ TR::Node *constrainArrayStoreChk(OMR::ValuePropagation *vp, TR::Node *node)
          if (base->getFirstChild()->getOpCode().isArrayRef())
             base = base->getFirstChild()->getFirstChild();
          }
+
+         valueIsFromSameArray = (base == arrayRef);
       }
 
    TR_OpaqueClassBlock *storeClassForCheck = NULL;
    TR_OpaqueClassBlock *componentClassForCheck = NULL;
-   bool isStoreCheckNeeded = vp->isArrayStoreCheckNeeded(arrayRef, objectRef, mustFail, storeClassForCheck, componentClassForCheck);
+   bool isStoreCheckNeeded = !valueIsFromSameArray
+                             && vp->isArrayStoreCheckNeeded(arrayRef, objectRef, mustFail, storeClassForCheck, componentClassForCheck);
 
    // Remove the check if we can
    //
