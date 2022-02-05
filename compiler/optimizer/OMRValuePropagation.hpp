@@ -390,7 +390,7 @@ class ValuePropagation : public TR::Optimization
     *
     * \param[in] arrayRef A \ref TR::Node representing an array reference, an element of
     *                 which is being considered as the target of an assignment
-    * \param[in] arrayRef A \ref TR::Node representing an object reference that is being
+    * \param[in] objectRef A \ref TR::Node representing an object reference that is being
     *                 considered as the value to be assigned to the array element
     * \param[out] mustFail An output parameter of type \c bool.  Set to \c true if the
     *                 assignment under consideration would always result in an \c ArrayStoreException
@@ -407,7 +407,11 @@ class ValuePropagation : public TR::Optimization
               TR_OpaqueClassBlock* &storeClassForCheck, TR_OpaqueClassBlock* &componentClassForCheck);
 
    /**
-    * Determine the bounds and element size for an array constraint
+    * Determine the bounds and element size for an array constraint.
+    *
+    * The \c lowerBoundLimit and \c upperBoundLimit are in the range [0,2^31-1] and
+    * \c lowerBoundLimit <= \c upperBoundLimit.  If the array length is unknown,
+    * \c lowerBoundLimit will be zero and \c upperBoundLimit will be 2^31-1.
     *
     * \param[in] arrayConstraint A \ref TR::VPConstraint for an array reference
     * \param[out] lowerBoundLimit The lower bound on the size of the array
