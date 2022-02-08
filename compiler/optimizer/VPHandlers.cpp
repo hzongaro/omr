@@ -4890,7 +4890,9 @@ TR::Node *constrainArraylength(OMR::ValuePropagation *vp, TR::Node *node)
       }
 #endif
 
-   if (isKnownObj && lowerBoundLimit == upperBoundLimit)
+   // If this is a known array object, we definitely know its length
+   //
+   if (isKnownObj)
       {
       vp->replaceByConstant(node, TR::VPIntConst::create(vp, lowerBoundLimit), isGlobal);
       return node;
@@ -12215,7 +12217,7 @@ TR::Node *constrainArrayStoreChk(OMR::ValuePropagation *vp, TR::Node *node)
             base = base->getFirstChild()->getFirstChild();
          }
 
-         valueIsFromSameArray = (base == arrayRef);
+         valueIsFromSameArray = (vp->getValueNumber(base) == vp->getValueNumber(arrayRef));
       }
 
    TR_OpaqueClassBlock *storeClassForCheck = NULL;
