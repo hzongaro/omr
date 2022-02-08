@@ -12215,7 +12215,7 @@ TR::Node *constrainArrayStoreChk(OMR::ValuePropagation *vp, TR::Node *node)
             base = base->getFirstChild()->getFirstChild();
          }
 
-         valueIsFromSameArray = (base == arrayRef);
+         valueIsFromSameArray = (vp->getValueNumber(base) == vp->getValueNumber(arrayRef));
       }
 
    TR_OpaqueClassBlock *storeClassForCheck = NULL;
