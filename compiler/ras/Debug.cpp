@@ -517,12 +517,19 @@ TR_Debug::performTransformationImpl(bool canOmitTransformation, const char * for
       alreadyFormatted = true;
       }
 
+   bool reportVerboseOptTransformationsMatched = false;
+
    if (_comp->getOption(TR_CountOptTransformations))
       {
       TR::SimpleRegex * regex = _comp->getOptions()->getVerboseOptTransformationsRegex();
       if (regex && TR::SimpleRegex::match(regex, string))
          {
          _comp->incVerboseOptTransformationCount();
+
+         if (TR::Options::isAnyVerboseOptionSet(TR_VerboseOptimizer))
+            {
+            reportVerboseOptTransformationsMatched = true;
+            }
          }
       }
 
@@ -550,6 +557,12 @@ TR_Debug::performTransformationImpl(bool canOmitTransformation, const char * for
       //
       if (optIndex == comp()->getLastBegunOptIndex())
          comp()->recordPerformedOptTransformation();
+      }
+
+   if (reportVerboseOptTransformationsMatched)
+      {
+      TR_VerboseLog::CriticalSection vlogLock;
+      TR_VerboseLog::write(TR_Vlog_INFO, string);
       }
 
    // No need to do the printing logic below if there's no log file
