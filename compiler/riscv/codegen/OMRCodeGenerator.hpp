@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019, 2022 IBM Corp. and others
+ * Copyright (c) 2019, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -230,14 +230,14 @@ public:
     * @param[in] candidates : candidates already assigned
     * @return register number
     */
-   TR_GlobalRegisterNumber pickRegister(TR_RegisterCandidate *regCan, TR::Block **barr, TR_BitVector &availableRegisters, TR_GlobalRegisterNumber &highRegisterNumber, TR_LinkHead<TR_RegisterCandidate> *candidates);
+   TR_GlobalRegisterNumber pickRegister(TR::RegisterCandidate *regCan, TR::Block **barr, TR_BitVector &availableRegisters, TR_GlobalRegisterNumber &highRegisterNumber, TR_LinkHead<TR::RegisterCandidate> *candidates);
    /**
     * @brief Allows global register across branch or not
     * @param[in] regCan : register candidate
     * @param[in] branchNode : branch node
     * @return true when allowed, false otherwise
     */
-   bool allowGlobalRegisterAcrossBranch(TR_RegisterCandidate *regCan, TR::Node * branchNode);
+   bool allowGlobalRegisterAcrossBranch(TR::RegisterCandidate *regCan, TR::Node * branchNode);
    /**
     * @brief Gets the maximum number of GPRs allowed across edge
     * @param[in] node : node

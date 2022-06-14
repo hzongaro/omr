@@ -1,5 +1,5 @@
 ###############################################################################
-# Copyright (c) 2017, 2021 IBM Corp. and others
+# Copyright (c) 2017, 2023 IBM Corp. and others
 #
 # This program and the accompanying materials are made available under
 # the terms of the Eclipse Public License 2.0 which accompanies this
@@ -78,7 +78,7 @@ compiler_library(optimizer
 	${CMAKE_CURRENT_LIST_DIR}/ReachingDefinitions.cpp
 	${CMAKE_CURRENT_LIST_DIR}/OMRRecognizedCallTransformer.cpp
 	${CMAKE_CURRENT_LIST_DIR}/RedundantAsyncCheckRemoval.cpp
-	${CMAKE_CURRENT_LIST_DIR}/RegisterCandidate.cpp
+	${CMAKE_CURRENT_LIST_DIR}/OMRRegisterCandidate.cpp
 	${CMAKE_CURRENT_LIST_DIR}/OMRSimplifier.cpp
 	${CMAKE_CURRENT_LIST_DIR}/OMRSimplifierHelpers.cpp
 	${CMAKE_CURRENT_LIST_DIR}/OMRSimplifierHandlers.cpp

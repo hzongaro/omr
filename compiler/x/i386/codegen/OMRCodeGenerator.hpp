@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2020 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -37,7 +37,7 @@ namespace OMR { typedef OMR::X86::I386::CodeGenerator CodeGeneratorConnector; }
 
 #include "codegen/RegisterConstants.hpp"
 
-class TR_RegisterCandidate;
+namespace TR { class RegisterCandidate; }
 namespace TR { class Block; }
 namespace TR { class Node; }
 template <class T> class TR_LinkHead;
@@ -64,7 +64,7 @@ public:
 
    virtual TR::Register *longClobberEvaluate(TR::Node *node);
 
-   TR_GlobalRegisterNumber pickRegister(TR_RegisterCandidate *, TR::Block * *, TR_BitVector &, TR_GlobalRegisterNumber &, TR_LinkHead<TR_RegisterCandidate> *candidates);
+   TR_GlobalRegisterNumber pickRegister(TR::RegisterCandidate *, TR::Block * *, TR_BitVector &, TR_GlobalRegisterNumber &, TR_LinkHead<TR::RegisterCandidate> *candidates);
 
    using OMR::X86::CodeGenerator::getMaximumNumberOfGPRsAllowedAcrossEdge;
    int32_t getMaximumNumberOfGPRsAllowedAcrossEdge(TR::Node *);

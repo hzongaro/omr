@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2020 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -176,8 +176,8 @@ public:
 
 
    // This is needed by register simulation pickRegister in CodeGenRA common code.
-   TR_GlobalRegisterNumber pickRegister(TR_RegisterCandidate *, TR::Block * *, TR_BitVector & availableRegisters, TR_GlobalRegisterNumber & globalRegisterNumber, TR_LinkHead<TR_RegisterCandidate> *candidates);
-   bool allowGlobalRegisterAcrossBranch(TR_RegisterCandidate *, TR::Node * branchNode);
+   TR_GlobalRegisterNumber pickRegister(TR::RegisterCandidate *, TR::Block * *, TR_BitVector & availableRegisters, TR_GlobalRegisterNumber & globalRegisterNumber, TR_LinkHead<TR::RegisterCandidate> *candidates);
+   bool allowGlobalRegisterAcrossBranch(TR::RegisterCandidate *, TR::Node * branchNode);
    using OMR::CodeGenerator::getMaximumNumberOfGPRsAllowedAcrossEdge;
    int32_t getMaximumNumberOfGPRsAllowedAcrossEdge(TR::Node *);
    int32_t getMaximumNumberOfFPRsAllowedAcrossEdge(TR::Node *);

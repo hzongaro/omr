@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2022 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -49,8 +49,8 @@ class TR_DataFlowAnalysis;
 class TR_LocalTransparency;
 class TR_PrimaryInductionVariable;
 class TR_RegionStructure;
-class TR_RegisterCandidate;
 class TR_StructureSubGraphNode;
+namespace TR { class RegisterCandidate; }
 namespace TR { class VPConstraint; }
 namespace TR { class RegisterMappedSymbol; }
 namespace TR { class SymbolReference; }
@@ -565,7 +565,7 @@ class TR_RegionStructure : public TR_Structure
 
    bool isSymbolRefInvariant(TR::SymbolReference *);
 
-   void addGlobalRegisterCandidateToExits(TR_RegisterCandidate *);
+   void addGlobalRegisterCandidateToExits(TR::RegisterCandidate *);
 
    void addSubNode(TR_StructureSubGraphNode *subNode);
    void removeSubNode(TR_StructureSubGraphNode *subNode);

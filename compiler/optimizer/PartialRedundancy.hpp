@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -36,7 +36,7 @@
 class TR_BlockStructure;
 class TR_ExceptionCheckMotion;
 class TR_RegionStructure;
-class TR_RegisterCandidate;
+namespace TR { class RegisterCandidate; }
 class TR_Structure;
 namespace TR { class Block; }
 namespace TR { class CFGNode; }
@@ -127,7 +127,7 @@ class TR_PartialRedundancy : public TR::Optimization
    TR::TreeTop *_prevTree;
    TR::Symbol **_newSymbols;
    TR::SymbolReference **_newSymbolReferences;
-   TR_RegisterCandidate **_registerCandidates;
+   TR::RegisterCandidate **_registerCandidates;
    ContainerType **_optSetInfo;
    ContainerType **_rednSetInfo;
    ContainerType **_origOptSetInfo;

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -35,7 +35,7 @@
 class TR_BitVector;
 class TR_OpaqueClassBlock;
 class TR_PostDominators;
-class TR_RegisterCandidate;
+namespace TR { class RegisterCandidate; }
 class TR_Structure;
 class TR_ValueNumberInfo;
 namespace TR { class Block; }
@@ -163,7 +163,7 @@ class TR_FieldPrivatizer : public TR_LoopTransformer
    TR_BitVector *_needToStoreBack;
    List<TR::Node> _privatizedFieldNodes;
    TR_HashTabInt              _privatizedFieldSymRefs;
-   List<TR_RegisterCandidate> _privatizedRegCandidates;
+   List<TR::RegisterCandidate> _privatizedRegCandidates;
    TR::Block *_criticalEdgeBlock;
    TR::SymbolReference *_stringSymRef, *_valueOfSymRef, *_tempStringSymRef, *_appendSymRef, *_toStringSymRef, *_initSymRef;
    TR::TreeTop *_stringPeepholeTree;

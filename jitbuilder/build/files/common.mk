@@ -1,5 +1,5 @@
 ###############################################################################
-# Copyright (c) 2016, 2020 IBM Corp. and others
+# Copyright (c) 2016, 2023 IBM Corp. and others
 #
 # This program and the accompanying materials are made available under
 # the terms of the Eclipse Public License 2.0 which accompanies this
@@ -157,7 +157,7 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     $(JIT_OMR_DIRTY_DIR)/optimizer/ReachingDefinitions.cpp \
     $(JIT_OMR_DIRTY_DIR)/optimizer/OMRRecognizedCallTransformer.cpp \
     $(JIT_OMR_DIRTY_DIR)/optimizer/RedundantAsyncCheckRemoval.cpp \
-    $(JIT_OMR_DIRTY_DIR)/optimizer/RegisterCandidate.cpp \
+    $(JIT_OMR_DIRTY_DIR)/optimizer/OMRRegisterCandidate.cpp \
     $(JIT_OMR_DIRTY_DIR)/optimizer/ReorderIndexExpr.cpp \
     $(JIT_OMR_DIRTY_DIR)/optimizer/SinkStores.cpp \
     $(JIT_OMR_DIRTY_DIR)/optimizer/StripMiner.cpp \

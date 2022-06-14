@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2022 IBM Corp. and others
+ * Copyright (c) 2000, 2023 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -72,7 +72,7 @@
 #endif
 
 
-class TR_RegisterCandidate;
+namespace TR { class RegisterCandidate; }
 
 static int32_t numIterations = 0;
 
@@ -327,11 +327,11 @@ int32_t TR_PartialRedundancy::perform()
    _newSymbols = (TR::Symbol **)trMemory()->allocateStackMemory(_numberOfBits*sizeof(TR::Symbol *));
    _newSymbolReferences = (TR::SymbolReference **)trMemory()->allocateStackMemory(_numberOfBits*sizeof(TR::SymbolReference *));
    _newSymbolsMap = (int32_t*) trMemory()->allocateStackMemory(_numberOfBits*sizeof(int32_t));
-   _registerCandidates = (TR_RegisterCandidate **)trMemory()->allocateStackMemory(_numberOfBits*sizeof(TR_RegisterCandidate *));
+   _registerCandidates = (TR::RegisterCandidate **)trMemory()->allocateStackMemory(_numberOfBits*sizeof(TR::RegisterCandidate *));
 
    memset(_newSymbols, 0, _numberOfBits*sizeof(TR::Symbol *));
    memset(_newSymbolReferences, 0, _numberOfBits*sizeof(TR::SymbolReference *));
-   memset(_registerCandidates, 0, _numberOfBits*sizeof(TR_RegisterCandidate *));
+   memset(_registerCandidates, 0, _numberOfBits*sizeof(TR::RegisterCandidate *));
 
    // Initialize the map to -1 values
    //
