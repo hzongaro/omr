@@ -9457,8 +9457,16 @@ static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, b
       {
       TR::Node *callNode = node->getVirtualCallNodeForGuard();
 
+      // In order to decide correctly whether the guard can be eliminated, we need to ensure
+      // all predecessor blocks of the call block have been walked, and hence all definitions
+      // used by the call have been considered.  The easiest way to do that is to check
+      // whether the call has only one predecessor - the current block.
+      // A potential refinement would be to check whether all of the call block's predecessors
+      // have been walked, and that this is the last predecessor being visited on this walk.
+      //
       if (callNode &&
-          callNode->getOpCode().isCall())
+          callNode->getOpCode().isCall() &&
+          target->getPredecessors().size() == 1)
          {
          virtualGuardWillBeEliminated = canFoldNonOverriddenGuard(vp, callNode, node);
          if (!virtualGuardWillBeEliminated &&
