@@ -1401,6 +1401,7 @@ public:
       _packedTest = NULL;
       _memUsage = NULL;
       _classesWithFolableFinalFields = NULL;
+      _suppressEA = NULL;
       _disabledIdiomPatterns = NULL;
       _gcCardSize = 0;
       _heapBase = 0;
