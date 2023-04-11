@@ -16545,8 +16545,7 @@ TR::Node *divchkSimplifier(TR::Node * node, TR::Block * block, TR::Simplifier * 
    if (originalChild->getVisitCount() != s->comp()->getVisitCount())
       child = s->simplify(originalChild, block);
 
-   if (child != originalChild ||
-       !(child->getOpCode().isDiv() || child->getOpCode().isRem()))
+   if (!(child->getOpCode().isDiv() || child->getOpCode().isRem()))
       {
       TR::Node::recreate(node, TR::treetop);
       node->setFirst(child);
