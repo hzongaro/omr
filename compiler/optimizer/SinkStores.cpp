@@ -714,7 +714,6 @@ void TR_SinkStores::lookForSinkableStores()
 
    // for keeping track of dataflow for each tree
    TR_BitVector *savedLiveCommonedLoads = new (trStackMemory()) TR_BitVector(numLocals, trMemory());
-   TR_BitVector *satisfiedLiveCommonedLoads = new (trStackMemory()) TR_BitVector(numLocals, trMemory());
    TR_BitVector *killedLiveCommonedLoads = new (trStackMemory()) TR_BitVector(numLocals, trMemory());
 
    // treeVisitCount will be incremented for each tree in an EBB
@@ -780,6 +779,7 @@ void TR_SinkStores::lookForSinkableStores()
                foundException = true;
                }
 
+            // remember the currently live commoned loads so that we can figure out later if we can move this store
             (*savedLiveCommonedLoads) = (*_liveVarInfo->liveCommonedLoads());
 
             if (trace())
@@ -788,14 +788,10 @@ void TR_SinkStores::lookForSinkableStores()
                savedLiveCommonedLoads->print(comp());
                traceMsg(comp(), "\n");
                }
+
             // visit the tree below this node and find all the symbols it uses
             TR_BitVector *usedSymbols = new (trStackMemory()) TR_BitVector(numLocals, trMemory());
             TR_BitVector *killedSymbols = new (trStackMemory()) TR_BitVector(numLocals, trMemory());
-            // remove any commoned loads where the first reference to the load has been seen (it is 'satisfied')
-            // satisfiedLiveCommonedLoads was initialized, if required, on the previous node examined
-
-            // remember the currently live commoned loads so that we can figure out later if we can move this store
-            (*savedLiveCommonedLoads) = (*_liveVarInfo->liveCommonedLoads());
 
             treeCommonedLoads->empty();
             if (trace())
@@ -2191,8 +2187,13 @@ TR_SinkStores::genStoreToTempSyms(TR::TreeTop *storeLocation,
                "%s Create new temp store node for commoned loads sym %d and place above store [" POINTER_PRINTF_FORMAT "]\n",OPT_DETAILS, symIdx, storeLocation->getNode())
              && performThisTransformation())
             {
-            // found first ref so reset killed commoned loads for this sym
-            killedLiveCommonedLoads->reset(symIdx);
+            // Found first reference to this commoned load.  If there are no other
+            // live commoned loads of this local, reset killed commoned loads for it
+            if (_liveVarInfo->numDistinctCommonedLoads(symIdx) == 0)
+               {
+               killedLiveCommonedLoads->reset(symIdx);
+               }
+
             TR::SymbolReference *symRef0 = comp()->getSymRefTab()->createTemporary(comp()->getMethodSymbol(), node->getDataType());
             TR::Node *store0 = TR::Node::createStore(symRef0, node);
             TR::TreeTop *store0_tt = TR::TreeTop::create(comp(), store0);

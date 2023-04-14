@@ -78,6 +78,8 @@ TR_LiveVariableInformation::TR_LiveVariableInformation(TR::Compilation   *c,
 
    _haveCachedGenAndKillSets = false;
    _liveCommonedLoads = NULL;
+   _seenCommonedNodeForLoadOfLocal = NULL;
+   _distinctCommonedLoads = NULL;
    }
 
 void TR_LiveVariableInformation::collectLiveVariableInformation()
@@ -469,6 +471,26 @@ void TR_LiveVariableInformation::visitTreeForLocals(TR::Node *node, TR_BitVector
             if (traceLiveVarInfo())
                traceMsg(comp(), "            not first reference\n");
 
+            if (_liveCommonedLoads != NULL && local != NULL)
+               {
+               if (_seenCommonedNodeForLoadOfLocal == NULL)
+                  {
+                  _seenCommonedNodeForLoadOfLocal = new (trStackMemory()) TR::NodeChecklist(comp());
+                  _distinctCommonedLoads = (int32_t *) comp()->trMemory()->allocateHeapMemory(_numLocals * sizeof(int32_t));
+                  memset(_distinctCommonedLoads, 0x0, _numLocals * sizeof(int32_t));
+                  }
+
+               // Has this load of a local variable been encountered before in this backwards
+               // tree walk?  If not, add the node to the checklist and bump the number of distinct
+               // commoned loads of the local variable.
+               //
+               if (!_seenCommonedNodeForLoadOfLocal->contains(node))
+                  {
+                  _seenCommonedNodeForLoadOfLocal->add(node);
+                  _distinctCommonedLoads[localIndex] = _distinctCommonedLoads[localIndex] + 1;
+                  }
+               }
+
             // traversal should either end here (for regular traversal) or track that we're below a commoned node
             if (visitEntireTree)
                belowCommonedNode = true;
@@ -480,9 +502,35 @@ void TR_LiveVariableInformation::visitTreeForLocals(TR::Node *node, TR_BitVector
             if (traceLiveVarInfo())
                traceMsg(comp(), "            first reference\n");
 
-            // if this is a load, clear it in liveCommonedLoads if we've been asked to track them
+            // if this is a load, and there are no other live commoned loads of the local
+            // clear it in liveCommonedLoads if we've been asked to track them
             if (_liveCommonedLoads != NULL && local != NULL)
-               _liveCommonedLoads->reset(localIndex);
+               {
+               if (_seenCommonedNodeForLoadOfLocal != NULL)
+                  {
+                  // If we've encountered a commoned reference to this node, decrease
+                  // the number of distinct commoned references of the local that are
+                  // are still live.  If there are no more live commoned references to
+                  // the local, remove it from _liveCommonedLoads
+                  //
+                  if (_seenCommonedNodeForLoadOfLocal->contains(node))
+                     {
+                     int32_t numDistinctCommonedLoads = _distinctCommonedLoads[localIndex];
+                     _distinctCommonedLoads[localIndex] = numDistinctCommonedLoads - 1;
+
+                     _seenCommonedNodeForLoadOfLocal->remove(node);
+
+                     if (numDistinctCommonedLoads == 1)
+                        {
+                        _liveCommonedLoads->reset(localIndex);
+                        }
+                     }
+                  }
+               else
+                  {
+                  _liveCommonedLoads->reset(localIndex);
+                  }
+               }
             }
          }
 
@@ -523,6 +571,21 @@ void TR_LiveVariableInformation::visitTreeForLocals(TR::Node *node, TR_BitVector
             if (traceLiveVarInfo())
                traceMsg(comp(), "              Marking %d as live commoned load\n", localIndex);
             _liveCommonedLoads->set(localIndex);
+
+            if (!movingForwardThroughTrees && _seenCommonedNodeForLoadOfLocal != NULL)
+               {
+               // Has this load of a local variable been encountered before in this backwards
+               // tree walk?  If not, add the node to the checklist and bump the number of distinct
+               // commoned loads of the local variable.
+               //
+               if (!_seenCommonedNodeForLoadOfLocal->contains(node))
+                  {
+                  int32_t numDistinctCommonedLoads = _distinctCommonedLoads[localIndex];
+                  _distinctCommonedLoads[localIndex] = numDistinctCommonedLoads + 1;
+
+                  _seenCommonedNodeForLoadOfLocal->add(node);
+                  }
+               }
             }
          }
       if (_localObjects != NULL && local && local->isLocalObject())
