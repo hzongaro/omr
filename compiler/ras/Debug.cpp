@@ -1094,6 +1094,7 @@ TR_Debug::nodePrintAllFlags(TR::Node *node, TR_PrettyPrinterString &output)
    FLAG(isCopyToNewVirtualRegister, "copyToNewVirtualRegister");
    FLAG(chkNodeCreatedByPRE, "createdByPRE");
    FLAG(chkIsReferenceNonNull, "referenceIsNonNull");
+   FLAG(chkPreparedForDirectJNI, "preparedForDirectJNI");
 
 #undef FLAG
 #undef FLAG_IF

@@ -1139,6 +1139,7 @@ public:
 
    bool isPreparedForDirectJNI();
    void setPreparedForDirectJNI();
+   bool chkPreparedForDirectJNI();
 
    bool isSafeForCGToFastPathUnsafeCall();
    void setIsSafeForCGToFastPathUnsafeCall(bool v);

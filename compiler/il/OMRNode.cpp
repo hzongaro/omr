@@ -5827,12 +5827,20 @@ OMR::Node::chkDesynchronizeCall()
 bool
 OMR::Node::isPreparedForDirectJNI()
    {
+   TR_ASSERT(self()->getOpCode().isCall(), "Opcode must be a call");
+   return _flags.testAny(preparedForDirectToJNI) && self()->getOpCodeValue() != TR::arraycopy;
+   }
+
+bool
+OMR::Node::chkPreparedForDirectJNI()
+   {
    return self()->getOpCode().isCall() && _flags.testAny(preparedForDirectToJNI) && self()->getOpCodeValue() != TR::arraycopy;
    }
 
 void
 OMR::Node::setPreparedForDirectJNI()
    {
+   TR_ASSERT(self()->getOpCode().isCall(), "Opcode must be a call");
    _flags.set(preparedForDirectToJNI, true);
 #if defined(TR_TARGET_X86)
    self()->getSymbol()->castToMethodSymbol()->setLinkage(TR_J9JNILinkage);
