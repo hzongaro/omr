@@ -45,7 +45,7 @@ TR_PPCOutOfLineCodeSection::TR_PPCOutOfLineCodeSection(TR::Node  *callNode,
                             TR::CodeGenerator *cg) :
                             TR_OutOfLineCodeSection(callNode,callOp,targetReg,entryLabel,restartLabel,cg)
    {
-   if(callNode->isPreparedForDirectJNI())
+   if (callNode->getOpCode().isCall() && callNode->isPreparedForDirectJNI())
       {
       _callNode->setPreparedForDirectJNI();
       }
