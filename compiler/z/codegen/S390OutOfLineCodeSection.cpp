@@ -55,7 +55,7 @@ TR_S390OutOfLineCodeSection::TR_S390OutOfLineCodeSection(TR::Node  *callNode,
                                                    _targetRegMovOpcode(cg->comp()->target().is64Bit() ? TR::InstOpCode::LGR : TR::InstOpCode::LR)
    {
    // isPreparedForDirectJNI also checks if the node is a call
-   if(callNode->isPreparedForDirectJNI())
+   if(callNode->getOpCode().isCall() && callNode->isPreparedForDirectJNI())
       {
       _callNode->setPreparedForDirectJNI();
       }
