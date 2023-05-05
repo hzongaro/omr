@@ -362,7 +362,7 @@ TR::Node *TR_OutlinedInstructions::createOutlinedCallNode(TR::Node *callNode, TR
             }
          }
       }
-   if(callNode->isPreparedForDirectJNI())
+   if(callNode->getOpCode().isCall() && callNode->isPreparedForDirectJNI())
       {
          newCallNode->setPreparedForDirectJNI();
       }
