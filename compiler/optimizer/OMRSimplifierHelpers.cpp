@@ -103,7 +103,7 @@ static bool swapChildren(TR::Node * node, TR::Simplifier * s)
 //
 bool performTransformationSimplifier(TR::Node * node, TR::Simplifier * s)
    {
-   return performTransformation(s->comp(), "%sConstant folding node [%s] %s", s->optDetailString(), node->getName(s->getDebug()), node->getOpCode().getName());
+   return performTransformation(s->comp(), "%sConstant folding node [%s] %s\n", s->optDetailString(), node->getName(s->getDebug()), node->getOpCode().getName());
    }
 
 void setIsHighWordZero(TR::Node * node, TR::Simplifier * s)
@@ -141,9 +141,9 @@ TR::Node *_gotoSimplifier(TR::Node * node, TR::Block * block, TR::TreeTop* curTr
    return node;
    }
 
-void foldIntConstant(TR::Node * node, int32_t value, TR::Simplifier * s, bool anchorChildrenP)
+bool foldIntConstant(TR::Node * node, int32_t value, TR::Simplifier * s, bool anchorChildrenP)
    {
-   if (!performTransformationSimplifier(node, s)) return;
+   if (!performTransformationSimplifier(node, s)) return false;
 
    if (anchorChildrenP) s->anchorChildren(node, s->_curTree);
 
@@ -163,22 +163,26 @@ void foldIntConstant(TR::Node * node, int32_t value, TR::Simplifier * s, bool an
       node->setInt(value);
       dumpOptDetails(s->comp(), " to %s %d\n", node->getOpCode().getName(), node->getInt());
       }
+
+   return true;
    }
 
-void foldUIntConstant(TR::Node * node, uint32_t value, TR::Simplifier * s, bool anchorChildrenP)
+bool foldUIntConstant(TR::Node * node, uint32_t value, TR::Simplifier * s, bool anchorChildrenP)
    {
-   if (!performTransformationSimplifier(node, s)) return;
+   if (!performTransformationSimplifier(node, s)) return false;
 
    if (anchorChildrenP) s->anchorChildren(node, s->_curTree);
 
    s->prepareToReplaceNode(node, TR::iconst);
    node->setUnsignedInt(value);
    dumpOptDetails(s->comp(), " to %s %d\n", node->getOpCode().getName(), node->getInt());
+
+   return true;
    }
 
-void foldLongIntConstant(TR::Node * node, int64_t value, TR::Simplifier * s, bool anchorChildrenP)
+bool foldLongIntConstant(TR::Node * node, int64_t value, TR::Simplifier * s, bool anchorChildrenP)
    {
-   if (!performTransformationSimplifier(node, s)) return;
+   if (!performTransformationSimplifier(node, s)) return false;
 
    if (anchorChildrenP) s->anchorChildren(node, s->_curTree);
 
@@ -197,31 +201,41 @@ void foldLongIntConstant(TR::Node * node, int64_t value, TR::Simplifier * s, boo
       dumpOptDetails(s->comp(), " 0x%x\n", node->getLongIntLow());
    else
       dumpOptDetails(s->comp(), " 0x%x%08x\n", node->getLongIntHigh(), node->getLongIntLow());
+
+   return true;
    }
 
-void foldFloatConstant(TR::Node * node, float value, TR::Simplifier * s)
+bool foldFloatConstant(TR::Node * node, float value, TR::Simplifier * s)
    {
    if (performTransformationSimplifier(node, s))
       {
       s->prepareToReplaceNode(node, TR::fconst);
       node->setFloat(value);
       dumpOptDetails(s->comp(), " to %s %f\n", node->getOpCode().getName(), node->getFloat());
+
+      return true;
       }
+
+   return false;
    }
 
-void foldDoubleConstant(TR::Node * node, double value, TR::Simplifier * s)
+bool foldDoubleConstant(TR::Node * node, double value, TR::Simplifier * s)
    {
    if (performTransformationSimplifier(node, s))
       {
       s->prepareToReplaceNode(node, TR::dconst);
       node->setDouble(value);
       dumpOptDetails(s->comp(), " to %s %f\n", node->getOpCode().getName(), node->getDouble());
+
+      return true;
       }
+
+   return false;
    }
 
-void foldByteConstant(TR::Node * node, int8_t value, TR::Simplifier * s, bool anchorChildrenP)
+bool foldByteConstant(TR::Node * node, int8_t value, TR::Simplifier * s, bool anchorChildrenP)
    {
-   if (!performTransformationSimplifier(node, s)) return;
+   if (!performTransformationSimplifier(node, s)) return false;
 
    if (anchorChildrenP) s->anchorChildren(node, s->_curTree);
 
@@ -229,40 +243,47 @@ void foldByteConstant(TR::Node * node, int8_t value, TR::Simplifier * s, bool an
    node->setByte(value);
    dumpOptDetails(s->comp(), " to %s %d\n", node->getOpCode().getName(), node->getByte());
 
+   return true;
    }
 
-void foldShortIntConstant(TR::Node * node, int16_t value, TR::Simplifier * s, bool anchorChildrenP)
+bool foldShortIntConstant(TR::Node * node, int16_t value, TR::Simplifier * s, bool anchorChildrenP)
    {
    if (!performTransformationSimplifier(node, s))
-      return;
+      return false;
 
    if (anchorChildrenP) s->anchorChildren(node, s->_curTree);
 
    s->prepareToReplaceNode(node, TR::sconst);
    node->setShortInt(value);
    dumpOptDetails(s->comp(), " to %s %d\n", node->getOpCode().getName(), node->getShortInt());
+
+   return true;
    }
 
-void foldUByteConstant(TR::Node * node, uint8_t value, TR::Simplifier * s, bool anchorChildrenP)
+bool foldUByteConstant(TR::Node * node, uint8_t value, TR::Simplifier * s, bool anchorChildrenP)
    {
-   if (!performTransformationSimplifier(node, s)) return;
+   if (!performTransformationSimplifier(node, s)) return false;
 
    if (anchorChildrenP) s->anchorChildren(node, s->_curTree);
 
    s->prepareToReplaceNode(node, TR::bconst);
    node->setUnsignedByte(value);
    dumpOptDetails(s->comp(), " to %s %d\n", node->getOpCode().getName(), node->getUnsignedByte());
+
+   return true;
    }
 
-void foldCharConstant(TR::Node * node, uint16_t value, TR::Simplifier * s, bool anchorChildrenP)
+bool foldCharConstant(TR::Node * node, uint16_t value, TR::Simplifier * s, bool anchorChildrenP)
    {
-   if (!performTransformationSimplifier(node, s)) return;
+   if (!performTransformationSimplifier(node, s)) return false;
 
    if (anchorChildrenP) s->anchorChildren(node, s->_curTree);
 
    s->prepareToReplaceNode(node, TR::sconst);
    node->setConst<uint16_t>(value);
    dumpOptDetails(s->comp(), " to %s %d\n", node->getOpCode().getName(), node->getConst<uint16_t>());
+
+   return true;
    }
 
 bool swapChildren(TR::Node * node, TR::Node * & firstChild, TR::Node * & secondChild, TR::Simplifier * s)
