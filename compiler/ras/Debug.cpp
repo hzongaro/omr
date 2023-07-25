@@ -1559,6 +1559,8 @@ TR_Debug::getName(TR::SymbolReference * symRef)
             return "<vft-symbol>";
          case TR::SymbolReferenceTable::currentThreadSymbol:
             return "<current-thread>";
+         case TR::SymbolReferenceTable::currentCarrierThreadSymbol:
+            return "<current-carrier-thread>";
          case TR::SymbolReferenceTable::thisRangeExtensionSymbol:
             return "<this-range-extension>";
          case TR::SymbolReferenceTable::recompilationCounterSymbol:
@@ -2065,6 +2067,7 @@ static const char *commonNonhelperSymbolNames[] =
    "<isClassFlags>",
    "<vft>",
    "<currentThread>",
+   "<currentCarrierThread>",
    "<recompilationCounter>",
    "<excp>",
    "<indexableSize>",

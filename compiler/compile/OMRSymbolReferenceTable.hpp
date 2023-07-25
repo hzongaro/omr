@@ -117,6 +117,7 @@ class SymbolReferenceTable
       isClassFlagsSymbol,
       vftSymbol,
       currentThreadSymbol,
+      currentCarrierThreadSymbol,
       recompilationCounterSymbol,
       excpSymbol,
       indexableSizeSymbol,

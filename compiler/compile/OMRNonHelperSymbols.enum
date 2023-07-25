@@ -52,6 +52,7 @@
    isClassFlagsSymbol,
    vftSymbol,
    currentThreadSymbol,
+   currentCarrierThreadSymbol,
    recompilationCounterSymbol,
    excpSymbol,
    indexableSizeSymbol,

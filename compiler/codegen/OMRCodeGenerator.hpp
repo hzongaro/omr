@@ -1703,8 +1703,12 @@ public:
 
    bool getSupportsInlinedAtomicLongVolatiles() {return _flags1.testAny(SupportsInlinedAtomicLongVolatiles);}
    void setSupportsInlinedAtomicLongVolatiles() {_flags1.set(SupportsInlinedAtomicLongVolatiles);}
+
    bool getInlinedGetCurrentThreadMethod() {return _flags3.testAny(InlinedGetCurrentThreadMethod);}
    void setInlinedGetCurrentThreadMethod() {_flags3.set(InlinedGetCurrentThreadMethod);}
+
+   bool getInlinedGetCurrentCarrierThreadMethod() {return _flags3.testAny(InlinedGetCurrentCarrierThreadMethod);}
+   void setInlinedGetCurrentCarrierThreadMethod() {_flags3.set(InlinedGetCurrentCarrierThreadMethod);}
 
    bool considerAllAutosAsTacticalGlobalRegisterCandidates()    {return _flags1.testAny(ConsiderAllAutosAsTacticalGlobalRegisterCandidates);}
    void setConsiderAllAutosAsTacticalGlobalRegisterCandidates() {_flags1.set(ConsiderAllAutosAsTacticalGlobalRegisterCandidates);}
@@ -1895,7 +1899,7 @@ public:
       RequiresCarry                                       = 0x00020000,
       MethodContainsBinaryCodedDecimal                    = 0x00040000,  // wcode
       ComputesCarry                                       = 0x00080000,
-      // AVAILABLE                                        = 0x00100000,
+      InlinedGetCurrentCarrierThreadMethod                = 0x00100000,
       // AVAILABLE                                        = 0x00200000,
       SupportsStackAllocationOfArraylets                  = 0x00400000,
       // AVAILABLE                                        = 0x00800000,
