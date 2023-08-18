@@ -8636,7 +8636,20 @@ TR::Node *idivSimplifier(TR::Node * node, TR::Block * block, TR::Simplifier * s)
             else
                {
                if (divisor == -1 && dividend == TR::getMinSigned<TR::Int32>())
-                  return s->replaceNode(node, firstChild, s->_curTree);
+                  {
+                  TR::Node *replacementNode = s->replaceNode(node, firstChild, s->_curTree);
+
+                  // Verify that replaceNode has actually replaced the idiv with its first
+                  // child - replacement is guarded by performTransformation.  If replacement
+                  // happened, any parent DIVCHK is no longer needed.
+                  //
+                  if (replacementNode == firstChild)
+                     {
+                     s->_nodeToDivchk = NULL;
+                     }
+
+                  return replacementNode;
+                  }
 
                if (foldIntConstant(node, dividend/divisor, s, false /* !anchorChildren*/))
                   {
