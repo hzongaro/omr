@@ -910,9 +910,10 @@ int32_t TR::DeadTreesElimination::process(TR::TreeTop *startTree, TR::TreeTop *e
                          (opCodeValue == TR::loadaddr) ||
                          (opCodeValue == TR::instanceof) ||
                          (((opCodeValue == TR::New)  ||
-                            (opCodeValue == TR::anewarray ||
-                              opCodeValue == TR::newarray)) &&
-                           child->markedAllocationCanBeRemoved()))
+                           (opCodeValue == TR::newvalue) ||
+                           (opCodeValue == TR::anewarray) ||
+                           (opCodeValue == TR::newarray)) &&
+                          child->markedAllocationCanBeRemoved()))
                         treeTopCanBeEliminated = true;
                      }
                   }
