@@ -187,6 +187,7 @@ enum TR_X86_CPUID_ebx_eax07_ecx00
 inline uint32_t getFeatureFlags8Mask()
    {
    return  TR_HLE
+         | TR_ERMSB
          | TR_RTM
          | TR_CLWB
          | TR_AVX2
