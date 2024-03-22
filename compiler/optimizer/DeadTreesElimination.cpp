@@ -153,10 +153,10 @@ traceMsg(comp, "In longestPaths for node %p\n", node);
 for (auto it = longestPaths.begin(); it != longestPaths.end(); it++) {
 LPEntry entry = it;
 TR::Node *entryNode = entry.first;
-TR::Node pathLength = entry.second;
+int32_t pathLength = entry.second;
 TR_ASSERT_FATAL(entryNode->getGlobalIndex() >= 0, "Found a bogus global index for node %p\n", entryNode);
 TR_ASSERT_FATAL(pathLength >= 0, "Found a bogus length %d\n", pathLength);
-totalLength = pathLength;
+totalLength = totalLength + pathLength;
 entryCount++;
 }
 traceMsg(comp, "Total length:  %d; Entry Count:  %d\n", totalLength, entryCount);
