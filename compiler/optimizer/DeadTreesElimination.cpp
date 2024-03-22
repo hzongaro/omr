@@ -146,6 +146,22 @@ typedef std::pair<TR::Node* const, int32_t> LPEntry;
 typedef TR::typed_allocator<LPEntry, TR::Region&> LPAlloc;
 typedef std::map<TR::Node*, int32_t, std::less<TR::Node*>, LPAlloc> LongestPathMap;
 
+static void walkLongestPaths(TR::Compilation *comp, TR::Node *node, LongestPathMap &longestPaths) {
+int32_t totalLength = 0;
+int32_t entryCount = 0;
+traceMsg(comp, "In longestPaths for node %p\n", node);
+for (auto it = longestPaths.begin(); it != longestPaths.end(); it++) {
+LPEntry entry = it;
+TR::Node *entryNode = entry.first;
+TR::Node pathLength = entry.second;
+TR_ASSERT_FATAL(entryNode->getGlobalIndex() >= 0, "Found a bogus global index for node %p\n", entryNode);
+TR_ASSERT_FATAL(pathLength >= 0, "Found a bogus length %d\n", pathLength);
+totalLength = pathLength;
+entryCount++;
+}
+traceMsg(comp, "Total length:  %d; Entry Count:  %d\n", totalLength, entryCount);
+}
+
 static int32_t getLongestPathOfDAG(TR::Node *node, LongestPathMap &memo)
    {
    if (node->getNumChildren() == 0)
@@ -778,6 +794,8 @@ int32_t TR::DeadTreesElimination::process(TR::TreeTop *startTree, TR::TreeTop *e
    for (TR::TreeTopIterator iter(startTree, comp()); iter != endTree; ++iter)
       {
       TR::Node *node = iter.currentTree()->getNode();
+if (trace())
+walkLongestPaths(comp(), node, longestPaths);
 
       if (node->getOpCodeValue() == TR::BBStart)
          {
@@ -1091,6 +1109,8 @@ int32_t TR::DeadTreesElimination::process(TR::TreeTop *startTree, TR::TreeTop *e
    for (auto it = anchors.begin(); it != anchors.end(); ++it)
       {
       TR::Node *anchor = it->tree->getNode();
+if (trace())
+walkLongestPaths(comp(), anchor, longestPaths);
       TR::Node *load = anchor->getChild(0);
       if (load->getReferenceCount() > 1)
          continue;
@@ -1122,6 +1142,8 @@ int32_t TR::DeadTreesElimination::process(TR::TreeTop *startTree, TR::TreeTop *e
       requestOpt(OMR::deadTreesElimination, true, it->block);
       }
 
+if (trace())
+walkLongestPaths(comp(), NULL, longestPaths);
    return 1; // actual cost
    }
 
