@@ -149,7 +149,7 @@ typedef std::map<TR::Node*, int32_t, std::less<TR::Node*>, LPAlloc> LongestPathM
 static void walkLongestPaths(TR::Compilation *comp, TR::Node *node, LongestPathMap &longestPaths) {
 int32_t totalLength = 0;
 int32_t entryCount = 0;
-traceMsg(comp, "In longestPaths for node %p\n", node);
+traceMsg(comp, "In longestPaths for node n%un [%p]\n", node ? node->getGlobalIndex() : 0, node);
 for (auto it = longestPaths.begin(); it != longestPaths.end(); it++) {
 TR::Node *entryNode = it->first;
 int32_t pathLength = it->second;
@@ -776,6 +776,10 @@ int32_t TR::DeadTreesElimination::process(TR::TreeTop *startTree, TR::TreeTop *e
    TR::StackMemoryRegion stackRegion(*comp()->trMemory());
    LongestPathMap longestPaths(std::less<TR::Node*>(), stackRegion);
 
+if (trace())
+{
+traceMsg(comp(), "Entered DeadTreesElimination::process from treeTop n%un [%p] to n%un [%p]\n", startTree->getNode()->getGlobalIndex(), startTree->getNode(), endTree->getNode()->getGlobalIndex(), endTree->getNode());
+}
    typedef TR::typed_allocator<CRAnchor, TR::Region&> CRAnchorAlloc;
    typedef TR::forward_list<CRAnchor, CRAnchorAlloc> CRAnchorList;
    CRAnchorList anchors(stackRegion);
@@ -800,7 +804,11 @@ walkLongestPaths(comp(), node, longestPaths);
          {
          block = node->getBlock();
          if (!block->isExtensionOfPreviousBlock())
+{
+if (trace())
+traceMsg(comp(), "Clearing longestPaths at n%un [%p]\n", node->getGlobalIndex(), node);
             longestPaths.clear();
+}
          }
 
       int vcountLimit = MAX_VCOUNT - 3;
@@ -1105,6 +1113,10 @@ walkLongestPaths(comp(), node, longestPaths);
          }
       }
 
+if (trace())
+{
+traceMsg(comp(), "About to iterate through anchors\n");
+}
    for (auto it = anchors.begin(); it != anchors.end(); ++it)
       {
       TR::Node *anchor = it->tree->getNode();
@@ -1142,7 +1154,10 @@ walkLongestPaths(comp(), anchor, longestPaths);
       }
 
 if (trace())
+{
+traceMsg(comp(), "About to exit\n");
 walkLongestPaths(comp(), NULL, longestPaths);
+}
    return 1; // actual cost
    }
 
