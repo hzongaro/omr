@@ -774,12 +774,14 @@ static bool treeCanPossiblyBeRemoved(TR::Node *node)
 int32_t TR::DeadTreesElimination::process(TR::TreeTop *startTree, TR::TreeTop *endTree)
    {
    TR::StackMemoryRegion stackRegion(*comp()->trMemory());
+{
    LongestPathMap longestPaths(std::less<TR::Node*>(), stackRegion);
 
 if (trace())
 {
 traceMsg(comp(), "Entered DeadTreesElimination::process from treeTop n%un [%p] to n%un [%p]\n", startTree->getNode()->getGlobalIndex(), startTree->getNode(), endTree->getNode()->getGlobalIndex(), endTree->getNode());
 }
+{
    typedef TR::typed_allocator<CRAnchor, TR::Region&> CRAnchorAlloc;
    typedef TR::forward_list<CRAnchor, CRAnchorAlloc> CRAnchorList;
    CRAnchorList anchors(stackRegion);
@@ -1155,8 +1157,19 @@ walkLongestPaths(comp(), anchor, longestPaths);
 
 if (trace())
 {
-traceMsg(comp(), "About to exit\n");
+traceMsg(comp(), "About to leave scope for anchors\n");
 walkLongestPaths(comp(), NULL, longestPaths);
+}
+}
+if (trace())
+{
+traceMsg(comp(), "About to leave scope for longestPaths\n");
+walkLongestPaths(comp(), NULL, longestPaths);
+}
+}
+if (trace())
+{
+traceMsg(comp(), "About to leave scope for stackRegion\n");
 }
    return 1; // actual cost
    }
