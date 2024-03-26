@@ -800,7 +800,10 @@ traceMsg(comp(), "Entered DeadTreesElimination::process from treeTop n%un [%p] t
       {
       TR::Node *node = iter.currentTree()->getNode();
 if (trace())
+{
+traceMsg(comp(), "1.1 - ");
 walkLongestPaths(comp(), node, longestPaths);
+}
 
       if (node->getOpCodeValue() == TR::BBStart)
          {
@@ -830,6 +833,11 @@ traceMsg(comp(), "Clearing longestPaths at n%un [%p]\n", node->getGlobalIndex(),
            !node->getOpCode().isStoreReg() ||
            (node->getVisitCount() == visitCount)))
          {
+if (trace())
+{
+traceMsg(comp(), "1.12 - ");
+walkLongestPaths(comp(), node, longestPaths);
+}
          /*
           * second chance for anchoring nodes like compressedrefs
           * Given the following trees, the anchoring node can still be removed  if the first treetop is removed
@@ -842,6 +850,11 @@ traceMsg(comp(), "Clearing longestPaths at n%un [%p]\n", node->getGlobalIndex(),
          if (node->getOpCode().isAnchor() && node->getFirstChild()->getOpCode().isLoadIndirect())
             anchors.push_front(CRAnchor(iter.currentTree(), block));
 
+if (trace())
+{
+traceMsg(comp(), "1.13 - ");
+walkLongestPaths(comp(), node, longestPaths);
+}
          TR::TransformUtil::recursivelySetNodeVisitCount(node, visitCount);
          continue;
          }
@@ -869,6 +882,12 @@ traceMsg(comp(), "Clearing longestPaths at n%un [%p]\n", node->getGlobalIndex(),
       // this node (as the computation is already done at the first reference to
       // the node).
       //
+
+if (trace())
+{
+traceMsg(comp(), "1.2 - ");
+walkLongestPaths(comp(), node, longestPaths);
+}
 
       if (visitCount == child->getVisitCount())
          {
@@ -902,6 +921,12 @@ traceMsg(comp(), "Clearing longestPaths at n%un [%p]\n", node->getGlobalIndex(),
                  childOpCode.isRem()) &&
                  child->getNumChildren() == 3)))
             {
+
+if (trace())
+{
+traceMsg(comp(), "1.30 - ");
+walkLongestPaths(comp(), node, longestPaths);
+}
             // Perform the rather complex check to see whether its safe
             // to disconnect the child node from the treetop
             //
@@ -925,6 +950,12 @@ traceMsg(comp(), "Clearing longestPaths at n%un [%p]\n", node->getGlobalIndex(),
                   _cannotBeEliminated,
                   longestPaths);
                }
+
+if (trace())
+{
+traceMsg(comp(), "1.31 - ");
+walkLongestPaths(comp(), node, longestPaths);
+}
 
             if (safeToReplaceNode)
                {
@@ -1011,6 +1042,12 @@ traceMsg(comp(), "Clearing longestPaths at n%un [%p]\n", node->getGlobalIndex(),
          TR::TreeTop *prevTree = iter.currentTree()->getPrevTreeTop();
          TR::TreeTop *nextTree = iter.currentTree()->getNextTreeTop();
 
+
+if (trace())
+{
+traceMsg(comp(), "1.41 - ");
+walkLongestPaths(comp(), node, longestPaths);
+}
          if (!node->getOpCode().isStoreReg() || (node->getFirstChild()->getReferenceCount() == 1))
             {
             // Actually going to remove the treetop now
@@ -1036,6 +1073,12 @@ traceMsg(comp(), "Clearing longestPaths at n%un [%p]\n", node->getGlobalIndex(),
                      prevTree->getNode()->getBlock());
                   }
                }
+
+if (trace())
+{
+traceMsg(comp(), "1.411 - ");
+walkLongestPaths(comp(), node, longestPaths);
+}
             }
          else
             {
@@ -1110,8 +1153,20 @@ traceMsg(comp(), "Clearing longestPaths at n%un [%p]\n", node->getGlobalIndex(),
 
                iter.jumpTo(prevTree);
                requestOpt(OMR::treeSimplification, true, block);
+
+if (trace())
+{
+traceMsg(comp(), "1.412 - ");
+walkLongestPaths(comp(), node, longestPaths);
+}
                }
             }
+
+if (trace())
+{
+traceMsg(comp(), "1.42 - ");
+walkLongestPaths(comp(), node, longestPaths);
+}
          }
       }
 
