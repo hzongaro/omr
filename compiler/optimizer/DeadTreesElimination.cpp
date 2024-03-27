@@ -779,7 +779,12 @@ int32_t TR::DeadTreesElimination::process(TR::TreeTop *startTree, TR::TreeTop *e
 
 if (trace())
 {
-traceMsg(comp(), "Entered DeadTreesElimination::process from treeTop n%un [%p] to n%un [%p]\n", startTree->getNode()->getGlobalIndex(), startTree->getNode(), endTree->getNode()->getGlobalIndex(), endTree->getNode());
+traceMsg(comp(), "Entered DeadTreesElimination::process from treeTop n%un", startTree->getNode()->getGlobalIndex(), startTree->getNode());
+if (endTree)
+{
+traceMsg(comp(), "to n%un [%p]\n", endTree->getNode()->getGlobalIndex(), endTree->getNode());
+}
+traceMsg(comp(), "\n");
 }
 {
    typedef TR::typed_allocator<CRAnchor, TR::Region&> CRAnchorAlloc;
