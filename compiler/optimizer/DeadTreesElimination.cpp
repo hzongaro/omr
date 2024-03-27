@@ -980,6 +980,12 @@ walkLongestPaths(comp(), node, longestPaths);
                else
                   treeTopCanBeEliminated = true;
                }
+
+if (trace())
+{
+traceMsg(comp(), "1.32 - ");
+walkLongestPaths(comp(), node, longestPaths);
+}
             }
 
          // Fix for the case when a float to non-float conversion node swings
@@ -1001,6 +1007,12 @@ walkLongestPaths(comp(), node, longestPaths);
                  }
                }
             }
+
+if (trace())
+{
+traceMsg(comp(), "1.33 - ");
+walkLongestPaths(comp(), node, longestPaths);
+}
 
          if (treeTopCanBeEliminated)
             {
