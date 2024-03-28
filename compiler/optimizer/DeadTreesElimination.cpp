@@ -237,7 +237,7 @@ static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, 
 if (trace())
 {
 traceMsg(comp, "Entering isSafeToReplaceNode");
-walkLongestPaths(comp(), currentNode, longestPaths);
+walkLongestPaths(comp, currentNode, longestPaths);
 }
 
    TR::SparseBitVector symbolReferencesInNode(comp->allocator());
@@ -253,20 +253,20 @@ walkLongestPaths(comp(), currentNode, longestPaths);
 if (trace())
 {
 traceMsg(comp, "1.01 - In isSafeToReplaceNode before getLongestPathOfDAG");
-walkLongestPaths(comp(), currentNode, longestPaths);
+walkLongestPaths(comp, currentNode, longestPaths);
 }
    int32_t curMaxHeight = getLongestPathOfDAG(currentNode, longestPaths);
 if (trace())
 {
 traceMsg(comp, "1.01 - In isSafeToReplaceNode before collectSymbolReferencesInNode");
-walkLongestPaths(comp(), currentNode, longestPaths);
+walkLongestPaths(comp, currentNode, longestPaths);
 }
    collectSymbolReferencesInNode(currentNode, symbolReferencesInNode, &numDeadSubNodes, visitCount, comp,
          &seenInternalPointer, &seenArraylet, &cantMoveUnderBranch);
 if (trace())
 {
 traceMsg(comp, "1.02 - In isSafeToReplaceNode after collectSymbolReferencesInNode");
-walkLongestPaths(comp(), currentNode, longestPaths);
+walkLongestPaths(comp, currentNode, longestPaths);
 }
 
    bool registersScarce = comp->cg()->areAssignableGPRsScarce();
@@ -283,7 +283,7 @@ walkLongestPaths(comp(), currentNode, longestPaths);
 if (trace())
 {
 traceMsg(comp, "1 - Exiting isSafeToReplaceNode");
-walkLongestPaths(comp(), currentNode, longestPaths);
+walkLongestPaths(comp, currentNode, longestPaths);
 }
       return false;
       }
@@ -291,13 +291,13 @@ walkLongestPaths(comp(), currentNode, longestPaths);
 if (trace())
 {
 traceMsg(comp, "1.1 - In isSafeToReplaceNode before findOrCreateTreeInfo");
-walkLongestPaths(comp(), currentNode, longestPaths);
+walkLongestPaths(comp, currentNode, longestPaths);
 }
    OMR::TreeInfo *curTreeInfo = findOrCreateTreeInfo(curTreeTop, targetTrees, comp);
 if (trace())
 {
 traceMsg(comp, "1.2 - In isSafeToReplaceNode after findOrCreateTreeInfo");
-walkLongestPaths(comp(), currentNode, longestPaths);
+walkLongestPaths(comp, currentNode, longestPaths);
 }
    int32_t curHeight = curTreeInfo->getHeight()+curMaxHeight;
    if (curHeight > MAX_ALLOWED_HEIGHT)
@@ -306,7 +306,7 @@ walkLongestPaths(comp(), currentNode, longestPaths);
 if (trace())
 {
 traceMsg(comp, "2 - Exiting isSafeToReplaceNode");
-walkLongestPaths(comp(), currentNode, longestPaths);
+walkLongestPaths(comp, currentNode, longestPaths);
 }
       return false;
       }
@@ -321,7 +321,7 @@ walkLongestPaths(comp(), currentNode, longestPaths);
 if (trace())
 {
 traceMsg(comp, "3 - Exiting isSafeToReplaceNode");
-walkLongestPaths(comp(), currentNode, longestPaths);
+walkLongestPaths(comp, currentNode, longestPaths);
 }
       return false;
 }
@@ -333,7 +333,7 @@ walkLongestPaths(comp(), currentNode, longestPaths);
 if (trace())
 {
 traceMsg(comp, "4 - Exiting isSafeToReplaceNode");
-walkLongestPaths(comp(), currentNode, longestPaths);
+walkLongestPaths(comp, currentNode, longestPaths);
 }
       return false;
 }
@@ -350,7 +350,7 @@ walkLongestPaths(comp(), currentNode, longestPaths);
 if (trace())
 {
 traceMsg(comp, "5.0 - Loop isSafeToReplaceNode");
-walkLongestPaths(comp(), node, longestPaths);
+walkLongestPaths(comp, node, longestPaths);
 }
       if (node->getOpCodeValue() == TR::treetop)
           node = node->getFirstChild();
@@ -361,7 +361,7 @@ walkLongestPaths(comp(), node, longestPaths);
 if (trace())
 {
 traceMsg(comp, "5.1 - Leaving isSafeToReplaceNode");
-walkLongestPaths(comp(), node, longestPaths);
+walkLongestPaths(comp, node, longestPaths);
 }
          return true;
 }
@@ -372,7 +372,7 @@ walkLongestPaths(comp(), node, longestPaths);
 if (trace())
 {
 traceMsg(comp, "5.2 - Leaving isSafeToReplaceNode");
-walkLongestPaths(comp(), node, longestPaths);
+walkLongestPaths(comp, node, longestPaths);
 }
          return false;
 }
@@ -383,7 +383,7 @@ walkLongestPaths(comp(), node, longestPaths);
 if (trace())
 {
 traceMsg(comp, "5.3 - Leaving isSafeToReplaceNode");
-walkLongestPaths(comp(), node, longestPaths);
+walkLongestPaths(comp, node, longestPaths);
 }
          return false;
 }
@@ -416,7 +416,7 @@ walkLongestPaths(comp(), node, longestPaths);
 if (trace())
 {
 traceMsg(comp, "5.4 - Leaving isSafeToReplaceNode");
-walkLongestPaths(comp(), node, longestPaths);
+walkLongestPaths(comp, node, longestPaths);
 }
             return false;
 }
@@ -437,8 +437,8 @@ walkLongestPaths(comp(), node, longestPaths);
                cannotBeEliminated = true;
 if (trace())
 {
-traceMsg(comp, "5.4 - Leaving isSafeToReplaceNode");
-walkLongestPaths(comp(), node, longestPaths);
+traceMsg(comp, "5.41 - Leaving isSafeToReplaceNode");
+walkLongestPaths(comp, node, longestPaths);
 }
                return false;
                }
@@ -450,7 +450,7 @@ walkLongestPaths(comp(), node, longestPaths);
 if (trace())
 {
 traceMsg(comp, "5.5 - Leaving isSafeToReplaceNode");
-walkLongestPaths(comp(), node, longestPaths);
+walkLongestPaths(comp, node, longestPaths);
 }
          return true;
          }
@@ -479,7 +479,7 @@ walkLongestPaths(comp(), node, longestPaths);
 if (trace())
 {
 traceMsg(comp, "5.6 - Leaving isSafeToReplaceNode");
-walkLongestPaths(comp(), node, longestPaths);
+walkLongestPaths(comp, node, longestPaths);
 }
             return false;
 }
@@ -493,7 +493,7 @@ walkLongestPaths(comp(), node, longestPaths);
 if (trace())
 {
 traceMsg(comp, "5.7 - Leaving isSafeToReplaceNode");
-walkLongestPaths(comp(), node, longestPaths);
+walkLongestPaths(comp, node, longestPaths);
 }
         return false;
 }
@@ -502,7 +502,7 @@ walkLongestPaths(comp(), node, longestPaths);
 if (trace())
 {
 traceMsg(comp, "6.0 - Leaving isSafeToReplaceNode");
-walkLongestPaths(comp(), node, longestPaths);
+walkLongestPaths(comp, node, longestPaths);
 }
    return true;
    }
