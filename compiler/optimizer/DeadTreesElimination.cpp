@@ -502,7 +502,7 @@ walkLongestPaths(comp, node, longestPaths);
 if (opt->trace())
 {
 traceMsg(comp, "6.0 - Leaving isSafeToReplaceNode");
-walkLongestPaths(comp, node, longestPaths);
+walkLongestPaths(comp, currentNode, longestPaths);
 }
    return true;
    }
