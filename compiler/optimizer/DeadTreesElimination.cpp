@@ -234,7 +234,7 @@ static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, 
       LongestPathMap &longestPaths)
    {
    LexicalTimer tx("safeToReplace", comp->phaseTimer());
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "Entering isSafeToReplaceNode");
 walkLongestPaths(comp, currentNode, longestPaths);
@@ -250,20 +250,20 @@ walkLongestPaths(comp, currentNode, longestPaths);
    bool cantMoveUnderBranch = false;
    bool seenInternalPointer = false;
    bool seenArraylet = false;
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "1.01 - In isSafeToReplaceNode before getLongestPathOfDAG");
 walkLongestPaths(comp, currentNode, longestPaths);
 }
    int32_t curMaxHeight = getLongestPathOfDAG(currentNode, longestPaths);
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "1.01 - In isSafeToReplaceNode before collectSymbolReferencesInNode");
 walkLongestPaths(comp, currentNode, longestPaths);
 }
    collectSymbolReferencesInNode(currentNode, symbolReferencesInNode, &numDeadSubNodes, visitCount, comp,
          &seenInternalPointer, &seenArraylet, &cantMoveUnderBranch);
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "1.02 - In isSafeToReplaceNode after collectSymbolReferencesInNode");
 walkLongestPaths(comp, currentNode, longestPaths);
@@ -280,7 +280,7 @@ walkLongestPaths(comp, currentNode, longestPaths);
 #endif
        registersScarce)
       {
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "1 - Exiting isSafeToReplaceNode");
 walkLongestPaths(comp, currentNode, longestPaths);
@@ -288,13 +288,13 @@ walkLongestPaths(comp, currentNode, longestPaths);
       return false;
       }
 
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "1.1 - In isSafeToReplaceNode before findOrCreateTreeInfo");
 walkLongestPaths(comp, currentNode, longestPaths);
 }
    OMR::TreeInfo *curTreeInfo = findOrCreateTreeInfo(curTreeTop, targetTrees, comp);
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "1.2 - In isSafeToReplaceNode after findOrCreateTreeInfo");
 walkLongestPaths(comp, currentNode, longestPaths);
@@ -303,7 +303,7 @@ walkLongestPaths(comp, currentNode, longestPaths);
    if (curHeight > MAX_ALLOWED_HEIGHT)
       {
       cannotBeEliminated = true;
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "2 - Exiting isSafeToReplaceNode");
 walkLongestPaths(comp, currentNode, longestPaths);
@@ -318,7 +318,7 @@ walkLongestPaths(comp, currentNode, longestPaths);
    bool isUnresolvedReference = currentNode->hasUnresolvedSymbolReference();
    if (isUnresolvedReference)
 {
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "3 - Exiting isSafeToReplaceNode");
 walkLongestPaths(comp, currentNode, longestPaths);
@@ -330,7 +330,7 @@ walkLongestPaths(comp, currentNode, longestPaths);
    // Do not swing down volatile nodes
    if (mayBeVolatileReference)
 {
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "4 - Exiting isSafeToReplaceNode");
 walkLongestPaths(comp, currentNode, longestPaths);
@@ -347,7 +347,7 @@ walkLongestPaths(comp, currentNode, longestPaths);
    for (TR::TreeTop *treeTop = curTreeTop->getNextTreeTop(); treeTop; treeTop = treeTop->getNextTreeTop())
       {
       TR::Node *node = treeTop->getNode();
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "5.0 - Loop isSafeToReplaceNode");
 walkLongestPaths(comp, node, longestPaths);
@@ -358,7 +358,7 @@ walkLongestPaths(comp, node, longestPaths);
       if (node->getOpCodeValue() == TR::BBStart &&
           !node->getBlock()->isExtensionOfPreviousBlock())
 {
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "5.1 - Leaving isSafeToReplaceNode");
 walkLongestPaths(comp, node, longestPaths);
@@ -369,7 +369,7 @@ walkLongestPaths(comp, node, longestPaths);
       if (cantMoveUnderBranch && (node->getOpCode().isBranch()
          || node->getOpCode().isJumpWithMultipleTargets()))
 {
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "5.2 - Leaving isSafeToReplaceNode");
 walkLongestPaths(comp, node, longestPaths);
@@ -380,7 +380,7 @@ walkLongestPaths(comp, node, longestPaths);
       if (node->canGCandReturn() &&
           seenInternalPointer)
 {
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "5.3 - Leaving isSafeToReplaceNode");
 walkLongestPaths(comp, node, longestPaths);
@@ -413,7 +413,7 @@ walkLongestPaths(comp, node, longestPaths);
          if (isUnresolvedReference && node->getFirstChild()->getOpCode().isCall() &&
              node->getFirstChild()->getSymbol()->castToMethodSymbol()->isJNI())
 {
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "5.4 - Leaving isSafeToReplaceNode");
 walkLongestPaths(comp, node, longestPaths);
@@ -435,7 +435,7 @@ walkLongestPaths(comp, node, longestPaths);
             if ((height+maxHeightUsed) > MAX_ALLOWED_HEIGHT)
                {
                cannotBeEliminated = true;
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "5.41 - Leaving isSafeToReplaceNode");
 walkLongestPaths(comp, node, longestPaths);
@@ -447,7 +447,7 @@ walkLongestPaths(comp, node, longestPaths);
 
          if (mayBeVolatileReference)
             dumpOptDetails(opt->comp(), "%sit is safe to remove volatile field load tree n%dn\n", opt->optDetailString(), currentNode->getGlobalIndex());
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "5.5 - Leaving isSafeToReplaceNode");
 walkLongestPaths(comp, node, longestPaths);
@@ -476,7 +476,7 @@ walkLongestPaths(comp, node, longestPaths);
          //
          if (symbolReferencesInNode.ValueAt(node->getSymbolReference()->getReferenceNumber()))
 {
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "5.6 - Leaving isSafeToReplaceNode");
 walkLongestPaths(comp, node, longestPaths);
@@ -490,7 +490,7 @@ walkLongestPaths(comp, node, longestPaths);
       //
       if (node->mayKill(true).containsAny(symbolReferencesInNode, comp))
 {
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "5.7 - Leaving isSafeToReplaceNode");
 walkLongestPaths(comp, node, longestPaths);
@@ -499,7 +499,7 @@ walkLongestPaths(comp, node, longestPaths);
 }
       }
 
-if (trace())
+if (opt->trace())
 {
 traceMsg(comp, "6.0 - Leaving isSafeToReplaceNode");
 walkLongestPaths(comp, node, longestPaths);
