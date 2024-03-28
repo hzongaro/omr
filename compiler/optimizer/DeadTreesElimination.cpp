@@ -234,6 +234,11 @@ static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, 
       LongestPathMap &longestPaths)
    {
    LexicalTimer tx("safeToReplace", comp->phaseTimer());
+if (trace())
+{
+traceMsg(comp, "Entering isSafeToReplaceNode");
+walkLongestPaths(comp(), currentNode, longestPaths);
+}
 
    TR::SparseBitVector symbolReferencesInNode(comp->allocator());
 
@@ -245,9 +250,24 @@ static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, 
    bool cantMoveUnderBranch = false;
    bool seenInternalPointer = false;
    bool seenArraylet = false;
+if (trace())
+{
+traceMsg(comp, "1.01 - In isSafeToReplaceNode before getLongestPathOfDAG");
+walkLongestPaths(comp(), currentNode, longestPaths);
+}
    int32_t curMaxHeight = getLongestPathOfDAG(currentNode, longestPaths);
+if (trace())
+{
+traceMsg(comp, "1.01 - In isSafeToReplaceNode before collectSymbolReferencesInNode");
+walkLongestPaths(comp(), currentNode, longestPaths);
+}
    collectSymbolReferencesInNode(currentNode, symbolReferencesInNode, &numDeadSubNodes, visitCount, comp,
          &seenInternalPointer, &seenArraylet, &cantMoveUnderBranch);
+if (trace())
+{
+traceMsg(comp, "1.02 - In isSafeToReplaceNode after collectSymbolReferencesInNode");
+walkLongestPaths(comp(), currentNode, longestPaths);
+}
 
    bool registersScarce = comp->cg()->areAssignableGPRsScarce();
 #ifdef J9_PROJECT_SPECIFIC
@@ -260,14 +280,34 @@ static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, 
 #endif
        registersScarce)
       {
+if (trace())
+{
+traceMsg(comp, "1 - Exiting isSafeToReplaceNode");
+walkLongestPaths(comp(), currentNode, longestPaths);
+}
       return false;
       }
 
+if (trace())
+{
+traceMsg(comp, "1.1 - In isSafeToReplaceNode before findOrCreateTreeInfo");
+walkLongestPaths(comp(), currentNode, longestPaths);
+}
    OMR::TreeInfo *curTreeInfo = findOrCreateTreeInfo(curTreeTop, targetTrees, comp);
+if (trace())
+{
+traceMsg(comp, "1.2 - In isSafeToReplaceNode after findOrCreateTreeInfo");
+walkLongestPaths(comp(), currentNode, longestPaths);
+}
    int32_t curHeight = curTreeInfo->getHeight()+curMaxHeight;
    if (curHeight > MAX_ALLOWED_HEIGHT)
       {
       cannotBeEliminated = true;
+if (trace())
+{
+traceMsg(comp, "2 - Exiting isSafeToReplaceNode");
+walkLongestPaths(comp(), currentNode, longestPaths);
+}
       return false;
       }
 
@@ -277,12 +317,26 @@ static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, 
    //
    bool isUnresolvedReference = currentNode->hasUnresolvedSymbolReference();
    if (isUnresolvedReference)
+{
+if (trace())
+{
+traceMsg(comp, "3 - Exiting isSafeToReplaceNode");
+walkLongestPaths(comp(), currentNode, longestPaths);
+}
       return false;
+}
 
    bool mayBeVolatileReference = currentNode->mightHaveVolatileSymbolReference();
    // Do not swing down volatile nodes
    if (mayBeVolatileReference)
+{
+if (trace())
+{
+traceMsg(comp, "4 - Exiting isSafeToReplaceNode");
+walkLongestPaths(comp(), currentNode, longestPaths);
+}
       return false;
+}
 
    // Now scan forwards through the trees looking for the next use and checking
    // to see if any symbols in the subtree are getting modified; if so it is not
@@ -293,20 +347,46 @@ static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, 
    for (TR::TreeTop *treeTop = curTreeTop->getNextTreeTop(); treeTop; treeTop = treeTop->getNextTreeTop())
       {
       TR::Node *node = treeTop->getNode();
+if (trace())
+{
+traceMsg(comp, "5.0 - Loop isSafeToReplaceNode");
+walkLongestPaths(comp(), node, longestPaths);
+}
       if (node->getOpCodeValue() == TR::treetop)
           node = node->getFirstChild();
 
       if (node->getOpCodeValue() == TR::BBStart &&
           !node->getBlock()->isExtensionOfPreviousBlock())
+{
+if (trace())
+{
+traceMsg(comp, "5.1 - Leaving isSafeToReplaceNode");
+walkLongestPaths(comp(), node, longestPaths);
+}
          return true;
+}
 
       if (cantMoveUnderBranch && (node->getOpCode().isBranch()
          || node->getOpCode().isJumpWithMultipleTargets()))
+{
+if (trace())
+{
+traceMsg(comp, "5.2 - Leaving isSafeToReplaceNode");
+walkLongestPaths(comp(), node, longestPaths);
+}
          return false;
+}
 
       if (node->canGCandReturn() &&
           seenInternalPointer)
+{
+if (trace())
+{
+traceMsg(comp, "5.3 - Leaving isSafeToReplaceNode");
+walkLongestPaths(comp(), node, longestPaths);
+}
          return false;
+}
 
       int32_t tempHeight = 0;
       int32_t maxHeight = 0;
@@ -332,7 +412,14 @@ static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, 
          //
          if (isUnresolvedReference && node->getFirstChild()->getOpCode().isCall() &&
              node->getFirstChild()->getSymbol()->castToMethodSymbol()->isJNI())
+{
+if (trace())
+{
+traceMsg(comp, "5.4 - Leaving isSafeToReplaceNode");
+walkLongestPaths(comp(), node, longestPaths);
+}
             return false;
+}
 
          if (curTreeInfo)
             {
@@ -348,6 +435,11 @@ static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, 
             if ((height+maxHeightUsed) > MAX_ALLOWED_HEIGHT)
                {
                cannotBeEliminated = true;
+if (trace())
+{
+traceMsg(comp, "5.4 - Leaving isSafeToReplaceNode");
+walkLongestPaths(comp(), node, longestPaths);
+}
                return false;
                }
             treeInfo->setHeight(height);
@@ -355,6 +447,11 @@ static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, 
 
          if (mayBeVolatileReference)
             dumpOptDetails(opt->comp(), "%sit is safe to remove volatile field load tree n%dn\n", opt->optDetailString(), currentNode->getGlobalIndex());
+if (trace())
+{
+traceMsg(comp, "5.5 - Leaving isSafeToReplaceNode");
+walkLongestPaths(comp(), node, longestPaths);
+}
          return true;
          }
 
@@ -378,15 +475,35 @@ static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, 
          // Resolution of the store symbol is handled by TR::ResolveCHK
          //
          if (symbolReferencesInNode.ValueAt(node->getSymbolReference()->getReferenceNumber()))
+{
+if (trace())
+{
+traceMsg(comp, "5.6 - Leaving isSafeToReplaceNode");
+walkLongestPaths(comp(), node, longestPaths);
+}
             return false;
+}
          }
 
       // Node Aliasing Changes
       // Check if the definition modifies any symbol in the subtree
       //
       if (node->mayKill(true).containsAny(symbolReferencesInNode, comp))
+{
+if (trace())
+{
+traceMsg(comp, "5.7 - Leaving isSafeToReplaceNode");
+walkLongestPaths(comp(), node, longestPaths);
+}
         return false;
+}
       }
+
+if (trace())
+{
+traceMsg(comp, "6.0 - Leaving isSafeToReplaceNode");
+walkLongestPaths(comp(), node, longestPaths);
+}
    return true;
    }
 
