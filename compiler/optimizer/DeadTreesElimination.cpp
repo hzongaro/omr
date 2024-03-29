@@ -423,7 +423,17 @@ walkLongestPaths(comp, node, longestPaths);
 
          if (curTreeInfo)
             {
+if (opt->trace())
+{
+traceMsg(comp, "5.401 - Before calling findOrCreateTreeInfo");
+walkLongestPaths(comp, node, longestPaths);
+}
             OMR::TreeInfo *treeInfo = findOrCreateTreeInfo(treeTop, targetTrees, comp);
+if (opt->trace())
+{
+traceMsg(comp, "5.402 - After calling findOrCreateTreeInfo");
+walkLongestPaths(comp, node, longestPaths);
+}
             int32_t height = treeInfo->getHeight();
             int32_t maxHeightUsed = maxHeight;
             if (maxHeightUsed < curMaxHeight)
@@ -442,7 +452,17 @@ walkLongestPaths(comp, node, longestPaths);
 }
                return false;
                }
+if (opt->trace())
+{
+traceMsg(comp, "5.411 - Before setting treeInfo->setHeight %d; treeInfo [%p]", height, treeInfo);
+walkLongestPaths(comp, node, longestPaths);
+}
             treeInfo->setHeight(height);
+if (opt->trace())
+{
+traceMsg(comp, "5.412 - After setting treeInfo->setHeight %d", height);
+walkLongestPaths(comp, node, longestPaths);
+}
             }
 
          if (mayBeVolatileReference)
