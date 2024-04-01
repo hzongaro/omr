@@ -146,11 +146,13 @@ typedef std::pair<TR::Node* const, int32_t> LPEntry;
 typedef TR::typed_allocator<LPEntry, TR::Region&> LPAlloc;
 typedef std::map<TR::Node*, int32_t, std::less<TR::Node*>, LPAlloc> LongestPathMap;
 
-static void walkLongestPaths(TR::Compilation *comp, TR::Node *node, LongestPathMap &longestPaths) {
+static void walkLongestPaths(TR::Compilation *comp, TR::Node *node, LongestPathMap &longestPaths, bool extraDebugging = false) {
 int32_t totalLength = 0;
 int32_t entryCount = 0;
-traceMsg(comp, "In longestPaths for node n%un [%p]\n", node ? node->getGlobalIndex() : 0, node);
+traceMsg(comp, "\nIn longestPaths for node n%un [%p]\n", node ? node->getGlobalIndex() : 0, node);
+if (extraDebugging) traceMsg(comp, "   &longestPaths == %p\n", longestPaths);
 for (auto it = longestPaths.begin(); it != longestPaths.end(); it++) {
+if (extraDebugging) traceMsg(comp, "   it->first == %p; it->second == %d\n", it->first, it->second);
 TR::Node *entryNode = it->first;
 int32_t pathLength = it->second;
 TR_ASSERT_FATAL(entryNode->getGlobalIndex() >= 0, "Found a bogus global index for node %p\n", entryNode);
@@ -455,13 +457,13 @@ walkLongestPaths(comp, node, longestPaths);
 if (opt->trace())
 {
 traceMsg(comp, "5.411 - Before setting treeInfo->setHeight %d; treeInfo [%p]", height, treeInfo);
-walkLongestPaths(comp, node, longestPaths);
+walkLongestPaths(comp, node, longestPaths, true /* ExtraDebugging */);
 }
             treeInfo->setHeight(height);
 if (opt->trace())
 {
 traceMsg(comp, "5.412 - After setting treeInfo->setHeight %d", height);
-walkLongestPaths(comp, node, longestPaths);
+walkLongestPaths(comp, node, longestPaths, true /* ExtraDebugging */);
 }
             }
 
