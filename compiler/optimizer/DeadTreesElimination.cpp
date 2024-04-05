@@ -298,7 +298,7 @@ walkLongestPaths(comp, currentNode, longestPaths);
    OMR::TreeInfo *curTreeInfo = findOrCreateTreeInfo(curTreeTop, targetTrees, comp);
 if (opt->trace())
 {
-traceMsg(comp, "1.2 - In isSafeToReplaceNode after findOrCreateTreeInfo");
+traceMsg(comp, "1.2 - In isSafeToReplaceNode after findOrCreateTreeInfo - curTreeInfo == %p {treeTop == %p; height == %d}\n", currTreeInfo, currTreeInfo->getTreeTop(), curTreeInfo->getHeight());
 walkLongestPaths(comp, currentNode, longestPaths);
 }
    int32_t curHeight = curTreeInfo->getHeight()+curMaxHeight;
@@ -434,6 +434,7 @@ walkLongestPaths(comp, node, longestPaths);
 if (opt->trace())
 {
 traceMsg(comp, "5.402 - After calling findOrCreateTreeInfo");
+traceMsg(comp, " - curTreeInfo == %p {treeTop == %p; height == %d}\n", currTreeInfo, currTreeInfo->getTreeTop(), curTreeInfo->getHeight());
 walkLongestPaths(comp, node, longestPaths);
 }
             int32_t height = treeInfo->getHeight();
