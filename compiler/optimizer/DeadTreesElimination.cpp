@@ -73,7 +73,7 @@ static OMR::TreeInfo *findOrCreateTreeInfo(TR::TreeTop *treeTop, List<OMR::TreeI
          return t;
       }
 
-   t = new (targetTrees->getRegion()) OMR::TreeInfo(treeTop, 0);
+   t = new (comp->trStackMemory()) OMR::TreeInfo(treeTop, 0);
    targetTrees->add(t);
    return t;
    }
