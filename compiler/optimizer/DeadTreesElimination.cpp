@@ -63,7 +63,7 @@
 
 // Local helper functions
 
-static OMR::TreeInfo *findOrCreateTreeInfo(TR::TreeTop *treeTop, List<OMR::TreeInfo> *targetTrees, TR::Compilation * comp, TR::Region &currentRegion)
+static OMR::TreeInfo *findOrCreateTreeInfo(TR::TreeTop *treeTop, List<OMR::TreeInfo> *targetTrees, TR::Compilation * comp)
    {
    ListIterator<OMR::TreeInfo> trees(targetTrees);
    OMR::TreeInfo *t;
@@ -73,8 +73,7 @@ static OMR::TreeInfo *findOrCreateTreeInfo(TR::TreeTop *treeTop, List<OMR::TreeI
          return t;
       }
 
-//   t = new (comp->trStackMemory()) OMR::TreeInfo(treeTop, 0);
-   t = new (currentRegion) OMR::TreeInfo(treeTop, 0);
+   t = new (targetTrees->getRegion()) OMR::TreeInfo(treeTop, 0);
    targetTrees->add(t);
    return t;
    }
@@ -234,7 +233,7 @@ static bool containsNode(TR::Node *containerNode, TR::Node *nodeToSwingDown, vco
 
 static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, bool *seenConditionalBranch,
       vcount_t visitCount, TR::Compilation *comp, TR::Optimization *opt, List<OMR::TreeInfo> *targetTrees, bool &cannotBeEliminated,
-      LongestPathMap &longestPaths, TR::Region &currentRegion)
+      LongestPathMap &longestPaths)
    {
    LexicalTimer tx("safeToReplace", comp->phaseTimer());
 if (opt->trace())
@@ -296,7 +295,7 @@ if (opt->trace())
 traceMsg(comp, "1.1 - In isSafeToReplaceNode before findOrCreateTreeInfo");
 walkLongestPaths(comp, currentNode, longestPaths);
 }
-   OMR::TreeInfo *curTreeInfo = findOrCreateTreeInfo(curTreeTop, targetTrees, comp, currentRegion);
+   OMR::TreeInfo *curTreeInfo = findOrCreateTreeInfo(curTreeTop, targetTrees, comp);
 if (opt->trace())
 {
 traceMsg(comp, "1.2 - In isSafeToReplaceNode after findOrCreateTreeInfo");
@@ -431,7 +430,7 @@ if (opt->trace())
 traceMsg(comp, "5.401 - Before calling findOrCreateTreeInfo");
 walkLongestPaths(comp, node, longestPaths);
 }
-            OMR::TreeInfo *treeInfo = findOrCreateTreeInfo(treeTop, targetTrees, comp, currentRegion);
+            OMR::TreeInfo *treeInfo = findOrCreateTreeInfo(treeTop, targetTrees, comp);
 if (opt->trace())
 {
 traceMsg(comp, "5.402 - After calling findOrCreateTreeInfo");
@@ -1093,8 +1092,7 @@ walkLongestPaths(comp(), node, longestPaths);
                   this,
                   &_targetTrees,
                   _cannotBeEliminated,
-                  longestPaths,
-                  stackRegion);
+                  longestPaths);
                }
 
 if (trace())
