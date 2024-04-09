@@ -63,17 +63,20 @@
 
 // Local helper functions
 
-static OMR::TreeInfo *findOrCreateTreeInfo(TR::TreeTop *treeTop, List<OMR::TreeInfo> *targetTrees, TR::Compilation * comp)
+static OMR::TreeInfo *findOrCreateTreeInfo(TR::TreeTop *treeTop, List<OMR::TreeInfo> *targetTrees, TR::Compilation * comp, int32_t processCount)
    {
    ListIterator<OMR::TreeInfo> trees(targetTrees);
    OMR::TreeInfo *t;
    for (t = trees.getFirst(); t; t = trees.getNext())
       {
       if (t->getTreeTop() == treeTop)
+{
+TR_ASSERT_FATAL(t->getProcessCount() == processCount, "In findOrCreateTreeInfo, found OMR::TreeInfo {node == %p n%un} had processCount == %d; expected processCount == %d\n", t->getTreeTop()->getNode(), t->getTreeTop()->getNode()->getGlobalIndex(), t->getProcessCount(), processCount);
          return t;
+}
       }
 
-   t = new (comp->trStackMemory()) OMR::TreeInfo(treeTop, 0);
+   t = new (comp->trStackMemory()) OMR::TreeInfo(treeTop, 0, processCount);
    targetTrees->add(t);
    return t;
    }
@@ -233,7 +236,7 @@ static bool containsNode(TR::Node *containerNode, TR::Node *nodeToSwingDown, vco
 
 static bool isSafeToReplaceNode(TR::Node *currentNode, TR::TreeTop *curTreeTop, bool *seenConditionalBranch,
       vcount_t visitCount, TR::Compilation *comp, TR::Optimization *opt, List<OMR::TreeInfo> *targetTrees, bool &cannotBeEliminated,
-      LongestPathMap &longestPaths)
+      LongestPathMap &longestPaths, int32_t processCount)
    {
    LexicalTimer tx("safeToReplace", comp->phaseTimer());
 if (opt->trace())
@@ -295,7 +298,7 @@ if (opt->trace())
 traceMsg(comp, "1.1 - In isSafeToReplaceNode before findOrCreateTreeInfo");
 walkLongestPaths(comp, currentNode, longestPaths);
 }
-   OMR::TreeInfo *curTreeInfo = findOrCreateTreeInfo(curTreeTop, targetTrees, comp);
+   OMR::TreeInfo *curTreeInfo = findOrCreateTreeInfo(curTreeTop, targetTrees, comp, processCount);
 if (opt->trace())
 {
 traceMsg(comp, "1.2 - In isSafeToReplaceNode after findOrCreateTreeInfo - curTreeInfo == %p {treeTop == %p; height == %d}\n", curTreeInfo, curTreeInfo->getTreeTop(), curTreeInfo->getHeight());
@@ -430,7 +433,7 @@ if (opt->trace())
 traceMsg(comp, "5.401 - Before calling findOrCreateTreeInfo");
 walkLongestPaths(comp, node, longestPaths);
 }
-            OMR::TreeInfo *treeInfo = findOrCreateTreeInfo(treeTop, targetTrees, comp);
+            OMR::TreeInfo *treeInfo = findOrCreateTreeInfo(treeTop, targetTrees, comp, processCount);
 if (opt->trace())
 {
 traceMsg(comp, "5.402 - After calling findOrCreateTreeInfo");
@@ -597,6 +600,7 @@ TR::DeadTreesElimination::DeadTreesElimination(TR::OptimizationManager *manager)
 
 int32_t TR::DeadTreesElimination::perform()
    {
+   _processCount++;
    process(comp()->getStartTree(), NULL);
    return 1;
    }
@@ -913,6 +917,7 @@ static bool treeCanPossiblyBeRemoved(TR::Node *node)
 
 int32_t TR::DeadTreesElimination::process(TR::TreeTop *startTree, TR::TreeTop *endTree)
    {
+   _processCount++;
    TR::StackMemoryRegion stackRegion(*comp()->trMemory());
 {
    LongestPathMap longestPaths(std::less<TR::Node*>(), stackRegion);
@@ -1093,7 +1098,8 @@ walkLongestPaths(comp(), node, longestPaths);
                   this,
                   &_targetTrees,
                   _cannotBeEliminated,
-                  longestPaths);
+                  longestPaths,
+                  _processCount);
                }
 
 if (trace())

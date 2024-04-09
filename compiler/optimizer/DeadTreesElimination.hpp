@@ -39,9 +39,10 @@ class TreeInfo
    public:
    TR_ALLOC(TR_Memory::LocalOpts)
 
-   TreeInfo(TR::TreeTop *treeTop, int32_t height)
+   TreeInfo(TR::TreeTop *treeTop, int32_t height, int32_t processCount)
       : _tree(treeTop),
-        _height(height)
+        _height(height),
+        _processCount(processCount)
       {
       }
 
@@ -51,10 +52,13 @@ class TreeInfo
    int32_t getHeight()    {return _height;}
    void setHeight(int32_t height) {_height = height;}
 
+   int32_t getProcessCount()    {return _processCount;}
+
    private:
 
    int32_t _height;
    TR::TreeTop *_tree;
+   int32_t _processCount;
    };
 
 }
@@ -94,6 +98,7 @@ class DeadTreesElimination : public TR::Optimization
 		vcount_t evaluatedVisitCount);
 
    virtual const char * optDetailString() const throw();
+   int32_t _processCount;
 
    protected:
 
