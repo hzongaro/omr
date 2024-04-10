@@ -435,7 +435,7 @@ TR::Optimization *TR::DeadTreesElimination::create(TR::OptimizationManager *mana
 TR::DeadTreesElimination::DeadTreesElimination(TR::OptimizationManager *manager)
    : TR::Optimization(manager),
      _targetTrees(manager->trMemory()),
-     _blockPreviouslyProcessed(manager->trMemory())
+     _blockPreviouslyProcessed(manager->comp()->getFlowGraph()->getNextNodeNumber(), manager->trMemory())
    {
    _cannotBeEliminated = false;
    _delayedRegStores = false;
