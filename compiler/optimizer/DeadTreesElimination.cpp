@@ -434,7 +434,8 @@ TR::Optimization *TR::DeadTreesElimination::create(TR::OptimizationManager *mana
 
 TR::DeadTreesElimination::DeadTreesElimination(TR::OptimizationManager *manager)
    : TR::Optimization(manager),
-     _targetTrees(manager->trMemory())
+     _targetTrees(manager->trMemory()),
+     _blockPreviouslyProcessed(manager->trMemory())
    {
    _cannotBeEliminated = false;
    _delayedRegStores = false;
@@ -475,6 +476,7 @@ void TR::DeadTreesElimination::prePerformOnBlocks()
    _delayedRegStores = false;
 
    _targetTrees.deleteAll();
+   _blockPreviouslyProcessed.empty();
 
    /*
     * Walk through all the blocks to remove trivial dead trees in the following forms:
@@ -782,6 +784,8 @@ int32_t TR::DeadTreesElimination::process(TR::TreeTop *startTree, TR::TreeTop *e
       if (node->getOpCodeValue() == TR::BBStart)
          {
          block = node->getBlock();
+TR_ASSERT_FATAL(!_blockPreviouslyProcessed.isSet(block->getNumber()), "Already processed block_%d\n", block->getNumber());
+_blockPreviouslyProcessed.set(block->getNumber());
          if (!block->isExtensionOfPreviousBlock())
             longestPaths.clear();
          }

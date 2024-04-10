@@ -104,6 +104,7 @@ class DeadTreesElimination : public TR::Optimization
    int32_t process(TR::TreeTop *, TR::TreeTop *);
 
    List<OMR::TreeInfo> _targetTrees;
+   TR_BitVector _blockPreviouslyProcessed;
    bool _cannotBeEliminated;
    bool _delayedRegStores;
    };
