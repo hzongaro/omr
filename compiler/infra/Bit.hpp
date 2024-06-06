@@ -400,6 +400,11 @@ static inline bool isPowerOf2(int32_t input)
    return (input & -input) == input;
    }
 
+static inline bool isPowerOf2(uint32_t input)
+   {
+   return (input != 0) && (input & (input-1)) == 0;
+   }
+
 static inline bool isNonNegativePowerOf2(int64_t input)
    {
    if (input == LONG_MIN)
@@ -421,6 +426,11 @@ static inline bool isPowerOf2(int64_t input)
    {
    input = input < 0 ? -input : input;
    return (input & -input) == input;
+   }
+
+static inline bool isPowerOf2(uint64_t input)
+   {
+   return (input != 0) && (input & (input-1)) == 0;
    }
 
 #if defined(OSX)
