@@ -4675,6 +4675,10 @@ void OMR::ValuePropagation::launchNode(TR::Node *node, TR::Node *parent, int32_t
    TR::Node *newNode = node;
    if (node && node->getVisitCount() != _visitCount)
       {
+if (trace())
+{
+traceMsg(comp(), "In OMR::ValuePropagation::launchNode %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = {_region = %p; _chunks = %d; _numChunks = %d; _lastChunkWithNonZero = %d}\n", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist, _useDefInfo->_defsChecklist->_region, _useDefInfo->_defsChecklist->_chunks, _useDefInfo->_defsChecklist->_numChunks, _useDefInfo->_defsChecklist->_lastChunkWithNonZero);
+}
       int32_t valueNumber = getValueNumber(node);
       TR_ASSERT(valueNumber < _firstUnresolvedSymbolValueNumber, "value number too big, valueNumber:%d _firstUnresolvedSymbolValueNumber:%d", valueNumber, _firstUnresolvedSymbolValueNumber);
 
@@ -4722,6 +4726,10 @@ void OMR::ValuePropagation::launchNode(TR::Node *node, TR::Node *parent, int32_t
                }
             }
          }
+if (trace())
+{
+traceMsg(comp(), "Leaving OMR::ValuePropagation::launchNode %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = {_region = %p; _chunks = %d; _numChunks = %d; _lastChunkWithNonZero = %d}\n", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist, _useDefInfo->_defsChecklist->_region, _useDefInfo->_defsChecklist->_chunks, _useDefInfo->_defsChecklist->_numChunks, _useDefInfo->_defsChecklist->_lastChunkWithNonZero);
+}
       }
 
    // Replace PassThrough with its child

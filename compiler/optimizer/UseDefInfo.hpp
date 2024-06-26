@@ -371,8 +371,10 @@ class TR_UseDefInfo
    TR::vector<int32_t, TR::Region&> _sideTableToSymRefNumMap;
 
    // Checklist used in getUseDef_ref
+   public:
    TR_BitVector        *_defsChecklist;
 
+   private:
    int32_t             _numDefOnlyNodes;
    int32_t             _numDefUseNodes;
    int32_t             _numUseOnlyNodes;

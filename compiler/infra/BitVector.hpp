@@ -919,14 +919,19 @@ class TR_BitVector
    // The low order 5/6 bits of a bit index define the bit position within the
    // chunk and the rest define the chunk index.
 
+   public:
    chunk_t             *_chunks;
    TR::Region          *_region;
    #ifdef TRACK_TRBITVECTOR_MEMORY
+   private:
    uint32_t             _memoryUsed;
    #endif
+   public:
    int32_t              _numChunks;
    // _firstChunkWithNonZero and _lastChunkWithNonero must be maintained precisely
+   private:
    int32_t              _firstChunkWithNonZero; // == _numChunks if empty
+   public:
    int32_t              _lastChunkWithNonZero;  // == -1 if empty
    TR_BitVectorGrowable _growable;
 
