@@ -197,6 +197,11 @@ void TR_BitVector::print(TR::Compilation *comp, TR::FILE *file)
       }
    }
 
+void TR_BitVector::debugMe(TR::Compilation *comp)
+   {
+   traceMsg(comp, "{_region = %p; _chunks = %p; _numChunks = %d; _lastChunkWithNonZero = %d}", _region, _chunks, _numChunks, _lastChunkWithNonZero);
+   }
+
 void TR_SingleBitContainer::print(TR::Compilation *comp, TR::FILE *file)
    {
    if (comp->getDebug())
