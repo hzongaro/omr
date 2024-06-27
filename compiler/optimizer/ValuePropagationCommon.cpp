@@ -463,6 +463,12 @@ int32_t OMR::ValuePropagation::getValueNumber(TR::Node *node)
 
 TR::VPConstraint *OMR::ValuePropagation::getConstraint(TR::Node *node, bool &isGlobal, TR::Node *relative)
    {
+if (trace())
+{
+traceMsg(comp(), "In OMR::ValuePropagation::getConstraint %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
+_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(comp(), "\n");
+}
    /*
      If we return a non-null constraint, isGlobal will be set accordingly.
      If we return a null constraint, isGlobal defaults to true: it is safe to globally assume
@@ -505,6 +511,12 @@ TR::VPConstraint *OMR::ValuePropagation::getConstraint(TR::Node *node, bool &isG
       {
       TR::VPConstraint *betterConstraint = applyGlobalConstraints(node, valueNumber, constraint, relativeVN);
       addBlockOrGlobalConstraint(node, betterConstraint, isGlobal, relative);
+if (trace())
+{
+traceMsg(comp(), "Leaving (1) OMR::ValuePropagation::getConstraint %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
+_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(comp(), "\n");
+}
       return constraint;
       }
 
@@ -522,6 +534,12 @@ TR::VPConstraint *OMR::ValuePropagation::getConstraint(TR::Node *node, bool &isG
       constraint = rel->constraint;
       }
 
+if (trace())
+{
+traceMsg(comp(), "Leaving (2) OMR::ValuePropagation::getConstraint %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
+_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(comp(), "\n");
+}
    return constraint;
    }
 
