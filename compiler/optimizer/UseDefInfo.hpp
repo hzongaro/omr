@@ -65,6 +65,8 @@ class TR_UseDefInfo
    TR::Region _region;
    public:
 
+   TR::Region *regionAddr() {return &_region;}
+
    static void *operator new(size_t size, TR::Allocator a)
       { return a.allocate(size); }
    static void  operator delete(void *ptr, TR::Allocator a)

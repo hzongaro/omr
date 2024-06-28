@@ -1073,16 +1073,12 @@ static void constrainIntConst(OMR::ValuePropagation *vp, TR::Node *node, bool is
    int32_t value = node->getInt();
 if (vp->trace())
 {
-traceMsg(vp->comp(), "In (1) constrainIntConst %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
-traceMsg(vp->comp(), "\n");
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
 }
    constrainIntAndFloatConstHelper(vp, node, value, isGlobal);
 if (vp->trace())
 {
-traceMsg(vp->comp(), "In (2) constrainIntConst %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
-traceMsg(vp->comp(), "\n");
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
 }
    }
 
@@ -1511,47 +1507,35 @@ TR::Node *constrainIntLoad(OMR::ValuePropagation *vp, TR::Node *node)
    {
 if (vp->trace())
 {
-traceMsg(vp->comp(), "In (1) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
-traceMsg(vp->comp(), "\n");
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
 }
    bool wasReplacedByConstant = findConstant(vp, node);
 if (vp->trace())
 {
-traceMsg(vp->comp(), "In (2) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
-traceMsg(vp->comp(), "\n");
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
 }
    if (wasReplacedByConstant)
       return node;
 
 if (vp->trace())
 {
-traceMsg(vp->comp(), "In (3) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
-traceMsg(vp->comp(), "\n");
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
 }
    constrainChildren(vp, node);
 if (vp->trace())
 {
-traceMsg(vp->comp(), "In (4) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
-traceMsg(vp->comp(), "\n");
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
 }
    constrainAnyIntLoad(vp, node);
 if (vp->trace())
 {
-traceMsg(vp->comp(), "In (5) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
-traceMsg(vp->comp(), "\n");
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
 }
 
    vp->checkForInductionVariableLoad(node);
 if (vp->trace())
 {
-traceMsg(vp->comp(), "In (6) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
-traceMsg(vp->comp(), "\n");
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
 }
 
    if (node->getOpCode().isIndirect() &&
@@ -1561,10 +1545,7 @@ traceMsg(vp->comp(), "\n");
       vp->addBlockConstraint(node->getFirstChild(), TR::VPNonNullObject::create(vp));
 if (vp->trace())
 {
-traceMsg(vp->comp(), "In (7) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
-traceMsg(vp->comp(), "\n");
-}
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
 }
    return node;
    }

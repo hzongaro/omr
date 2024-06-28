@@ -330,9 +330,7 @@ TR::VPConstraint *OMR::ValuePropagation::addConstraintToList(TR::Node *node, int
 
 if (trace())
 {
-traceMsg(comp(), "In (1) OMR::ValuePropagation::addConstraintToList %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
-_useDefInfo->_defsChecklist->debugMe(comp());
-traceMsg(comp(), "\n");
+_useDefInfo->_defsChecklist->checkState(comp(), _useDefInfo->regionAddr())
 }
 
    TR::VPConstraint *c = NULL;
@@ -597,9 +595,8 @@ traceMsg(comp(), "\n");
 
 if (trace())
 {
-traceMsg(comp(), "In (5) OMR::ValuePropagation::addConstraintToList %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
-_useDefInfo->_defsChecklist->debugMe(comp());
-traceMsg(comp(), "\n");
+_useDefInfo->_defsChecklist->checkState(comp(), _useDefInfo->regionAddr())
+}
 }
 
    return c;

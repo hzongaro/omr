@@ -835,6 +835,7 @@ class TR_BitVector
    void print(TR::Compilation *comp, TR::FILE *file = NULL);
 
    void debugMe(TR::Compilation *comp);
+   void checkState(TR::Compilation *comp, TR::Region *region);
 
    // Find the number of used chunks
    //
