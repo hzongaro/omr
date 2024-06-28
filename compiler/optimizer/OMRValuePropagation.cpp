@@ -597,7 +597,6 @@ if (trace())
 {
 _useDefInfo->_defsChecklist->checkState(comp(), "OMR::ValuePropagation::addConstraintToList (99) ", _useDefInfo->regionAddr());
 }
-}
 
    return c;
    }
