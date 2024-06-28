@@ -1074,14 +1074,14 @@ static void constrainIntConst(OMR::ValuePropagation *vp, TR::Node *node, bool is
 if (vp->trace())
 {
 traceMsg(vp->comp(), "In (1) constrainIntConst %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(comp());
+vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
 traceMsg(vp->comp(), "\n");
 }
    constrainIntAndFloatConstHelper(vp, node, value, isGlobal);
 if (vp->trace())
 {
 traceMsg(vp->comp(), "In (2) constrainIntConst %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(comp());
+vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
 traceMsg(vp->comp(), "\n");
 }
    }
@@ -1512,14 +1512,14 @@ TR::Node *constrainIntLoad(OMR::ValuePropagation *vp, TR::Node *node)
 if (vp->trace())
 {
 traceMsg(vp->comp(), "In (1) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(comp());
+vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
 traceMsg(vp->comp(), "\n");
 }
    bool wasReplacedByConstant = findConstant(vp, node);
 if (vp->trace())
 {
 traceMsg(vp->comp(), "In (2) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(comp());
+vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
 traceMsg(vp->comp(), "\n");
 }
    if (wasReplacedByConstant)
@@ -1528,21 +1528,21 @@ traceMsg(vp->comp(), "\n");
 if (vp->trace())
 {
 traceMsg(vp->comp(), "In (3) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(comp());
+vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
 traceMsg(vp->comp(), "\n");
 }
    constrainChildren(vp, node);
 if (vp->trace())
 {
 traceMsg(vp->comp(), "In (4) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(comp());
+vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
 traceMsg(vp->comp(), "\n");
 }
    constrainAnyIntLoad(vp, node);
 if (vp->trace())
 {
 traceMsg(vp->comp(), "In (5) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(comp());
+vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
 traceMsg(vp->comp(), "\n");
 }
 
@@ -1550,7 +1550,7 @@ traceMsg(vp->comp(), "\n");
 if (vp->trace())
 {
 traceMsg(vp->comp(), "In (6) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(comp());
+vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
 traceMsg(vp->comp(), "\n");
 }
 
@@ -1562,7 +1562,7 @@ traceMsg(vp->comp(), "\n");
 if (vp->trace())
 {
 traceMsg(vp->comp(), "In (7) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
-vp->_useDefInfo->_defsChecklist->debugMe(comp());
+vp->_useDefInfo->_defsChecklist->debugMe(vp->comp());
 traceMsg(vp->comp(), "\n");
 }
 }
