@@ -1071,7 +1071,19 @@ static void constrainIntAndFloatConstHelper(OMR::ValuePropagation *vp, TR::Node 
 static void constrainIntConst(OMR::ValuePropagation *vp, TR::Node *node, bool isGlobal)
    {
    int32_t value = node->getInt();
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In (1) constrainIntConst %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
+vp->_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(vp->comp(), "\n");
+}
    constrainIntAndFloatConstHelper(vp, node, value, isGlobal);
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In (2) constrainIntConst %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
+vp->_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(vp->comp(), "\n");
+}
    }
 
 TR::Node *constrainIntConst(OMR::ValuePropagation *vp, TR::Node *node)
@@ -1497,19 +1509,63 @@ TR::Node *constrainShortLoad(OMR::ValuePropagation * vp, TR::Node * node)
 
 TR::Node *constrainIntLoad(OMR::ValuePropagation *vp, TR::Node *node)
    {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In (1) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
+vp->_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(vp->comp(), "\n");
+}
    bool wasReplacedByConstant = findConstant(vp, node);
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In (2) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
+vp->_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(vp->comp(), "\n");
+}
    if (wasReplacedByConstant)
       return node;
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In (3) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
+vp->_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(vp->comp(), "\n");
+}
    constrainChildren(vp, node);
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In (4) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
+vp->_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(vp->comp(), "\n");
+}
    constrainAnyIntLoad(vp, node);
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In (5) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
+vp->_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(vp->comp(), "\n");
+}
 
    vp->checkForInductionVariableLoad(node);
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In (6) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
+vp->_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(vp->comp(), "\n");
+}
 
    if (node->getOpCode().isIndirect() &&
        !vp->_curTree->getNode()->getOpCode().isNullCheck() &&
        owningMethodDoesNotContainNullChecks(vp, node))
+{
       vp->addBlockConstraint(node->getFirstChild(), TR::VPNonNullObject::create(vp));
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In (7) constrainIntLoad %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), vp->_useDefInfo, vp->_useDefInfo->_defsChecklist);
+vp->_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(vp->comp(), "\n");
+}
+}
    return node;
    }
 
