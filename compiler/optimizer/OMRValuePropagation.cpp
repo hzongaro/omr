@@ -391,12 +391,6 @@ traceMsg(comp(), "\n");
          }
       }
 
-if (trace())
-{
-traceMsg(comp(), "In (2) OMR::ValuePropagation::addConstraintToList %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
-_useDefInfo->_defsChecklist->debugMe(comp());
-traceMsg(comp(), "\n");
-}
    // Find or insert the value constraint
    //
    ValueConstraint *cur = _vcHandler.find(valueNumber, *valueConstraints);
@@ -463,12 +457,7 @@ traceMsg(comp(), "\n");
             }
          }
       }
-if (trace())
-{
-traceMsg(comp(), "In (3) OMR::ValuePropagation::addConstraintToList %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
-_useDefInfo->_defsChecklist->debugMe(comp());
-traceMsg(comp(), "\n");
-}
+
    // If there are store relationships corresponding to the one being added
    // or changed, apply the new constraint to them too.
    //
@@ -553,13 +542,6 @@ traceMsg(comp(), "\n");
                } // updateStoreConstraint
             } // store = cur->storeRelationships.getFirst(); store; store = store->getNext()
          } // if (cur)
-
-if (trace())
-{
-traceMsg(comp(), "In (4) OMR::ValuePropagation::addConstraintToList %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
-_useDefInfo->_defsChecklist->debugMe(comp());
-traceMsg(comp(), "\n");
-}
 
    if (existingGlobalConstraint)
       return existingGlobalConstraint;
