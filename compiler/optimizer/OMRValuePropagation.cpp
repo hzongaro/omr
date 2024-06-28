@@ -330,7 +330,7 @@ TR::VPConstraint *OMR::ValuePropagation::addConstraintToList(TR::Node *node, int
 
 if (trace())
 {
-_useDefInfo->_defsChecklist->checkState(comp(), "OMR::ValuePropagation::addConstraintToList (1) ", _useDefInfo->regionAddr())
+_useDefInfo->_defsChecklist->checkState(comp(), "OMR::ValuePropagation::addConstraintToList (1) ", _useDefInfo->regionAddr());
 }
 
    TR::VPConstraint *c = NULL;
@@ -595,7 +595,7 @@ _useDefInfo->_defsChecklist->checkState(comp(), "OMR::ValuePropagation::addConst
 
 if (trace())
 {
-_useDefInfo->_defsChecklist->checkState(comp(), "OMR::ValuePropagation::addConstraintToList (99) ", _useDefInfo->regionAddr())
+_useDefInfo->_defsChecklist->checkState(comp(), "OMR::ValuePropagation::addConstraintToList (99) ", _useDefInfo->regionAddr());
 }
 }
 
