@@ -1547,6 +1547,7 @@ if (vp->trace())
 {
 vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), "constrainIntLoad (77) ", vp->_useDefInfo->regionAddr());
 }
+}
    return node;
    }
 
