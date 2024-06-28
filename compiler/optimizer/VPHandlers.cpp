@@ -1073,12 +1073,12 @@ static void constrainIntConst(OMR::ValuePropagation *vp, TR::Node *node, bool is
    int32_t value = node->getInt();
 if (vp->trace())
 {
-vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), "constrainIntConst (1) ", vp->_useDefInfo->regionAddr());
 }
    constrainIntAndFloatConstHelper(vp, node, value, isGlobal);
 if (vp->trace())
 {
-vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), "constrainIntConst (2) ", vp->_useDefInfo->regionAddr());
 }
    }
 
@@ -1507,35 +1507,35 @@ TR::Node *constrainIntLoad(OMR::ValuePropagation *vp, TR::Node *node)
    {
 if (vp->trace())
 {
-vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), "constrainIntLoad (1) ", vp->_useDefInfo->regionAddr());
 }
    bool wasReplacedByConstant = findConstant(vp, node);
 if (vp->trace())
 {
-vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), "constrainIntLoad (22) ", vp->_useDefInfo->regionAddr());
 }
    if (wasReplacedByConstant)
       return node;
 
 if (vp->trace())
 {
-vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), "constrainIntLoad (33) ", vp->_useDefInfo->regionAddr());
 }
    constrainChildren(vp, node);
 if (vp->trace())
 {
-vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), "constrainIntLoad (44) ", vp->_useDefInfo->regionAddr());
 }
    constrainAnyIntLoad(vp, node);
 if (vp->trace())
 {
-vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), "constrainIntLoad (55) ", vp->_useDefInfo->regionAddr());
 }
 
    vp->checkForInductionVariableLoad(node);
 if (vp->trace())
 {
-vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), "constrainIntLoad (66) ", vp->_useDefInfo->regionAddr());
 }
 
    if (node->getOpCode().isIndirect() &&
@@ -1545,7 +1545,7 @@ vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionA
       vp->addBlockConstraint(node->getFirstChild(), TR::VPNonNullObject::create(vp));
 if (vp->trace())
 {
-vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), vp->_useDefInfo->regionAddr());
+vp->_useDefInfo->_defsChecklist->checkState(vp->comp(), "constrainIntLoad (77) ", vp->_useDefInfo->regionAddr());
 }
    return node;
    }

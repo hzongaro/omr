@@ -202,12 +202,12 @@ void TR_BitVector::debugMe(TR::Compilation *comp)
    traceMsg(comp, "{_region = %p; _chunks = %p; _numChunks = %d; _lastChunkWithNonZero = %d}", _region, _chunks, _numChunks, _lastChunkWithNonZero);
    }
 
-void TR_BitVector::checkState(TR::Compilation *comp, TR::Region:: *region)
+void TR_BitVector::checkState(TR::Compilation *comp, const char *context, TR::Region *region)
    {
    if ((_region != region)
        || (_chunks == 0 && (_numChunks > 0 || _lastChunkWithNonZero != 0)))
       {
-      traceMsg(comp, "{_region = %p; _chunks = %p; _numChunks = %d; _lastChunkWithNonZero = %d}\n", _region, _chunks, _numChunks, _lastChunkWithNonZero);
+      traceMsg(comp, "Bad TR_BitVector state - context = '%s' state = {_region = %p; _chunks = %p; _numChunks = %d; _lastChunkWithNonZero = %d}\n", context, _region, _chunks, _numChunks, _lastChunkWithNonZero);
       }
    }
 
