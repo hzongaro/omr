@@ -328,6 +328,13 @@ TR::VPConstraint *OMR::ValuePropagation::addConstraintToList(TR::Node *node, int
       return addGlobalConstraint(node, valueNumber, constraint, relative);
       }
 
+if (trace())
+{
+traceMsg(comp(), "In (1) OMR::ValuePropagation::addConstraintToList %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
+_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(comp(), "\n");
+}
+
    TR::VPConstraint *c = NULL;
    Relationship    *rel = NULL, *prevRel = NULL;
    bool             newOrChanged = false;
@@ -384,6 +391,12 @@ TR::VPConstraint *OMR::ValuePropagation::addConstraintToList(TR::Node *node, int
          }
       }
 
+if (trace())
+{
+traceMsg(comp(), "In (2) OMR::ValuePropagation::addConstraintToList %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
+_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(comp(), "\n");
+}
    // Find or insert the value constraint
    //
    ValueConstraint *cur = _vcHandler.find(valueNumber, *valueConstraints);
@@ -450,6 +463,12 @@ TR::VPConstraint *OMR::ValuePropagation::addConstraintToList(TR::Node *node, int
             }
          }
       }
+if (trace())
+{
+traceMsg(comp(), "In (3) OMR::ValuePropagation::addConstraintToList %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
+_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(comp(), "\n");
+}
    // If there are store relationships corresponding to the one being added
    // or changed, apply the new constraint to them too.
    //
@@ -535,6 +554,13 @@ TR::VPConstraint *OMR::ValuePropagation::addConstraintToList(TR::Node *node, int
             } // store = cur->storeRelationships.getFirst(); store; store = store->getNext()
          } // if (cur)
 
+if (trace())
+{
+traceMsg(comp(), "In (4) OMR::ValuePropagation::addConstraintToList %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
+_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(comp(), "\n");
+}
+
    if (existingGlobalConstraint)
       return existingGlobalConstraint;
 
@@ -586,6 +612,13 @@ TR::VPConstraint *OMR::ValuePropagation::addConstraintToList(TR::Node *node, int
             }
          }
       }
+
+if (trace())
+{
+traceMsg(comp(), "In (5) OMR::ValuePropagation::addConstraintToList %p n%un - _useDefInfo [%p]; _useDefInfo->_defsChecklist [%p] = ", node, node->getGlobalIndex(), _useDefInfo, _useDefInfo->_defsChecklist);
+_useDefInfo->_defsChecklist->debugMe(comp());
+traceMsg(comp(), "\n");
+}
 
    return c;
    }
