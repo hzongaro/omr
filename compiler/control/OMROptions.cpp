@@ -337,6 +337,8 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
    {"disableFPCodeGen",                   "O\tdisable floating point code generation",               SET_OPTION_BIT(TR_DisableFPCodeGen), "F"},
    {"disableFPE",                         "C\tdisable FPE",                                    SET_OPTION_BIT(TR_DisableFPE), "F"},
    {"disableGCRPatching",                 "R\tdisable patching of the GCR guard",              RESET_OPTION_BIT(TR_EnableGCRPatching), "F"},
+   {"disableGetClassNonNull",             "O\tdisable marking calls to Object.getClass as non-null", SET_OPTION_BIT(TR_DisableGetClassNonNull), "F"},
+   {"disableGetComponentTypeTransformation", "O\tdisable inlining calls to Class.getComponentType in VP", SET_OPTION_BIT(TR_DisableGetComponentTypeTransformation), "F"},
    {"disableGlobalCopyPropagation",       "O\tdisable global copy propagation",                TR::Options::disableOptimization, globalCopyPropagation, 0, "P"},
    {"disableGlobalDSE",                   "O\tdisable global dead store elimination",          TR::Options::disableOptimization, globalDeadStoreElimination, 0, "P"},
    {"disableGlobalLiveVariablesForGC",    "O\tdisable global live variables for GC",           TR::Options::disableOptimization, globalLiveVariablesForGC, 0, "P"},

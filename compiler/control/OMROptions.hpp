@@ -239,7 +239,7 @@ enum TR_CompilationOptions
    TR_ExperimentalClassLoadPhase          = 0x00000020 + 5,
    TR_DisableLookahead                    = 0x00000040 + 5,
    TR_TraceBFGeneration                   = 0x00000080 + 5,
-   // Available                           = 0x00000100 + 5,
+   TR_DisableGetClassNonNull              = 0x00000100 + 5,
    TR_SuspendEarly                        = 0x00000200 + 5,
    TR_EnableEarlyCompilationDuringIdleCpu = 0x00000400 + 5,
    TR_DisableCallGraphInlining            = 0x00000800 + 5, // interpreter profiling
@@ -344,7 +344,7 @@ enum TR_CompilationOptions
    TR_DisablePeephole                     = 0x00200000 + 8,
    TR_NoOptServer                         = 0x00400000 + 8,
    TR_DisableDLTrecompilationPrevention   = 0x00800000 + 8,
-   // Available                           = 0x01000000 + 8,
+   TR_DisableGetComponentTypeTransformation = 0x01000000 + 8,
    TR_DisablePeekAOTResolutions           = 0x02000000 + 8,
    TR_UseFlattenedArrayElementRuntimeHelpers = 0x04000000 + 8,
    TR_UseFlattenedFieldRuntimeHelpers     = 0x08000000 + 8,
