@@ -1727,13 +1727,13 @@ void TR_SinkStores::doSinking()
       else
          {
          // unlink tt since we've now sunk it to other places
-         //TR::TreeTop *originalPrev = originalStore->getPrevTreeTop();
-         //TR::TreeTop *originalNext = originalStore->getNextTreeTop();
+         TR::TreeTop *originalPrev = originalStore->getPrevTreeTop();
+         TR::TreeTop *originalNext = originalStore->getNextTreeTop();
 
-         //originalStore->getPrevTreeTop()->setNextTreeTop(originalNext);
-         //originalStore->getNextTreeTop()->setPrevTreeTop(originalPrev);
-         //originalStore->getNode()->recursivelyDecReferenceCount();
-         TR::Node::recreate(originalStore->getNode(), TR::treetop);
+         originalStore->getPrevTreeTop()->setNextTreeTop(originalNext);
+         originalStore->getNextTreeTop()->setPrevTreeTop(originalPrev);
+         originalStore->getNode()->recursivelyDecReferenceCount();
+         // TR::Node::recreate(originalStore->getNode(), TR::treetop);
          //requestOpt(deadTreesElimination, true, originalStore->getEnclosingBlock()->startOfExtendedBlock());
          }
       }
