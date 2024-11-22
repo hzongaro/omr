@@ -39,7 +39,7 @@ namespace OMR
       TR_BitVector _visitedNodes;
       TR_BitVector _unsafeNodes; // Nodes whose mere evaluation is not safe
 
-      UnsafeSubexpressionRemoval(TR::Optimization *opt):
+      UnsafeSubexpressionRemover(TR::Optimization *opt):
          _opt(opt),
          _visitedNodes(opt->comp()->getNodeCount(), comp()->trMemory(), stackAlloc),
          _unsafeNodes (opt->comp()->getNodeCount(), comp()->trMemory(), stackAlloc)
