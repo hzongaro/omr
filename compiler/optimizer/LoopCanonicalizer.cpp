@@ -1093,18 +1093,18 @@ void TR_LoopCanonicalizer::canonicalizeNaturalLoop(TR_RegionStructure *whileLoop
          comp()->setStartTree(newEntryTree);
 
       if (adjPred)
-	 {
-	 TR::TreeTop *predExit = adjPred->getExit();
+         {
+         TR::TreeTop *predExit = adjPred->getExit();
          TR::TreeTop *predNext = predExit->getNextTreeTop();
          predExit->join(entryTree);
          exitTree->join(predNext);
          //printf("Changing layout in %s\n", comp()->signature());
          }
       else
-	 {
+         {
          _startOfHeader->join(entryTree);
          exitTree->join(nextTreeAfterHeader);
-	 }
+         }
       }
 
 
@@ -1612,10 +1612,10 @@ bool TR_LoopCanonicalizer::modifyBranchesForSplitEdges(
             _cfg->removeEdge(*edge++);
             }
          else
-        	 ++edge;
+            ++edge;
          }
       else
-    	  ++edge;
+         ++edge;
       }
    return true;
    }
@@ -1805,16 +1805,16 @@ void TR_LoopCanonicalizer::canonicalizeDoWhileLoop(TR_RegionStructure *doWhileLo
       {
       if ((*predIt)->getFrom() != invariantNode)
          {
-    	 /* Store a reference to current element, is removed in the removePredecessor */
-    	 TR::CFGEdge *  nextPred = *(predIt++);
-    	 doWhileNode->removePredecessor(nextPred);
+         /* Store a reference to current element, is removed in the removePredecessor */
+         TR::CFGEdge *  nextPred = *(predIt++);
+         doWhileNode->removePredecessor(nextPred);
          nextPred->setTo(targetNode);
          TR_RegionStructure *pred = toStructureSubGraphNode(nextPred->getFrom())->getStructure()->asRegion();
          if (pred && !isEntry)
             pred->replaceExitPart(doWhileNode->getNumber(), targetStructure->getNumber());
          }
       else
-    	  ++predIt;
+         ++predIt;
       }
 
    for (auto predIt = doWhileNode->getExceptionPredecessors().begin(); predIt != doWhileNode->getExceptionPredecessors().end();)
@@ -2516,7 +2516,11 @@ bool TR_LoopCanonicalizer::checkComplexInductionVariableUseNode(TR::Node *node, 
    TR::ILOpCode &opCode = node->getOpCode();
 
 
-   traceMsg(comp(), "NG: Walking node 0x%p\n",node);
+   if (trace())
+      {
+      traceMsg(comp(), "NG: Walking node 0x%p\n",node);
+      }
+
    if (opCode.isStoreIndirect())
       {
       addrExpression = true;
@@ -2525,22 +2529,38 @@ bool TR_LoopCanonicalizer::checkComplexInductionVariableUseNode(TR::Node *node, 
       {
       if (node->getOpCodeValue() == TR::imul)
          {
-         traceMsg(comp(), "Found imul node 0x%p used in address expression.\n", node);
+         if (trace())
+            {
+            traceMsg(comp(), "Found imul node 0x%p used in address expression.\n", node);
+            }
+
          if (node->getFirstChild()->getOpCode().hasSymbolReference() &&
              node->getFirstChild()->getSymbolReference() == _symRefBeingReplaced)
             {
-            traceMsg(comp(), "\tAvoiding induction variable replacement because of address mode complexity. Sym Ref. = %p\n", _symRefBeingReplaced);
+            if (trace())
+               {
+               traceMsg(comp(), "\tAvoiding induction variable replacement because of address mode complexity. Sym Ref. = %p\n", _symRefBeingReplaced);
+               }
+
             return false;
             }
          }
       else if (node->getOpCodeValue() == TR::lmul)
          {
-         traceMsg(comp(), "Found lmul node 0x%p used in address expression.\n", node);
+         if (trace())
+            {
+            traceMsg(comp(), "Found lmul node 0x%p used in address expression.\n", node);
+            }
+
          if (node->getFirstChild()->getOpCodeValue() == TR::i2l &&
              node->getFirstChild()->getFirstChild()->getOpCode().hasSymbolReference() &&
              node->getFirstChild()->getFirstChild()->getSymbolReference() == _symRefBeingReplaced)
             {
-            traceMsg(comp(), "\tAvoiding induction variable replacement because of address mode complexity. Sym Ref. = %p\n", _symRefBeingReplaced);
+            if (trace())
+               {
+               traceMsg(comp(), "\tAvoiding induction variable replacement because of address mode complexity. Sym Ref. = %p\n", _symRefBeingReplaced);
+               }
+
             return false;
             }
          }

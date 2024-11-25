@@ -4048,8 +4048,10 @@ TR_LiveRangeSplitter::splitLiveRanges(TR_StructureSubGraphNode *structureNode)
 
             TR::SymbolReference **prevOrigSymRefs = oldOrigSymRefs;
             int32_t prevSymRefCount = oldSymRefCount;
-            ///if (trace())
-            traceMsg(comp(), "Trying to split unused locals in loop %d with starting sym ref count %d\n", structureNode->getNumber(), symRefCount);
+            if (trace())
+               {
+               traceMsg(comp(), "Trying to split unused locals in loop %d with starting sym ref count %d\n", structureNode->getNumber(), symRefCount);
+               }
 
             int32_t i = 0;
             while ((i < symRefCount) && (prevSymRefCount == 0))
@@ -4161,7 +4163,12 @@ TR_LiveRangeSplitter::splitLiveRanges(TR_StructureSubGraphNode *structureNode)
                }
             }
          else
-            traceMsg(comp(), " loop %d (%p) is skipped because loop pre-header was not found \n", regionStructure->getNumber(), regionStructure);
+            {
+            if (trace())
+               {
+               traceMsg(comp(), " loop %d (%p) is skipped because loop pre-header was not found \n", regionStructure->getNumber(), regionStructure);
+               }
+            }
          }
 
       TR_StructureSubGraphNode *subNode;
@@ -4415,7 +4422,7 @@ TR_LiveRangeSplitter::fixExitsAfterSplit(TR::SymbolReference *symRef, TR_SymRefC
                   {
                   if (!blocksInInnerLoop->get(nextBlock->getNumber()))
                      {
-         if (trace())
+                     if (trace())
                         traceMsg(comp(), "Adding original candidate #%d in block_%d in outer loop %d (%p)\n", rc->getSymbolReference()->getReferenceNumber(), nextBlock->getNumber(), parentOfLoop->getNumber(), parentOfLoop);
                      rc->addBlock(nextBlock, 0);
                      }
