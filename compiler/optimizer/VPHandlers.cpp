@@ -5516,6 +5516,7 @@ TR::Node *constrainCall(OMR::ValuePropagation *vp, TR::Node *node)
                TR_ASSERT(isLongAbs,"");   // sanity check that no other cases get in here by mistake
                minValueConstraint = TR::VPLongConst::create(vp, TR::getMinSigned<TR::Int64>());
                }
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (31)\n");
             absConstraint = TR::VPMergedConstraints::create(vp, minValueConstraint, positiveConstraint);
             }
          else
@@ -6753,7 +6754,10 @@ TR::Node *constrainIneg(OMR::ValuePropagation *vp, TR::Node *node)
              constraint = TR::VPIntRange::create(vp, newLow, newHigh, TR_yes);
 
              if (lowConstraint)
+{
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (32)\n");
                 constraint = TR::VPMergedConstraints::create(vp, lowConstraint, constraint);
+}
              }
           else
              constraint = highConstraint;
@@ -6812,7 +6816,10 @@ TR::Node *constrainLneg(OMR::ValuePropagation *vp, TR::Node *node)
             constraint = TR::VPLongRange::create(vp, newLow, newHigh, TR_yes);
 
             if (lowConstraint)
+{
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (33)\n");
                constraint = TR::VPMergedConstraints::create(vp, lowConstraint, constraint);
+}
             }
          else
             constraint = highConstraint;
@@ -6845,6 +6852,7 @@ TR::Node *constrainIabs(OMR::ValuePropagation *vp, TR::Node *node)
    TR::VPConstraint *child = vp->getConstraint(node->getFirstChild(), isGlobal);
    if (child == NULL)
       {
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (34)\n");
       vp->addGlobalConstraint(
          node,
          TR::VPMergedConstraints::create(
@@ -6897,7 +6905,10 @@ TR::Node *constrainIabs(OMR::ValuePropagation *vp, TR::Node *node)
             {
             TR::VPConstraint *constraint = TR::VPIntRange::create(vp, low, high);
             if (minConstraint != NULL)
+{
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (35)\n");
                constraint = TR::VPMergedConstraints::create(vp, minConstraint, constraint);
+}
             vp->addBlockOrGlobalConstraint(node, constraint ,isGlobal);
             }
          else
@@ -6922,6 +6933,7 @@ TR::Node *constrainLabs(OMR::ValuePropagation *vp, TR::Node *node)
    TR::VPConstraint *child = vp->getConstraint(node->getFirstChild(), isGlobal);
    if (child == NULL)
       {
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (36)\n");
       vp->addGlobalConstraint(
          node,
          TR::VPMergedConstraints::create(
@@ -6974,7 +6986,10 @@ TR::Node *constrainLabs(OMR::ValuePropagation *vp, TR::Node *node)
             {
             TR::VPConstraint *constraint = TR::VPLongRange::create(vp, low, high);
             if (minConstraint != NULL)
+{
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (37)\n");
                constraint = TR::VPMergedConstraints::create(vp, minConstraint, constraint);
+}
             bool didReduction = reduceLongOpToIntegerOp(vp, node, constraint);
             vp->addBlockOrGlobalConstraint(node, constraint ,isGlobal);
 

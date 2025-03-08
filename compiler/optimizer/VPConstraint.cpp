@@ -946,6 +946,7 @@ TR::VPConstraint *TR::VPShortConst::createExclusion(OMR::ValuePropagation *vp, i
        return TR::VPShortRange::create(vp,v+1,static_cast<int16_t>(TR::getMaxSigned<TR::Int16>()));
    if (v == TR::getMaxSigned<TR::Int16>())
        return TR::VPShortRange::create(vp,static_cast<int16_t>(TR::getMinSigned<TR::Int16>()),v-1);
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (1)\n");
    return TR::VPMergedConstraints::create(vp, TR::VPShortRange::create(vp,static_cast<int16_t>(TR::getMinSigned<TR::Int16>()),v-1),TR::VPShortRange::create(vp,v+1,static_cast<int16_t>(TR::getMaxSigned<TR::Int16>())));
    }
 
@@ -955,6 +956,7 @@ TR::VPConstraint *TR::VPIntConst::createExclusion(OMR::ValuePropagation *vp, int
       return TR::VPIntRange::create(vp, v+1, static_cast<int32_t>(TR::getMaxSigned<TR::Int32>()));
    if (v == TR::getMaxSigned<TR::Int32>())
       return TR::VPIntRange::create(vp, static_cast<int32_t>(TR::getMinSigned<TR::Int32>()), v-1);
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (2)\n");
    return TR::VPMergedConstraints::create(vp, TR::VPIntRange::create(vp, static_cast<int32_t>(TR::getMinSigned<TR::Int32>()), v-1), TR::VPIntRange::create(vp, v+1, static_cast<int32_t>(TR::getMaxSigned<TR::Int32>())));
    }
 
@@ -1097,6 +1099,7 @@ TR::VPConstraint *TR::VPLongConst::createExclusion(OMR::ValuePropagation *vp, in
       return TR::VPLongRange::create(vp, v+1, TR::getMaxSigned<TR::Int64>());
    if (v == TR::getMaxSigned<TR::Int64>())
       return TR::VPLongRange::create(vp, TR::getMinSigned<TR::Int64>(), v-1);
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (3)\n");
    return TR::VPMergedConstraints::create(vp, TR::VPLongRange::create(vp, TR::getMinSigned<TR::Int64>(), v-1), TR::VPLongRange::create(vp, v+1, TR::getMaxSigned<TR::Int64>()));
    }
 
@@ -1560,6 +1563,18 @@ TR::VPMergedConstraints *TR::VPMergedConstraints::create(OMR::ValuePropagation *
       constraint->setIsUnsigned(true);
 
    vp->addConstraint(constraint, hash);
+
+   if (vp->trace())
+      {
+      traceMsg(vp->comp(), "HZ:  Created new merged constraint ");
+      constraint->print(vp->comp(), vp->comp()->getOutFile());
+      traceMsg(vp->comp(), " from first ");
+      first->print(vp->comp(), vp->comp()->getOutFile());
+      traceMsg(vp->comp(), " and second ");
+      second->print(vp->comp(), vp->comp()->getOutFile());
+      traceMsg(vp->comp(), "\n");
+      }
+
    return constraint;
    }
 
@@ -1615,6 +1630,13 @@ TR::VPMergedConstraints *TR::VPMergedConstraints::create(OMR::ValuePropagation *
    constraint = new (vp->trStackMemory()) TR::VPMergedConstraints(list, vp->trMemory());
    if (allUnsigned)
       constraint->setIsUnsigned(true);
+
+   if (vp->trace())
+      {
+      traceMsg(vp->comp(), "HZ:  Created new merged constraint ");
+      constraint->print(vp->comp(), vp->comp()->getOutFile());
+      traceMsg(vp->comp(), " from list\n");
+      }
 
    vp->addConstraint(constraint, hash);
    return constraint;
@@ -1788,6 +1810,7 @@ TR::VPConstraint *TR::VPIntConstraint::merge1(TR::VPConstraint *other, OMR::Valu
          return TR::VPIntRange::create(vp, getLow(), otherInt->getHigh());
          }
 
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (4)\n");
       return TR::VPMergedConstraints::create(vp, this, other);
       }
    else
@@ -1827,9 +1850,15 @@ TR::VPConstraint *TR::VPIntConstraint::merge1(TR::VPConstraint *other, OMR::Valu
             // the ranges are distinct, before merging, they should be ordered
             //
             if ((int64_t)otherLong->getLow() < (int64_t)getLow())
+{
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (5)\n");
                return TR::VPMergedConstraints::create(vp, TR::VPIntRange::create(vp, (int32_t)otherLong->getLow(), (int32_t)otherLong->getHigh()), this);
+}
             else
+{
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (6)\n");
                return TR::VPMergedConstraints::create(vp, this, TR::VPIntRange::create(vp, (int32_t)otherLong->getLow(), (int32_t)otherLong->getHigh()));
+}
             }
          }
       }
@@ -1855,6 +1884,7 @@ TR::VPConstraint *TR::VPLongConstraint::merge1(TR::VPConstraint *other, OMR::Val
             return NULL; // Constraint has now gone
          return TR::VPLongRange::create(vp, getLow(), otherLong->getHigh());
          }
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (7)\n");
       return TR::VPMergedConstraints::create(vp, this, other);
       }
    else
@@ -1885,9 +1915,15 @@ TR::VPConstraint *TR::VPLongConstraint::merge1(TR::VPConstraint *other, OMR::Val
             // the ranges are distinct, before merging, they should be ordered
             //
             if ((int64_t)otherInt->getLow() < (int64_t)getLow())
+{
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (8)\n");
                return TR::VPMergedConstraints::create(vp, TR::VPLongRange::create(vp, otherInt->getLow(), otherInt->getHigh()), this);
+}
             else
+{
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (9)\n");
                return TR::VPMergedConstraints::create(vp, this, TR::VPLongRange::create(vp, otherInt->getLow(), otherInt->getHigh()));
+}
             }
          }
       }
@@ -2283,6 +2319,7 @@ TR::VPConstraint *TR::VPMergedConstraints::shortMerge(TR::VPConstraint * other, 
       lastResultEntry = result.getListHead();
       if (!lastResultEntry->getNextElement())
          return lastResultEntry->getData();
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (10)\n");
       return TR::VPMergedConstraints::create(vp, lastResultEntry);
       }
     else
@@ -2398,6 +2435,7 @@ TR::VPConstraint *TR::VPMergedConstraints::intMerge(TR::VPConstraint *other, Lis
       lastResultEntry = result.getListHead();
       if (!lastResultEntry->getNextElement())
          return lastResultEntry->getData();
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (11)\n");
       return TR::VPMergedConstraints::create(vp, lastResultEntry);
       }
 
@@ -2504,6 +2542,7 @@ TR::VPConstraint *TR::VPMergedConstraints::intMerge(TR::VPConstraint *other, Lis
          lastResultEntry = result.getListHead();
          if (!lastResultEntry->getNextElement())
             return lastResultEntry->getData();
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (12)\n");
          return TR::VPMergedConstraints::create(vp, lastResultEntry);
          }
       }
@@ -2610,6 +2649,7 @@ TR::VPConstraint *TR::VPMergedConstraints::longMerge(TR::VPConstraint *other, Li
       lastResultEntry = result.getListHead();
       if (!lastResultEntry->getNextElement())
          return lastResultEntry->getData();
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (13)\n");
       return TR::VPMergedConstraints::create(vp, lastResultEntry);
       }
    else
@@ -2708,6 +2748,7 @@ TR::VPConstraint *TR::VPMergedConstraints::longMerge(TR::VPConstraint *other, Li
          lastResultEntry = result.getListHead();
          if (!lastResultEntry->getNextElement())
             return lastResultEntry->getData();
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (14)\n");
          return TR::VPMergedConstraints::create(vp, lastResultEntry);
          }
       }
@@ -4099,6 +4140,7 @@ TR::VPConstraint *TR::VPMergedConstraints::shortIntersect(TR::VPConstraint * oth
       if (!lastResultEntry->getNextElement())
          return lastResultEntry->getData();
 
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (15)\n");
       return TR::VPMergedConstraints::create(vp, lastResultEntry);
       }
     else
@@ -4201,6 +4243,7 @@ TR::VPConstraint *TR::VPMergedConstraints::intIntersect(TR::VPConstraint *other,
       if (!lastResultEntry->getNextElement())
          return lastResultEntry->getData();
 
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (16)\n");
       return TR::VPMergedConstraints::create(vp, lastResultEntry);
       }
 
@@ -4285,6 +4328,7 @@ TR::VPConstraint *TR::VPMergedConstraints::intIntersect(TR::VPConstraint *other,
       if (!lastResultEntry->getNextElement())
          return lastResultEntry->getData();
 
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (17)\n");
       return TR::VPMergedConstraints::create(vp, lastResultEntry);
       }
    }
@@ -4378,6 +4422,7 @@ TR::VPConstraint *TR::VPMergedConstraints::longIntersect(TR::VPConstraint *other
       if (!lastResultEntry->getNextElement())
          return lastResultEntry->getData();
 
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (18)\n");
       return TR::VPMergedConstraints::create(vp, lastResultEntry);
       }
 
@@ -4463,6 +4508,7 @@ TR::VPConstraint *TR::VPMergedConstraints::longIntersect(TR::VPConstraint *other
       if (!lastResultEntry->getNextElement())
          return lastResultEntry->getData();
 
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (19)\n");
       return TR::VPMergedConstraints::create(vp, lastResultEntry);
       }
    }
@@ -4765,6 +4811,7 @@ TR::VPConstraint *TR::VPShortConstraint::getRange(int16_t low, int16_t high, boo
       //disjoint merged constraint
       TR::VPConstraint* range1 = TR::VPShortRange::create(vp, static_cast<int16_t>(TR::getMinSigned<TR::Int16>()), static_cast<int16_t>(high), TR_yes);
       TR::VPConstraint* range2 = TR::VPShortRange::create(vp, static_cast<int16_t>(low), static_cast<int16_t>(TR::getMaxSigned<TR::Int16>()), TR_yes);
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (20)\n");
       return TR::VPMergedConstraints::create(vp, range1, range2);
       }
 
@@ -4803,6 +4850,7 @@ TR::VPConstraint *TR::VPIntConstraint::getRange(int32_t low, int32_t high, bool 
       //disjoint merged constraint
       TR::VPConstraint* range1 = TR::VPIntRange::create(vp, static_cast<int32_t>(TR::getMinSigned<TR::Int32>()), high, TR_yes);
       TR::VPConstraint* range2 = TR::VPIntRange::create(vp, low, static_cast<int32_t>(TR::getMaxSigned<TR::Int32>()), TR_yes);
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (21)\n");
       return TR::VPMergedConstraints::create(vp, range1, range2);
       }
 
@@ -4885,6 +4933,7 @@ TR::VPConstraint *TR::VPLongConstraint::getRange(int64_t low, int64_t high, bool
       //disjoint merged constraint
       TR::VPConstraint* range1 = TR::VPLongRange::create(vp, TR::getMinSigned<TR::Int64>(), high, TR_yes);
       TR::VPConstraint* range2 = TR::VPLongRange::create(vp, low, TR::getMaxSigned<TR::Int64>(), TR_yes);
+if (vp->trace()) traceMsg(vp->comp(), "HZ:  Calling TR::VPMergedConstraints::create (22)\n");
       return TR::VPMergedConstraints::create(vp, range1, range2);
       }
 
