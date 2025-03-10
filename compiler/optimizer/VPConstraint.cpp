@@ -1796,6 +1796,7 @@ TR::VPConstraint *TR::VPIntConstraint::merge1(TR::VPConstraint *other, OMR::Valu
       TR::VPLongConstraint *otherLong = other->asLongConstraint();
       if (otherLong)
          {
+TR_ASSERT_FATAL(false, "Did not expect to encounter LongConstraint being merged with IntConstraint\n");
          int64_t lowVal, highVal;
          // if wrap-around is possible, the constraint should be gone
          if (((int64_t)otherLong->getLow() < (int64_t)TR::getMinSigned<TR::Int32>()) ||
@@ -1862,6 +1863,7 @@ TR::VPConstraint *TR::VPLongConstraint::merge1(TR::VPConstraint *other, OMR::Val
       TR::VPIntConstraint *otherInt = other->asIntConstraint();
       if (otherInt)
          {
+TR_ASSERT_FATAL(false, "Did not expect to encounter IntConstraint being merged with LongConstraint\n");
          int64_t lowVal, highVal;
 
          if ((int64_t)otherInt->getLow() < (int64_t)getLow())
