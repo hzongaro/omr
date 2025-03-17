@@ -9315,8 +9315,8 @@ static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, b
             if (vp->trace())
 {
                traceMsg(vp->comp(), "   cmp children must be not equal by absolute constraints: %p != %p\n", lhsChild, rhsChild);
-traceMsg(vp->comp(), "   lhs constraint is ", lhs->name());
-traceMsg(vp->comp(), "   rhs constraint is ", rhs->name());
+traceMsg(vp->comp(), "   lhs constraint is %s\n", lhs->name());
+traceMsg(vp->comp(), "   rhs constraint is %s\n", rhs->name());
 }
             if (branchOnEqual)
                cannotBranch = true;
