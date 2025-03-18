@@ -5106,12 +5106,24 @@ bool TR::VPMergedConstraints::mustBeNotEqual(TR::VPConstraint *other, OMR::Value
 
 bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation *vp)
    {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (1)\n");
+}
    if (isNullObject() && other->isNonNullObject())
       return true;
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (2)\n");
+}
 
    if (isNonNullObject() && other->isNullObject())
       return true;
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (3)\n");
+}
    if (!isNonNullObject() && !other->isNonNullObject())
       return false; // both could be null
 
@@ -5120,6 +5132,10 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
    // distinct, ignoring the possibility of a null. If at runtime one value is
    // null, the other is necessarily non-null, so null doesn't interfere.
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (4)\n");
+}
    // Try to distinguish based on known object. If both are known objects, then
    // we have an immediate result.
    TR::VPKnownObject *thisKnownObject = getKnownObject();
@@ -5130,6 +5146,10 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
          return thisKnownObject->getIndex() != otherKnownObject->getIndex();
       }
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (5)\n");
+}
    // Try to distinguish based on heap location.
    TR_YesNoMaybe thisIsHeapObj = isHeapObject();
    TR_YesNoMaybe otherIsHeapObj = other->isHeapObject();
@@ -5141,6 +5161,10 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
       return true;
       }
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (6)\n");
+}
    // Try to distinguish based on stack location.
    TR_YesNoMaybe thisIsStackObj = isStackObject();
    TR_YesNoMaybe otherIsStackObj = other->isStackObject();
@@ -5152,14 +5176,26 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
       return true;
       }
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (7)\n");
+}
    // Try to distinguish based on class location.
    TR_YesNoMaybe thisIsClassObj = isClassObject();
    TR_YesNoMaybe otherIsClassObj = other->isClassObject();
    if (thisIsClassObj != TR_maybe && otherIsClassObj != TR_maybe)
       {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (7.1)\n");
+}
       if (thisIsClassObj != otherIsClassObj)
          return true; // one is a class and the other is not
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (7.2)\n");
+}
       // They're both classes or both not classes. If they're both classes, we
       // might be able to distinguish them based on what kind.
       if (thisIsClassObj == TR_yes)
@@ -5174,6 +5210,10 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
             return true;
             }
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (7.3)\n");
+}
          TR_YesNoMaybe thisIsHeapClass = isJavaLangClassObject();
          TR_YesNoMaybe otherIsHeapClass = other->isJavaLangClassObject();
          if (thisIsHeapClass != TR_maybe
@@ -5186,6 +5226,10 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
          }
       }
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (8)\n");
+}
    // Try to distinguish based on array info.
    TR::VPArrayInfo *thisArrayInfo = getArrayInfo();
    if (thisArrayInfo != NULL)
@@ -5195,6 +5239,10 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
          {
          int32_t thisElemSize = thisArrayInfo->elementSize();
          int32_t otherElemSize = otherArrayInfo->elementSize();
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (8.1)\n");
+}
          if (thisElemSize != 0 && otherElemSize != 0 && thisElemSize != otherElemSize)
             return true; // They're arrays with different element sizes.
 
@@ -5202,10 +5250,18 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
          int32_t thisHi = thisArrayInfo->highBound();
          int32_t otherLo = otherArrayInfo->lowBound();
          int32_t otherHi = otherArrayInfo->highBound();
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (8.2)\n");
+}
          if (thisHi < otherLo || otherHi < thisLo)
             return true; // They're arrays with different lengths.
          }
       }
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (9)\n");
+}
 
    // From here on out, we're trying to distinguish based on class hierarchy.
 
@@ -5216,6 +5272,10 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
       // represent reflectively.
       return false;
       }
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (10)\n");
+}
 
    TR_OpaqueClassBlock *thisClass = getClass();
    TR_OpaqueClassBlock *otherClass = other->getClass();
@@ -5227,15 +5287,27 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
       // without it isn't very good anyway.
       return false;
       }
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (11)\n");
+}
 
    if (thisClass == otherClass)
       return false; // No point continuing in this case. Trivially could be equal.
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (12)\n");
+}
 
    bool thisIsFixedClass = isFixedClass();
    bool otherIsFixedClass = other->isFixedClass();
    if (thisIsFixedClass && otherIsFixedClass)
       return thisClass != otherClass;
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (13)\n");
+}
    if (thisIsFixedClass || otherIsFixedClass)
       {
       // Only one is a fixed-type constraint (or we'd have returned above).
@@ -5252,12 +5324,20 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
          boundClass = thisClass;
          }
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (14)\n");
+}
       return vp->fe()->isInstanceOf(fixedClass, boundClass, true, true) == TR_no;
       }
 
    // Neither type is fixed.
    if (TR::Compiler->cls.isInterfaceClass(vp->comp(), thisClass))
       {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (15)\n");
+}
       if (other->getClassType()->isArray() == TR_yes)
          return !getClassType()->isCloneableOrSerializable();
       else
@@ -5266,12 +5346,20 @@ bool TR::VPClass::mustBeNotEqual(TR::VPConstraint *other, OMR::ValuePropagation 
 
    if (TR::Compiler->cls.isInterfaceClass(vp->comp(), otherClass))
       {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (16)\n");
+}
       if (getClassType()->isArray() == TR_yes)
          return !other->getClassType()->isCloneableOrSerializable();
       else
          return false; // a subtype of thisClass could implement otherClass
       }
 
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (17)\n");
+}
    // Two unrelated non-interface classes can't have a common subtype.
    return vp->fe()->isInstanceOf(thisClass, otherClass, true, true) == TR_no
       && vp->fe()->isInstanceOf(otherClass, thisClass, true, true) == TR_no;
