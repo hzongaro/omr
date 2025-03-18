@@ -610,6 +610,13 @@ TR_YesNoMaybe TR::VPClassType::isJavaLangClassObject()
    // it would make this look just like Class.class.
    if (_len == 17 && strncmp(_sig, "Ljava/lang/Class;", 17) == 0)
       return TR_maybe;
+
+   // If the type is java/lang/Object or an interface that is implemented
+   // by java/lang/Class, this may be the java/lang/Class object itself.
+   //
+   // java/lang/constant/Constable, java/lang/invoke/TypeDescriptor
+   // and java/lang/invoke/TypeDescriptor$OfField were introduced in JDK 12
+   //
    if ((_len == 18 && strncmp(_sig, "Ljava/lang/Object;", 18) == 0) ||
          (_len == 22 && strncmp(_sig, "Ljava/io/Serializable;", 22) == 0) ||
          (_len == 36 && strncmp(_sig, "Ljava/lang/reflect/AnnotatedElement;", 36) == 0) ||
