@@ -5183,6 +5183,10 @@ traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (7)\n");
    // Try to distinguish based on class location.
    TR_YesNoMaybe thisIsClassObj = isClassObject();
    TR_YesNoMaybe otherIsClassObj = other->isClassObject();
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In TR::VPClass::mustBeNotEqual (7.0) - thisIsClassObject == %s otherIsClassObj == %s\n", vp->comp()->getDebug()->getName(thisIsClassObj), vp->comp()->getDebug()->getName(otherIsClassObj));
+}
    if (thisIsClassObj != TR_maybe && otherIsClassObj != TR_maybe)
       {
 if (vp->trace())
@@ -6123,6 +6127,7 @@ void TR::VPClass::print(TR::Compilation *comp, TR::FILE *outFile)
    {
    if (outFile == NULL)
       return;
+   trfprintf(outFile, "<<<");
    if (_type)
       _type->print(comp, outFile);
    if (_typeHintClass)
@@ -6145,12 +6150,22 @@ void TR::VPClass::print(TR::Compilation *comp, TR::FILE *outFile)
       }
    if (getKnownObject() && !isNonNullObject())
       trfprintf(outFile, " (maybe NULL)");
+   trfprintf(outFile, " <presence:  ");
    if (_presence)
       _presence->print(comp, outFile);
+   else
+      trfprintf(outFile, " NULL");
+   trfprintf(outFile, "> <arrayInfo:  ");
    if (_arrayInfo)
       _arrayInfo->print(comp, outFile);
+   else
+      trfprintf(outFile, " NULL");
+   trfprintf(outFile, "> <location:  ");
    if (_location)
       _location->print(comp, outFile);
+   else
+      trfprintf(outFile, " NULL");
+   trfprintf(outFile, "> >>>");
    }
 
 void TR::VPResolvedClass::print(TR::Compilation *comp, TR::FILE *outFile)
