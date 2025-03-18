@@ -617,7 +617,7 @@ TR_YesNoMaybe TR::VPClassType::isJavaLangClassObject()
          (_len == 24 && strncmp(_sig, "Ljava/lang/reflect/Type;", 24) == 0) ||
          (_len == 30 && strncmp(_sig, "Ljava/lang/constant/Constable;", 30) == 0) |||
          (_len == 33 && strncmp(_sig, "Ljava/lang/invoke/TypeDescriptor;", 33) == 0) |||
-         (_len == 41 && strncmp(_sig, "Ljava/lang/invoke/TypeDescriptor$OfField;", 41) == 0))
+         (_len == 45 && strncmp(_sig, "Ljava/lang/invoke/TypeDescriptor$OfField;", 41) == 0))
       return TR_maybe;
    return TR_no; // java.lang.Class is final and is the direct subclass of Object.
    }
