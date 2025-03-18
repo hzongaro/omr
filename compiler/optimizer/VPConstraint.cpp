@@ -614,7 +614,10 @@ TR_YesNoMaybe TR::VPClassType::isJavaLangClassObject()
          (_len == 22 && strncmp(_sig, "Ljava/io/Serializable;", 22) == 0) ||
          (_len == 36 && strncmp(_sig, "Ljava/lang/reflect/AnnotatedElement;", 36) == 0) ||
          (_len == 38 && strncmp(_sig, "Ljava/lang/reflect/GenericDeclaration;", 38) == 0) ||
-         (_len == 24 && strncmp(_sig, "Ljava/lang/reflect/Type;", 24) == 0))
+         (_len == 24 && strncmp(_sig, "Ljava/lang/reflect/Type;", 24) == 0) ||
+         (_len == 30 && strncmp(_sig, "Ljava/lang/constant/Constable;", 30) == 0) |||
+         (_len == 33 && strncmp(_sig, "Ljava/lang/invoke/TypeDescriptor;", 33) == 0) |||
+         (_len == 41 && strncmp(_sig, "Ljava/lang/invoke/TypeDescriptor$OfField;", 41) == 0))
       return TR_maybe;
    return TR_no; // java.lang.Class is final and is the direct subclass of Object.
    }
@@ -6163,6 +6166,10 @@ void TR::VPClass::print(TR::Compilation *comp, TR::FILE *outFile)
    trfprintf(outFile, "> <location:  ");
    if (_location)
       _location->print(comp, outFile);
+   else
+      trfprintf(outFile, " NULL> <type:  ");
+   if (_type)
+      _type->print(comp, outFile);
    else
       trfprintf(outFile, " NULL");
    trfprintf(outFile, "> >>>");
