@@ -289,4 +289,16 @@ void OMR::OptimizationManager::performChecks()
    if (self()->getCheckStructure() || self()->comp()->getOption(TR_EnableParanoidOptCheck) || debug("paranoidOptCheck"))
       self()->optimizer()->doStructureChecks();
 #endif
+   TR::TreeTop *treeTop = comp()->getStartTree();
+   while (treeTop)
+      {
+      if (treeTop->getNode()->getOpCodeValue() == TR::BBStart)
+         {
+         int32_t freq = treeTop->getNode()->getBlock()->getFrequency();
+         TR_ASSERT_FATAL(freq >= 0, "Negative frequency seen for block_%d with frequency %d\n", treeTop->getNode()->getBlock()->getNumber(), freq);
+         TR_ASSERT_FATAL(freq <= 10000, "Frequency > 10000 seen for block_%d with frequency %d\n", treeTop->getNode()->getBlock()->getNumber(), freq);
+         }
+      treeTop->getNextTreeTop();
+      }
+
    }
