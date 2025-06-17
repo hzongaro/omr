@@ -2246,6 +2246,37 @@ TR_Debug::verifyGlobalIndices(TR::Node * node, TR::Node **nodesByGlobalIndex)
    }
 
 void
+TR_Debug::checkForBadILOp(TR::ResolvedMethodSymbol *methodSymbol)
+   {
+   _nodeChecklist.set(comp()->getNodeCount()+1);
+
+   _nodeChecklist.empty();
+   TR::TreeTop * tt, * firstTree = methodSymbol->getFirstTreeTop();
+
+   for (tt = firstTree; tt; tt = tt->getNextTreeTop())
+      {
+      TR::Node * node = tt->getNode();
+      checkForBadILOp(node);
+      }
+   }
+
+void
+TR_Debug::checkForBadILOp(TR::Node *node)
+   {
+   if (!_nodeChecklist.isSet(node))
+      {
+      TR_ASSERT_FATAL_WITH_NODE(node, node->getOpCodeValue() != TR::BadILOp, "Found BadILOp\n");
+      _nodeChecklist.set(node);
+
+      for (int32_t i = node->getNumChildren() - 1; i >= 0; --i)
+         {
+         TR::Node *child = node->getChild(i);
+         checkForBadILOp(child);
+         }
+      }
+   }
+
+void
 TR_Debug::verifyTrees(TR::ResolvedMethodSymbol *methodSymbol)
    {
 #ifndef ASSUMES

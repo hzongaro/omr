@@ -1969,6 +1969,16 @@ void OMR::Compilation::validateIL(TR::ILValidationContext ilValidationContext)
    _ilValidator->validate(TR::omrValidationStrategies[ilValidationContext]);
    }
 
+void OMR::Compilation::checkForBadILOp(TR::ResolvedMethodSymbol *methodSymbol)
+   {
+   if (self()->getDebug() && !self()->isPeekingMethod())
+      {
+      if (!methodSymbol)
+         methodSymbol = _methodSymbol;
+      self()->getDebug()->checkForBadILOp(methodSymbol);
+      }
+   }
+
 void OMR::Compilation::verifyTrees(TR::ResolvedMethodSymbol *methodSymbol)
    {
    if (self()->getDebug() && !self()->getOption(TR_DisableVerification) && !self()->isPeekingMethod())

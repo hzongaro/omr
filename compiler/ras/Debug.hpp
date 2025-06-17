@@ -604,6 +604,9 @@ public:
    virtual void         verifyBlocks(TR::ResolvedMethodSymbol *s);
    virtual void         verifyCFG   (TR::ResolvedMethodSymbol *s);
 
+   virtual void         checkForBadILOp(TR::ResolvedMethodSymbol *methodSymbol);
+   virtual void         checkForBadILOp(TR::Node *node);
+
    virtual TR::Node     *verifyFinalNodeReferenceCounts(TR::ResolvedMethodSymbol *s);
 
    virtual void startTracingRegisterAssignment() { startTracingRegisterAssignment("backward"); }
