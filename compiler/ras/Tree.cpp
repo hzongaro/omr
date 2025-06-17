@@ -2263,10 +2263,10 @@ TR_Debug::checkForBadILOp(TR::ResolvedMethodSymbol *methodSymbol)
 void
 TR_Debug::checkForBadILOp(TR::Node *node)
    {
-   if (!_nodeChecklist.isSet(node))
+   if (!_nodeChecklist.isSet(node->getGlobalIndex()))
       {
       TR_ASSERT_FATAL_WITH_NODE(node, node->getOpCodeValue() != TR::BadILOp, "Found BadILOp\n");
-      _nodeChecklist.set(node);
+      _nodeChecklist.set(node->getGlobalIndex());
 
       for (int32_t i = node->getNumChildren() - 1; i >= 0; --i)
          {
