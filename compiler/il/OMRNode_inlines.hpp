@@ -119,7 +119,7 @@ OMR::Node::createWithSymRef(TR::ILOpCodes op, uint16_t numChildren,
                             uint16_t numChildArgs, TR::Node *first,
                             ChildrenAndSymRefType... childrenAndSymRef)
    {
-   TR_ASSERT(TR::Node::isLegalCallToCreate(op), "assertion failure");
+   TR_ASSERT_FATAL(TR::Node::isLegalCallToCreate(op), "assertion failure");
    return createWithSymRefInternal(op, numChildren, numChildArgs, first, childrenAndSymRef...);
    }
 

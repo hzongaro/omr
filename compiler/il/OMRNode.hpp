@@ -364,6 +364,7 @@ private:
       TR::ILOpCode opcode; opcode.setOpCodeValue(opvalue);
       TR_ASSERT(!opcode.isIf(), "use createif or createbranch on this node\n");
       TR_ASSERT(opvalue != TR::arraycopy, "use createArraycopy to create this node");
+      TR_ASSERT_FATAL(opvalue != TR::BadILOp, "Shouldn't create node with BadILOp\n");
       return true;
       }
 
