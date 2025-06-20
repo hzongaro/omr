@@ -531,6 +531,7 @@ TR::Node *
 OMR::Node::recreateAndCopyValidPropertiesImpl(TR::Node *originalNode, TR::ILOpCodes op, TR::SymbolReference *newSymRef)
    {
    TR_ASSERT(originalNode != NULL, "trying to recreate node from a NULL originalNode.");
+   TR_ASSERT_FATAL_WITH_NODE(originalNode, op != TR::BadILOp, "Recreating a node with opcode TR::BadILOp\n");
    if (originalNode->getOpCodeValue() == op)
       {
       if (!originalNode->hasSymbolReference() || newSymRef != originalNode->getSymbolReference())
