@@ -262,7 +262,7 @@ void OMR::OptimizationManager::setRequested(bool requested, TR::Block *block)
 
 void OMR::OptimizationManager::performChecks()
    {
-   self()->comp()->checkForBadILOp(self()->comp()->getMethodSymbol());
+   self()->comp()->checkForBadILOp(self()->comp()->getMethodSymbol(), self()->name());
 #if !defined(DISABLE_CFG_CHECK)
    LexicalTimer t("CFG_CHECK", self()->comp()->phaseTimer());
    TR::Compilation::CompilationPhaseScope performChecks(self()->comp());

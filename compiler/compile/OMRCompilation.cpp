@@ -1969,13 +1969,13 @@ void OMR::Compilation::validateIL(TR::ILValidationContext ilValidationContext)
    _ilValidator->validate(TR::omrValidationStrategies[ilValidationContext]);
    }
 
-void OMR::Compilation::checkForBadILOp(TR::ResolvedMethodSymbol *methodSymbol)
+void OMR::Compilation::checkForBadILOp(TR::ResolvedMethodSymbol *methodSymbol, const char *name)
    {
    if (self()->getDebug() && !self()->isPeekingMethod())
       {
       if (!methodSymbol)
          methodSymbol = _methodSymbol;
-      self()->getDebug()->checkForBadILOp(methodSymbol);
+      self()->getDebug()->checkForBadILOp(methodSymbol, name);
       }
    }
 

@@ -604,8 +604,8 @@ public:
    virtual void         verifyBlocks(TR::ResolvedMethodSymbol *s);
    virtual void         verifyCFG   (TR::ResolvedMethodSymbol *s);
 
-   virtual void         checkForBadILOp(TR::ResolvedMethodSymbol *methodSymbol);
-   virtual void         checkForBadILOp(TR::Node *node);
+   virtual void         checkForBadILOp(TR::ResolvedMethodSymbol *methodSymbol, const char *name);
+   virtual void         checkForBadILOp(TR::Node *node, const char *name);
 
    virtual TR::Node     *verifyFinalNodeReferenceCounts(TR::ResolvedMethodSymbol *s);
 

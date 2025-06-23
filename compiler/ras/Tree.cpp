@@ -2246,7 +2246,7 @@ TR_Debug::verifyGlobalIndices(TR::Node * node, TR::Node **nodesByGlobalIndex)
    }
 
 void
-TR_Debug::checkForBadILOp(TR::ResolvedMethodSymbol *methodSymbol)
+TR_Debug::checkForBadILOp(TR::ResolvedMethodSymbol *methodSymbol, const char *name)
    {
    _nodeChecklist.set(comp()->getNodeCount()+1);
 
@@ -2256,22 +2256,26 @@ TR_Debug::checkForBadILOp(TR::ResolvedMethodSymbol *methodSymbol)
    for (tt = firstTree; tt; tt = tt->getNextTreeTop())
       {
       TR::Node * node = tt->getNode();
-      checkForBadILOp(node);
+      checkForBadILOp(node, name);
       }
    }
 
 void
-TR_Debug::checkForBadILOp(TR::Node *node)
+TR_Debug::checkForBadILOp(TR::Node *node, const char *name)
    {
    if (!_nodeChecklist.isSet(node->getGlobalIndex()))
       {
-      TR_ASSERT_FATAL_WITH_NODE(node, node->getOpCodeValue() != TR::BadILOp, "Found BadILOp\n");
+      if (node->getOpCodeValue() == TR::BadILOp)
+         {
+         comp()->dumpMethodTrees("Found BadILOp after ", name);
+         TR_ASSERT_FATAL_WITH_NODE(node, true, "Found BadILOp\n");
+         }
       _nodeChecklist.set(node->getGlobalIndex());
 
       for (int32_t i = node->getNumChildren() - 1; i >= 0; --i)
          {
          TR::Node *child = node->getChild(i);
-         checkForBadILOp(child);
+         checkForBadILOp(child, name);
          }
       }
    }

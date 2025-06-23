@@ -757,7 +757,7 @@ public:
    void verifyTrees(TR::ResolvedMethodSymbol *s = 0);
    void verifyBlocks(TR::ResolvedMethodSymbol *s = 0);
    void verifyCFG(TR::ResolvedMethodSymbol *s = 0);
-   void checkForBadILOp(TR::ResolvedMethodSymbol *s = 0);
+   void checkForBadILOp(TR::ResolvedMethodSymbol *s = 0, const char * = 0);
 
    /*
    * \brief
