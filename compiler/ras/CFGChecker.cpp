@@ -86,7 +86,7 @@ void TR_CFGChecker::check()
    markCFGNodes();
 
 
-#if defined(DEBUG) || (defined(PROD_WITH_ASSUMES) && !defined(DISABLE_CFG_CHECK))
+#if 1 || defined(DEBUG) || (defined(PROD_WITH_ASSUMES) && !defined(DISABLE_CFG_CHECK))
    performCorrectnessCheck();
    performConsistencyCheck();
 #else
