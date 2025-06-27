@@ -109,7 +109,7 @@ void TR_CFGChecker::check()
          }
       if (_outFile) trfprintf(_outFile, "Printing out the CFG from CFGChecker\n");
       _cfg->comp()->getDebug()->print(_cfg->comp()->getOutFile(), _cfg);
-      TR_ASSERT(0, "The CFG is NOT correct");
+      TR_ASSERT_FATAL(0, "The CFG is NOT correct");
       }
    }
 
