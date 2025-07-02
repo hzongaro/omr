@@ -7434,13 +7434,18 @@ void OMR::ValuePropagation::doDelayedTransformations()
          if (std::find(edge->getTo()->getPredecessors().begin(), edge->getTo()->getPredecessors().end(), edge) != edge->getTo()->getPredecessors().end())
             {
             if (trace())
-               traceMsg(comp(), "Removing unreachable edge from %d to %d\n", edge->getFrom()->getNumber(), edge->getTo()->getNumber());
+               traceMsg(comp(), "Removing unreachable edge %p from %d to %d\n", edge, edge->getFrom()->getNumber(), edge->getTo()->getNumber());
             if (cfg->removeEdge(edge))
                {
                invalidateUseDefInfo();
                invalidateValueNumberInfo();
                }
             }
+else
+{
+if (trace())
+traceMsg(comp(), "Didn't find edge %p to be removed from %p block_%d to %p block_%d\n", edge, edge->getFrom(), edge->getFrom()->getNumber(), edge->getTo(), edge->getTo()->getNumber());
+}
 
          // If the "from" block is still in the cfg but has no successors,
          // add an edge to the method's exit block.

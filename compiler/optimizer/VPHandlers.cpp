@@ -8974,7 +8974,7 @@ static void removeConditionalBranch(OMR::ValuePropagation *vp, TR::Node *node, T
    {
 if (vp->trace())
 {
-traceMsg(vp->comp(), "In removeConditionalBranch for n%dn\n", node->getGlobalIndex());
+traceMsg(vp->comp(), "In removeConditionalBranch for n%dn - branchEdge [%p]\n", node->getGlobalIndex(), branchEdge);
 }
    // If node is a virtual guard merged with an HCR or an OSR guard, then it
    // will still be possible to go to the cold side. In that case, node will
@@ -9042,7 +9042,7 @@ traceMsg(vp->comp(), "node n%dn is virtual guard\n", node->getGlobalIndex());
 {
 if (vp->trace())
 {
-traceMsg(vp->comp(), "Setting edge to be unreachable\n");
+traceMsg(vp->comp(), "Setting edge [%p] to be unreachable\n", branchEdge);
 }
       vp->setUnreachablePath(branchEdge);
 }
