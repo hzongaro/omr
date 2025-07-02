@@ -8972,6 +8972,10 @@ static void changeConditionalToGoto(OMR::ValuePropagation *vp, TR::Node *node, T
 
 static void removeConditionalBranch(OMR::ValuePropagation *vp, TR::Node *node, TR::CFGEdge *branchEdge)
    {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In removeConditionalBranch for n%dn\n", node->getGlobalIndex());
+}
    // If node is a virtual guard merged with an HCR or an OSR guard, then it
    // will still be possible to go to the cold side. In that case, node will
    // still be removed, but an HCR or OSR guard will be added in its place, so
@@ -8981,6 +8985,10 @@ static void removeConditionalBranch(OMR::ValuePropagation *vp, TR::Node *node, T
 
    if (node->isTheVirtualGuardForAGuardedInlinedCall())
       {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "node n%dn is virtual guard\n", node->getGlobalIndex());
+}
       TR_VirtualGuard *guard = vp->comp()->findVirtualGuardInfo(node);
 
       // I don't think we have any way to generate a virtual guard that is
@@ -9031,7 +9039,13 @@ static void removeConditionalBranch(OMR::ValuePropagation *vp, TR::Node *node, T
    // Set the edge constraints on the branch path to "unreachable path"
    //
    if (edgeIsUnreachable)
+{
+if (vp->trace())
+{
+traceMsg(vp->comp(), "Setting edge to be unreachable\n");
+}
       vp->setUnreachablePath(branchEdge);
+}
 
    // Remove this tree.
    //
@@ -9042,8 +9056,15 @@ static void removeConditionalBranch(OMR::ValuePropagation *vp, TR::Node *node, T
    // fall-through and target blocks are the same.
    TR::Block *fallThrough = vp->_curBlock->getExit()->getNextTreeTop()->getNode()->getBlock();
    TR::Block *target = node->getBranchDestination()->getNode()->getBlock();
+if (vp->trace())
+{
+traceMsg(vp->comp(), "Should edge be removed?  edgeIsUnreachable == %d; fallThrough block_%d, target block_%d\n", edgeIsUnreachable, fallThrough->getNumber(), target->getNumber());
+traceMsg(vp->comp(), "Marking edge to be removed?  %d\n", (fallThrough != target && edgeIsUnreachable));
+}
    if (fallThrough != target && edgeIsUnreachable)
+{
       vp->_edgesToBeRemoved->add(branchEdge);
+}
    }
 
 
@@ -9173,6 +9194,10 @@ static bool upgradeToNopGuard(
 //
 static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, bool branchOnEqual)
    {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In constrainIfcmpeqne for n%dn\n", node->getGlobalIndex());
+}
    constrainChildren(vp, node);
 
    // Find the output edge from the current block that corresponds to this
@@ -9182,7 +9207,14 @@ static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, b
    TR::Block *fallThrough = vp->_curBlock->getNextBlock();
    // check for target and fall through edges being the same
    if (fallThrough == target)
+{
+if (vp->trace())
+{
+traceMsg(vp->comp(), "Fallthrough and target of n%dn are the same\n", node->getGlobalIndex());
+}
+
       return node;
+}
 
    TR::Node *lhsChild = node->getFirstChild();
    TR::Node *rhsChild = node->getSecondChild();
@@ -9231,6 +9263,10 @@ static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, b
       }
 
    TR::CFGEdge *edge = vp->findOutEdge(vp->_curBlock->getSuccessors(), target);
+if (vp->trace())
+{
+traceMsg(vp->comp(), "Target of n%dn is block %d - edge %p\n", node->getGlobalIndex(), target->getNumber(), edge);
+}
 
    bool cannotBranch      = false;
    bool cannotFallThrough = false;
@@ -9241,6 +9277,10 @@ static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, b
    //
    bool ignoreVirtualGuard = true;
    TR_VirtualGuard *virtualGuard = node->virtualGuardInfo();
+if (vp->trace())
+{
+traceMsg(vp->comp(), "Is n%dn a virtual guard?  %d\n", node->getGlobalIndex(), (virtualGuard != NULL));
+}
    if (virtualGuard != NULL && !virtualGuard->canBeRemoved())
       {
       // Merged guards are handled properly in removeConditionalBranch()
@@ -9282,6 +9322,14 @@ static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, b
       {
       lhs = vp->getConstraint(lhsChild, isGlobal);
       rhs = vp->getConstraint(rhsChild, isGlobal);
+if (vp->trace())
+{
+traceMsg(vp->comp(), "lhs constraint of ifcmp:  ");
+if (lhs) lhs->print(vp); else traceMsg(vp->comp(), "NONE");
+traceMsg(vp->comp(), "\nrhs constraint of ifcmp:  ");
+if (rhs) rhs->print(vp); else traceMsg(vp->comp(), "NONE");
+traceMsg(vp->comp(), "\n");
+}
 
       if (lhs && rhs)
          {
@@ -9313,6 +9361,11 @@ static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, b
             }
          }
       }
+
+if (vp->trace())
+{
+traceMsg(vp->comp(), "After checking absolute constraints for lhs and rhs of n%dn - cannotBranch %d cannotFallThrough %d\n", node->getGlobalIndex(), cannotBranch, cannotBranch, cannotBranch);
+}
 
    // See if there are relative constraints on the children
    //
@@ -9347,10 +9400,18 @@ static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, b
             }
          }
       }
+if (vp->trace())
+{
+traceMsg(vp->comp(), "After checking relative constraints for lhs and rhs of n%dn - cannotBranch %d cannotFallThrough %d\n", node->getGlobalIndex(), cannotBranch, cannotBranch, cannotBranch);
+}
 
    if (cannotBranch &&
        performTransformation(vp->comp(), "%sRemoving conditional branch [%p] %s\n", OPT_DETAILS, node, node->getOpCode().getName()))
       {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "cannotBranch - removing conditional branch\n");
+}
       removeConditionalBranch(vp, node, edge);
       return node;
       }
@@ -9358,6 +9419,10 @@ static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, b
    if (cannotFallThrough &&
        performTransformation(vp->comp(), "%sChanging node [%p] %s into goto\n", OPT_DETAILS, node, node->getOpCode().getName()))
       {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "cannotFallThrough - changing conditional branch into a goto\n");
+}
       vp->printEdgeConstraints(vp->createEdgeConstraints(edge, false));
       changeConditionalToGoto(vp, node, edge);
       return node;
@@ -10310,6 +10375,10 @@ static TR::Node *constrainIfcmplessthan(OMR::ValuePropagation *vp, TR::Node *nod
    // that we can do a lt or le comparison
    //
    bool childrenReversed = (rhsChild == node->getFirstChild()); // MUST be before constrainChildren
+if (vp->trace())
+{
+traceMsg(vp->comp(), "In constrainIfcmplessthan for n%dn - childrenReversed %d\n", node->getGlobalIndex(), childrenReversed);
+}
    constrainChildren(vp, node);
 
    // Find the output edge from the current block that corresponds to this
@@ -10317,9 +10386,19 @@ static TR::Node *constrainIfcmplessthan(OMR::ValuePropagation *vp, TR::Node *nod
    //
    TR::Block *target = node->getBranchDestination()->getNode()->getBlock();
    TR::Block *fallThrough = vp->_curBlock->getNextBlock();
+if (vp->trace())
+{
+traceMsg(vp->comp(), "target of branch is block_%d; fallThrough is block_%d\n", target->getNumber(), fallThrough->getNumber());
+}
    // check for target and fall-through edges being the same
    if (fallThrough == target)
+{
+if (vp->trace())
+{
+traceMsg(vp->comp(), "target == fallThrough\n");
+}
       return node;
+}
 
    // it's possible the children have been updated.  Reset rhs & lhs in case
    if(childrenReversed)
@@ -10351,6 +10430,11 @@ static TR::Node *constrainIfcmplessthan(OMR::ValuePropagation *vp, TR::Node *nod
          cannotFallThrough = true;
       else
          cannotBranch = true;
+
+if (vp->trace())
+{
+traceMsg(vp->comp(), "Value numbers of children are equal - cannotFallThrough %d; cannotBranch %d\n", cannotFallThrough, cannotBranch);
+}
       }
 
    // See if there are absolute constraints on the children
@@ -10362,6 +10446,10 @@ static TR::Node *constrainIfcmplessthan(OMR::ValuePropagation *vp, TR::Node *nod
 
       if (lhsChild->getOpCode().isLong() && !isUnsigned)
          {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "Calling simplifyInequality\n");
+}
          simplifyInequality<int64_t> (vp, node, lhsChild, rhsChild, isGlobal, childrenReversed);
          }
       else if (!isUnsigned)
@@ -10385,6 +10473,10 @@ static TR::Node *constrainIfcmplessthan(OMR::ValuePropagation *vp, TR::Node *nod
             else if (rhs->mustBeLessThanOrEqual(lhs, vp))
                cannotBranch = true;
             }
+if (vp->trace())
+{
+traceMsg(vp->comp(), "After testing absolute constraints for whether operands mustbelessthan or mustbelessthanorequal - cannotFallThrough %d cannotBranch %d\n", cannotFallThrough, cannotBranch);
+}
          }
       }
 
@@ -10409,6 +10501,10 @@ static TR::Node *constrainIfcmplessthan(OMR::ValuePropagation *vp, TR::Node *nod
             else if (rel->mustBeGreaterThanOrEqual())
                cannotBranch = true;
             }
+if (vp->trace())
+{
+traceMsg(vp->comp(), "After testing relative constraints for whether operands mustbelessthan or mustbelessthanorequal - cannotFallThrough %d cannotBranch %d\n", cannotFallThrough, cannotBranch);
+}
 
          if (rel->asEqual() && !cannotFallThrough && !cannotBranch && (lhs || rhs))
             {
@@ -10500,6 +10596,10 @@ static TR::Node *constrainIfcmplessthan(OMR::ValuePropagation *vp, TR::Node *nod
    if (cannotBranch &&
        performTransformation(vp->comp(), "%sRemoving conditional branch [%p] %s\n", OPT_DETAILS, node, node->getOpCode().getName()))
       {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "Determined cannotBranch - calling removeConditionalBranch\n");
+}
       removeConditionalBranch(vp, node, edge);
       return node;
       }
@@ -10507,6 +10607,10 @@ static TR::Node *constrainIfcmplessthan(OMR::ValuePropagation *vp, TR::Node *nod
    if (cannotFallThrough &&
        performTransformation(vp->comp(), "%sChanging node [%p] %s into goto\n", OPT_DETAILS, node, node->getOpCode().getName()))
       {
+if (vp->trace())
+{
+traceMsg(vp->comp(), "Determined cannotFallThrough - calling changeConditionalToGoto\n");
+}
       vp->printEdgeConstraints(vp->createEdgeConstraints(edge, false));
       changeConditionalToGoto(vp, node, edge);
       return node;
