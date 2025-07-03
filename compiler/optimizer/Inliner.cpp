@@ -5127,6 +5127,11 @@ bool TR_InlinerBase::inlineCallTarget2(TR_CallStack * callStack, TR_CallTarget *
    TR::Block * calleeFirstBlock = calleeSymbol->getFirstTreeTop()->getEnclosingBlock();
    TR::Block * calleeLastBlock = calleeSymbol->getLastTreeTop()->getEnclosingBlock();
 
+if (comp()->trace(OMR::globalValuePropagation))
+{
+traceMsg(comp(), "In inlineCallTarget2 - blockAfterCall is block_%d %p\n", blockAfterTheCall->getNumber(), blockAfterTheCall);
+}
+
    if (pam.firstTempTreeTop())
       {
       prevTreeTop->join(pam.firstTempTreeTop());
@@ -5182,13 +5187,27 @@ bool TR_InlinerBase::inlineCallTarget2(TR_CallStack * callStack, TR_CallTarget *
       //copy the successors from the call block as long as they are not the goto target
       for (auto e = blockContainingTheCall->getSuccessors().begin(); e != blockContainingTheCall->getSuccessors().end(); )
          {
+if (comp()->trace(OMR::globalValuePropagation))
+{
+traceMsg(comp(), "Looking at edge %p (from %d, to %d)\n", *e, (*e)->getFrom()->getNumber(), (*e)->getTo()->getNumber());
+}
          if ((*e)->getTo() != RTgotoTarget)
             {
             callerCFG->addEdge(lastCalleeBlock, (*e)->getTo());
+if (comp()->trace(OMR::globalValuePropagation))
+{
+traceMsg(comp(), "Removing edge %p; adding new edge (from %d, to %d)\n", (*e), lastCalleeBlock->getNumber(), (*e)->getTo()->getNumber());
+}
             callerCFG->removeEdge(*(e++));
             }
          else
+{
+if (comp()->trace(OMR::globalValuePropagation))
+{
+traceMsg(comp(), "Moving on to next edge\n");
+}
         	 ++e;
+}
          }
 
       firstCalleeBlock->moveSuccessors(blockContainingTheCall);
