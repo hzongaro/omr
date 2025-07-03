@@ -7457,279 +7457,7 @@ void OMR::ValuePropagation::doDelayedTransformations()
 
    TR_RegionStructure::extractUnconditionalExits(comp(), removedEdgeSources);
 
-#ifdef J9_PROJECT_SPECIFIC
-   if (!_multiLeafCallsToInline.isEmpty())
-      {
-      ListIterator<TR::TreeTop> iter(&_multiLeafCallsToInline);
-      TR_InlineCall multiLeafInlineCall(optimizer(),this);
-      TR::TreeTop *multiLeafCall;
-      for (multiLeafCall = iter.getCurrent(); multiLeafCall != NULL; multiLeafCall = iter.getNext())
-         {
-         TR::Node *vcallNode = multiLeafCall->getNode()->getFirstChild();
-         //maybe the call node was removed.
-         if (vcallNode->getReferenceCount() < 1)
-            continue;
-
-         if (!multiLeafInlineCall.inlineCall(multiLeafCall))
-            performTransformation(comp(),"%s WARNING: Inlining of %p failed\n", OPT_DETAILS,
-                  multiLeafCall->getNode());
-         }
-      _multiLeafCallsToInline.deleteAll();
-      }
-
-   // process calls to unsafe methods for Hybrid.
-   if (_unsafeCallsToInline.getFirst() != NULL)
-      {
-      TR_InlineCall unsafeInlineCall(optimizer(),this);
-      for (CallInfo *uci = _unsafeCallsToInline.getFirst(); uci; uci = uci->getNext())
-         {
-         if(uci->_block->nodeIsRemoved())
-            continue;
-
-         if (!unsafeInlineCall.inlineCall(uci->_tt))
-            {
-            performTransformation(comp(),"%s WARNING: Inlining of %p failed\n", OPT_DETAILS,uci->_tt->getNode());
-            }
-         }
-
-      _unsafeCallsToInline.setFirst(0);
-      }
-#endif
-
-   // process calls that were devirtualized. See if they can be inlined or if
-   // they need special JNI processing.
-   //
-   for (CallInfo *ci = _devirtualizedCalls.getFirst(); ci; ci = ci->getNext())
-      {
-      //if (comp()->getFlowGraph()->getRemovedNodes().find(ci->_block))
-        if(ci->_block->nodeIsRemoved())
-         continue;
-
-      TR::Node *callNode;
-      TR::Node *parent = ci->_tt->getNode();
-      if (parent->getNumChildren() && (callNode = parent->getFirstChild())->getOpCode().isCall())
-         {
-         bool callUnreachable = true;
-         bool callGuarded = callNode->isTheVirtualCallNodeForAGuardedInlinedCall();
-         if (callGuarded)
-            {
-            if (callNode->getOpCode().isCallIndirect())
-               {
-               // TODO : see if we can be smarter about the type of the guard being used
-               }
-            else
-               {
-               bool guardForDifferentCall = false;
-               TR::TreeTop *cursorTree = ci->_tt->getPrevTreeTop();
-               TR::Node *cursorNode = cursorTree->getNode();
-               while (cursorNode->getOpCodeValue() != TR::BBStart)
-                  {
-                  if (cursorNode->getNumChildren() > 0)
-                     cursorNode = cursorNode->getFirstChild();
-
-                  if (cursorNode->getOpCode().isCall() &&
-                      cursorNode->isTheVirtualCallNodeForAGuardedInlinedCall())
-                     {
-                     guardForDifferentCall = true;
-                     break;
-                     }
-                  cursorTree = cursorTree->getPrevTreeTop();
-                  cursorNode = cursorTree->getNode();
-                  }
-
-               if (!guardForDifferentCall)
-                  {
-                  TR::Block * guard = ci->_block->findVirtualGuardBlock(cfg);
-
-                  if (!guard)
-                     {
-                     TR::Block * foldedGuard = NULL;
-                     if (ci->_block->getPredecessors().size() == 1)
-                        foldedGuard = ci->_block->getPredecessors().front()->getFrom()->asBlock();
-
-                     if (foldedGuard && (foldedGuard != cfg->getStart()) && (foldedGuard->getSuccessors().size() == 1) &&
-                         (foldedGuard->getLastRealTreeTop()->getNode()->getOpCodeValue() == TR::Goto) &&
-                         (foldedGuard->getLastRealTreeTop()->getNode()->getBranchDestination() == ci->_block->getEntry()))
-                        callUnreachable = false;
-                     }
-
-                  if (guard && (guard->getSuccessors().size() == 2) && guard->getExit())
-                     {
-                     TR::Node *guardNode = guard->getLastRealTreeTop()->getNode();
-                     // check if the virtual guard has any inner
-                     // assumptions; guard should not be removed in
-                     // this case as inner assumptions could be violated
-                     //
-                     TR_VirtualGuard *virtualGuard;
-                     bool canBeRemoved;
-                     if (guardNode)
-                        {
-                        virtualGuard = comp()->findVirtualGuardInfo(guardNode);
-                        canBeRemoved = virtualGuard->canBeRemoved() && callNode->getOpCode().isCallDirect(); //do not remove guards for indirect calls. If the ifacmpne handler
-                        																			          //didn't do it, the chances are it is illegal to remove the guard
-                        }
-                     else
-                        canBeRemoved = true;
-
-                     if (guardNode &&
-                         guardNode->isProfiledGuard())
-                        {
-                        TR::Node *classTypeNode = guardNode->getSecondChild();
-
-                        int32_t guardType = -1; // unknown
-                        if (guardNode->getOpCodeValue() == TR::ifacmpne)
-                           {
-                           if (trace())
-                              traceMsg(comp(), "Got guard [%p] as ifacmpne\n", guardNode);
-                           guardType = 1; // change if to goto
-                           }
-                        else if (guardNode->getOpCodeValue() == TR::ifacmpeq)
-                           {
-                           if (trace())
-                              traceMsg(comp(), "Got guard [%p] as ifacmpeq\n", guardNode);
-                           guardType = 0; // remove branch
-                           }
-
-                        TR_YesNoMaybe typeCompatibleStatus = TR_maybe; // unknown
-                        if (classTypeNode->getOpCodeValue() == TR::aconst &&
-                            classTypeNode->isClassPointerConstant())
-                           {
-                           TR_OpaqueClassBlock *typeClass = (TR_OpaqueClassBlock *)classTypeNode->getAddress();
-                           TR_OpaqueClassBlock *receiverClass = callNode->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod()->containingClass();
-                           TR_YesNoMaybe result = comp()->fe()->isInstanceOf(typeClass,receiverClass,true);
-                           TR_YesNoMaybe isVPClassDerivedFromGuardClass = TR_no;
-                           TR_YesNoMaybe isGuardClassDerivedFromVPClass = TR_yes;
-                           if (ci->_thisType && (ci->_thisType != typeClass))
-                              {
-                              isVPClassDerivedFromGuardClass = comp()->fe()->isInstanceOf(ci->_thisType, typeClass, true);
-                              if (isVPClassDerivedFromGuardClass == TR_no)
-                                 isGuardClassDerivedFromVPClass = comp()->fe()->isInstanceOf(typeClass, ci->_thisType, true);
-                              }
-
-                           if ((result == TR_no) || (isVPClassDerivedFromGuardClass == TR_yes) || (isGuardClassDerivedFromVPClass == TR_no))
-                              {
-                              typeCompatibleStatus = TR_no; // types incompatible
-                              }
-                           else if ((result == TR_yes) &&
-                                    (ci->_thisType == typeClass) &&
-                                    canBeRemoved)
-                              {
-                              typeCompatibleStatus = TR_yes; // types compatible
-                              }
-                           else
-                              callUnreachable = false;
-
-                           if (trace())
-                              traceMsg(comp(), "typeCompatibleStatus [%p] %s\n", guardNode, comp()->getDebug()->getName(typeCompatibleStatus));
-                           }
-                        else
-                           {
-                           TR_ASSERT((classTypeNode->getOpCodeValue() == TR::aconst &&
-                                   classTypeNode->isMethodPointerConstant()), "Devirtualization of guarded profiled calls only works currently for vft-guards or method compare guards");
-                           void *profiledMethod = (void *)classTypeNode->getAddress();
-                           void *devirtualizedMethod = callNode->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier();
-
-                           if (profiledMethod != devirtualizedMethod)
-                              typeCompatibleStatus = TR_no; // incompatible
-                           else if (canBeRemoved)
-                              typeCompatibleStatus = TR_yes; // compatible
-                           else
-                              callUnreachable = false;
-                           }
-
-                        // take appropriate action
-                        //
-                        if (typeCompatibleStatus == TR_no)
-                           {
-                           // ifacmpne
-                           if ((guardType == 1) &&
-                                 performTransformation(comp(), "%sChanging branch (guard) %p in block_%d to goto due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
-                              {
-                              // change the if to goto
-                              changeBranchToGoto(this, guardNode, guard);
-                              callUnreachable = false;
-                              }
-                           else if ((guardType == 0) &&
-                                       performTransformation(comp(), "%sRemoving branch %p in block_%d due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
-                              {
-                              // remove branch
-                              guard->removeBranch(comp());
-                              callUnreachable = false;
-                              }
-                           }
-                        else if (typeCompatibleStatus == TR_yes)
-                           {
-                           // ifacmpne
-                           if ((guardType == 1) &&
-                                 performTransformation(comp(), "%sRemoving branch %p in block_%d due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
-                              {
-                              // remove branch
-                              guard->removeBranch(comp());
-                              //callUnreachable true;
-                              }
-                           else if ((guardType == 0) &&
-                                 performTransformation(comp(), "%sChanging branch (guard) %p in block_%d to goto due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
-                              {
-                              // change the if to goto
-                              changeBranchToGoto(this, guardNode, guard);
-                              //callUnreachable  true;
-                              }
-                           }
-                        }
-                     }
-                  }
-               }
-            }
-
-         //else
-         //traceMsg(comp(), "Reached 2 for call %p\n", callNode);
-         //traceMsg(comp(), "unreachable %d guarded %d\n", callUnreachable, callGuarded);
-         if (!callGuarded || !callUnreachable)
-            {
-            TR::ResolvedMethodSymbol *methodSymbol = callNode->getSymbol()->castToResolvedMethodSymbol();
-#ifdef J9_PROJECT_SPECIFIC
-            if (methodSymbol->isJNI())
-               callNode->processJNICall(ci->_tt, comp()->getMethodSymbol());
-            else
-#endif
-               {
-               if (comp()->getMethodHotness() <= warm && comp()->getOption(TR_DisableInliningDuringVPAtWarm))
-                  {
-                  if (trace()) traceMsg(comp(), "\tDo not inline call at [%p]\n", callNode);
-                  }
-               else
-                  {
-#ifdef J9_PROJECT_SPECIFIC
-                  TR_InlineCall newInlineCall(optimizer(), this);
-
-                  // restrict the amount of inlining in warm/cold bodies
-                  int32_t initialMaxSize = 0;
-                  if (comp()->getMethodHotness() <= warm)
-                     {
-                     initialMaxSize = comp()->getOptions()->getMaxSzForVPInliningWarm();
-                     newInlineCall.setSizeThreshold(initialMaxSize);
-                     }
-
-                  if (!newInlineCall.inlineCall(ci->_tt, ci->_thisType, true, ci->_argInfo, initialMaxSize))
-                     {
-                     // If inlining failed, try to issue a direct call
-                     if (!callNode->getSymbolReference()->getSymbol()->castToMethodSymbol()->isInterpreted() ||
-                         callNode->getSymbolReference()->getSymbol()->castToMethodSymbol()->isJITInternalNative())
-                        {
-                        if (callNode->getOpCode().isCallIndirect())
-                           {
-                           //printf("XXX Added devirtualized call info in %s for %x\n", comp()->signature(), callNode);
-                           comp()->findOrCreateDevirtualizedCall(callNode, ci->_thisType);
-                           }
-                        }
-                     }
-#endif
-                  }
-               }
-            }
-         }
-      }
-   _devirtualizedCalls.setFirst(0);
+   doDelayedInliningTransformations();
 
 #ifdef J9_PROJECT_SPECIFIC
    ListIterator<TR::Node> nodesIt(&_javaLangClassGetComponentTypeCalls);
@@ -8050,6 +7778,289 @@ void OMR::ValuePropagation::doDelayedTransformations()
 
    _classesToCheckInit.setFirst(0);
    }
+
+
+void OMR::ValuePropagation::doDelayedInliningTransformations()
+   {
+   TR::CFG *cfg = comp()->getFlowGraph();
+
+#ifdef J9_PROJECT_SPECIFIC
+   if (!_multiLeafCallsToInline.isEmpty())
+      {
+      ListIterator<TR::TreeTop> iter(&_multiLeafCallsToInline);
+      TR_InlineCall multiLeafInlineCall(optimizer(),this);
+      TR::TreeTop *multiLeafCall;
+      for (multiLeafCall = iter.getCurrent(); multiLeafCall != NULL; multiLeafCall = iter.getNext())
+         {
+         TR::Node *vcallNode = multiLeafCall->getNode()->getFirstChild();
+         //maybe the call node was removed.
+         if (vcallNode->getReferenceCount() < 1)
+            continue;
+
+         if (!multiLeafInlineCall.inlineCall(multiLeafCall))
+            performTransformation(comp(),"%s WARNING: Inlining of %p failed\n", OPT_DETAILS,
+                  multiLeafCall->getNode());
+         }
+      _multiLeafCallsToInline.deleteAll();
+      }
+
+   // process calls to unsafe methods for Hybrid.
+   if (_unsafeCallsToInline.getFirst() != NULL)
+      {
+      TR_InlineCall unsafeInlineCall(optimizer(),this);
+      for (CallInfo *uci = _unsafeCallsToInline.getFirst(); uci; uci = uci->getNext())
+         {
+         if(uci->_block->nodeIsRemoved())
+            continue;
+
+         if (!unsafeInlineCall.inlineCall(uci->_tt))
+            {
+            performTransformation(comp(),"%s WARNING: Inlining of %p failed\n", OPT_DETAILS,uci->_tt->getNode());
+            }
+         }
+
+      _unsafeCallsToInline.setFirst(0);
+      }
+#endif
+
+   // process calls that were devirtualized. See if they can be inlined or if
+   // they need special JNI processing.
+   //
+   for (CallInfo *ci = _devirtualizedCalls.getFirst(); ci; ci = ci->getNext())
+      {
+      //if (comp()->getFlowGraph()->getRemovedNodes().find(ci->_block))
+        if(ci->_block->nodeIsRemoved())
+         continue;
+
+      TR::Node *callNode;
+      TR::Node *parent = ci->_tt->getNode();
+      if (parent->getNumChildren() && (callNode = parent->getFirstChild())->getOpCode().isCall())
+         {
+         bool callUnreachable = true;
+         bool callGuarded = callNode->isTheVirtualCallNodeForAGuardedInlinedCall();
+         if (callGuarded)
+            {
+            if (callNode->getOpCode().isCallIndirect())
+               {
+               // TODO : see if we can be smarter about the type of the guard being used
+               }
+            else
+               {
+               bool guardForDifferentCall = false;
+               TR::TreeTop *cursorTree = ci->_tt->getPrevTreeTop();
+               TR::Node *cursorNode = cursorTree->getNode();
+               while (cursorNode->getOpCodeValue() != TR::BBStart)
+                  {
+                  if (cursorNode->getNumChildren() > 0)
+                     cursorNode = cursorNode->getFirstChild();
+
+                  if (cursorNode->getOpCode().isCall() &&
+                      cursorNode->isTheVirtualCallNodeForAGuardedInlinedCall())
+                     {
+                     guardForDifferentCall = true;
+                     break;
+                     }
+                  cursorTree = cursorTree->getPrevTreeTop();
+                  cursorNode = cursorTree->getNode();
+                  }
+
+               if (!guardForDifferentCall)
+                  {
+                  TR::Block * guard = ci->_block->findVirtualGuardBlock(cfg);
+
+                  if (!guard)
+                     {
+                     TR::Block * foldedGuard = NULL;
+                     if (ci->_block->getPredecessors().size() == 1)
+                        foldedGuard = ci->_block->getPredecessors().front()->getFrom()->asBlock();
+
+                     if (foldedGuard && (foldedGuard != cfg->getStart()) && (foldedGuard->getSuccessors().size() == 1) &&
+                         (foldedGuard->getLastRealTreeTop()->getNode()->getOpCodeValue() == TR::Goto) &&
+                         (foldedGuard->getLastRealTreeTop()->getNode()->getBranchDestination() == ci->_block->getEntry()))
+                        callUnreachable = false;
+                     }
+
+                  if (guard && (guard->getSuccessors().size() == 2) && guard->getExit())
+                     {
+                     TR::Node *guardNode = guard->getLastRealTreeTop()->getNode();
+                     // check if the virtual guard has any inner
+                     // assumptions; guard should not be removed in
+                     // this case as inner assumptions could be violated
+                     //
+                     TR_VirtualGuard *virtualGuard;
+                     bool canBeRemoved;
+                     if (guardNode)
+                        {
+                        virtualGuard = comp()->findVirtualGuardInfo(guardNode);
+
+                        // Do not remove guards for indirect calls. If the ifacmpne handler
+                        // didn't do it, the chances are it is illegal to remove the guard
+                        canBeRemoved = virtualGuard->canBeRemoved() && callNode->getOpCode().isCallDirect();
+                        }
+                     else
+                        canBeRemoved = true;
+
+                     if (guardNode &&
+                         guardNode->isProfiledGuard())
+                        {
+                        TR::Node *classTypeNode = guardNode->getSecondChild();
+
+                        int32_t guardType = -1; // unknown
+                        if (guardNode->getOpCodeValue() == TR::ifacmpne)
+                           {
+                           if (trace())
+                              traceMsg(comp(), "Got guard [%p] as ifacmpne\n", guardNode);
+                           guardType = 1; // change if to goto
+                           }
+                        else if (guardNode->getOpCodeValue() == TR::ifacmpeq)
+                           {
+                           if (trace())
+                              traceMsg(comp(), "Got guard [%p] as ifacmpeq\n", guardNode);
+                           guardType = 0; // remove branch
+                           }
+
+                        TR_YesNoMaybe typeCompatibleStatus = TR_maybe; // unknown
+                        if (classTypeNode->getOpCodeValue() == TR::aconst &&
+                            classTypeNode->isClassPointerConstant())
+                           {
+                           TR_OpaqueClassBlock *typeClass = (TR_OpaqueClassBlock *)classTypeNode->getAddress();
+                           TR_OpaqueClassBlock *receiverClass = callNode->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod()->containingClass();
+                           TR_YesNoMaybe result = comp()->fe()->isInstanceOf(typeClass,receiverClass,true);
+                           TR_YesNoMaybe isVPClassDerivedFromGuardClass = TR_no;
+                           TR_YesNoMaybe isGuardClassDerivedFromVPClass = TR_yes;
+                           if (ci->_thisType && (ci->_thisType != typeClass))
+                              {
+                              isVPClassDerivedFromGuardClass = comp()->fe()->isInstanceOf(ci->_thisType, typeClass, true);
+                              if (isVPClassDerivedFromGuardClass == TR_no)
+                                 isGuardClassDerivedFromVPClass = comp()->fe()->isInstanceOf(typeClass, ci->_thisType, true);
+                              }
+
+                           if ((result == TR_no) || (isVPClassDerivedFromGuardClass == TR_yes) || (isGuardClassDerivedFromVPClass == TR_no))
+                              {
+                              typeCompatibleStatus = TR_no; // types incompatible
+                              }
+                           else if ((result == TR_yes) &&
+                                    (ci->_thisType == typeClass) &&
+                                    canBeRemoved)
+                              {
+                              typeCompatibleStatus = TR_yes; // types compatible
+                              }
+                           else
+                              callUnreachable = false;
+
+                           if (trace())
+                              traceMsg(comp(), "typeCompatibleStatus [%p] %s\n", guardNode, comp()->getDebug()->getName(typeCompatibleStatus));
+                           }
+                        else
+                           {
+                           TR_ASSERT((classTypeNode->getOpCodeValue() == TR::aconst &&
+                                   classTypeNode->isMethodPointerConstant()), "Devirtualization of guarded profiled calls only works currently for vft-guards or method compare guards");
+                           void *profiledMethod = (void *)classTypeNode->getAddress();
+                           void *devirtualizedMethod = callNode->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier();
+
+                           if (profiledMethod != devirtualizedMethod)
+                              typeCompatibleStatus = TR_no; // incompatible
+                           else if (canBeRemoved)
+                              typeCompatibleStatus = TR_yes; // compatible
+                           else
+                              callUnreachable = false;
+                           }
+
+                        // take appropriate action
+                        //
+                        if (typeCompatibleStatus == TR_no)
+                           {
+                           // ifacmpne
+                           if ((guardType == 1) &&
+                                 performTransformation(comp(), "%sChanging branch (guard) %p in block_%d to goto due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
+                              {
+                              // change the if to goto
+                              changeBranchToGoto(this, guardNode, guard);
+                              callUnreachable = false;
+                              }
+                           else if ((guardType == 0) &&
+                                       performTransformation(comp(), "%sRemoving branch %p in block_%d due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
+                              {
+                              // remove branch
+                              guard->removeBranch(comp());
+                              callUnreachable = false;
+                              }
+                           }
+                        else if (typeCompatibleStatus == TR_yes)
+                           {
+                           // ifacmpne
+                           if ((guardType == 1) &&
+                                 performTransformation(comp(), "%sRemoving branch %p in block_%d due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
+                              {
+                              // remove branch
+                              guard->removeBranch(comp());
+                              //callUnreachable true;
+                              }
+                           else if ((guardType == 0) &&
+                                 performTransformation(comp(), "%sChanging branch (guard) %p in block_%d to goto due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
+                              {
+                              // change the if to goto
+                              changeBranchToGoto(this, guardNode, guard);
+                              //callUnreachable  true;
+                              }
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+
+         //else
+         //traceMsg(comp(), "Reached 2 for call %p\n", callNode);
+         //traceMsg(comp(), "unreachable %d guarded %d\n", callUnreachable, callGuarded);
+         if (!callGuarded || !callUnreachable)
+            {
+            TR::ResolvedMethodSymbol *methodSymbol = callNode->getSymbol()->castToResolvedMethodSymbol();
+#ifdef J9_PROJECT_SPECIFIC
+            if (methodSymbol->isJNI())
+               callNode->processJNICall(ci->_tt, comp()->getMethodSymbol());
+            else
+#endif
+               {
+               if (comp()->getMethodHotness() <= warm && comp()->getOption(TR_DisableInliningDuringVPAtWarm))
+                  {
+                  if (trace()) traceMsg(comp(), "\tDo not inline call at [%p]\n", callNode);
+                  }
+               else
+                  {
+#ifdef J9_PROJECT_SPECIFIC
+                  TR_InlineCall newInlineCall(optimizer(), this);
+
+                  // restrict the amount of inlining in warm/cold bodies
+                  int32_t initialMaxSize = 0;
+                  if (comp()->getMethodHotness() <= warm)
+                     {
+                     initialMaxSize = comp()->getOptions()->getMaxSzForVPInliningWarm();
+                     newInlineCall.setSizeThreshold(initialMaxSize);
+                     }
+
+                  if (!newInlineCall.inlineCall(ci->_tt, ci->_thisType, true, ci->_argInfo, initialMaxSize))
+                     {
+                     // If inlining failed, try to issue a direct call
+                     if (!callNode->getSymbolReference()->getSymbol()->castToMethodSymbol()->isInterpreted() ||
+                         callNode->getSymbolReference()->getSymbol()->castToMethodSymbol()->isJITInternalNative())
+                        {
+                        if (callNode->getOpCode().isCallIndirect())
+                           {
+                           //printf("XXX Added devirtualized call info in %s for %x\n", comp()->signature(), callNode);
+                           comp()->findOrCreateDevirtualizedCall(callNode, ci->_thisType);
+                           }
+                        }
+                     }
+#endif
+                  }
+               }
+            }
+         }
+      }
+   _devirtualizedCalls.setFirst(0);
+   }
+
 
 TR_OpaqueClassBlock *OMR::ValuePropagation::findLikelySubtype(TR_OpaqueClassBlock *klass)
    {
