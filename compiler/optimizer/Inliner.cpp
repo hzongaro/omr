@@ -5127,11 +5127,6 @@ bool TR_InlinerBase::inlineCallTarget2(TR_CallStack * callStack, TR_CallTarget *
    TR::Block * calleeFirstBlock = calleeSymbol->getFirstTreeTop()->getEnclosingBlock();
    TR::Block * calleeLastBlock = calleeSymbol->getLastTreeTop()->getEnclosingBlock();
 
-if (comp()->trace(OMR::globalValuePropagation))
-{
-traceMsg(comp(), "In inlineCallTarget2 - blockAfterCall is block_%d %p\n", blockAfterTheCall->getNumber(), blockAfterTheCall);
-}
-
    if (pam.firstTempTreeTop())
       {
       prevTreeTop->join(pam.firstTempTreeTop());
