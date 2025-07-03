@@ -798,7 +798,7 @@ void OMR::ValuePropagation::mergeRelationships(TR_LinkHead<Relationship> &fromLi
          if (preserveStoreRelationships &&
                mergingStore &&
                (from->relative == AbsoluteConstraint) &&
-	      (!inBothLists /* || !isToEmpty */)) // commented out the !isToEmpty because it is not guaranteed to be safe to take an absolute constraint that only exists on one side
+               (!inBothLists /* || !isToEmpty */)) // commented out the !isToEmpty because it is not guaranteed to be safe to take an absolute constraint that only exists on one side
             {
             rel = createRelationship(from->relative, from->constraint);
             rel->setNext(to);
@@ -820,7 +820,7 @@ void OMR::ValuePropagation::mergeRelationships(TR_LinkHead<Relationship> &fromLi
          if (!preserveStoreRelationships ||
                !mergingStore ||
                (to->relative != AbsoluteConstraint) ||
-	     (inBothLists /* && isFromEmpty */)) // but do not remove the storeRel
+               (inBothLists /* && isFromEmpty */)) // but do not remove the storeRel
             {
             toList.removeAfter(prev, to);
             freeRelationship(to);
@@ -7294,7 +7294,7 @@ void OMR::ValuePropagation::doDelayedTransformations()
    ListIterator<TR::TreeTop> convIt(&_converterCalls);
    TR::TreeTop *converterCallTree;
    for (converterCallTree = convIt.getFirst();
-		   converterCallTree; converterCallTree = convIt.getNext())
+        converterCallTree; converterCallTree = convIt.getNext())
       {
       transformConverterCall(converterCallTree);
       }
@@ -7734,10 +7734,10 @@ void OMR::ValuePropagation::doDelayedTransformations()
 
       TR::TreeTop *lastTree = splitBlock2->getLastRealTreeTop();
       if (lastTree->getNode()->getOpCodeValue() == TR::Goto)
-	 {
-	 TR::TreeTop *treeBeforeLast = lastTree->getPrevTreeTop();
+         {
+         TR::TreeTop *treeBeforeLast = lastTree->getPrevTreeTop();
          treeBeforeLast->join(lastTree->getNextTreeTop());
-	 }
+         }
 
       TR::TreeTop *guardTree = TR::TreeTop::create(comp(), guard, NULL, NULL);
       block->append(guardTree);
