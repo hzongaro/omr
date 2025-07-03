@@ -7784,45 +7784,6 @@ void OMR::ValuePropagation::doDelayedInliningTransformations()
    {
    TR::CFG *cfg = comp()->getFlowGraph();
 
-#ifdef J9_PROJECT_SPECIFIC
-   if (!_multiLeafCallsToInline.isEmpty())
-      {
-      ListIterator<TR::TreeTop> iter(&_multiLeafCallsToInline);
-      TR_InlineCall multiLeafInlineCall(optimizer(),this);
-      TR::TreeTop *multiLeafCall;
-      for (multiLeafCall = iter.getCurrent(); multiLeafCall != NULL; multiLeafCall = iter.getNext())
-         {
-         TR::Node *vcallNode = multiLeafCall->getNode()->getFirstChild();
-         //maybe the call node was removed.
-         if (vcallNode->getReferenceCount() < 1)
-            continue;
-
-         if (!multiLeafInlineCall.inlineCall(multiLeafCall))
-            performTransformation(comp(),"%s WARNING: Inlining of %p failed\n", OPT_DETAILS,
-                  multiLeafCall->getNode());
-         }
-      _multiLeafCallsToInline.deleteAll();
-      }
-
-   // process calls to unsafe methods for Hybrid.
-   if (_unsafeCallsToInline.getFirst() != NULL)
-      {
-      TR_InlineCall unsafeInlineCall(optimizer(),this);
-      for (CallInfo *uci = _unsafeCallsToInline.getFirst(); uci; uci = uci->getNext())
-         {
-         if(uci->_block->nodeIsRemoved())
-            continue;
-
-         if (!unsafeInlineCall.inlineCall(uci->_tt))
-            {
-            performTransformation(comp(),"%s WARNING: Inlining of %p failed\n", OPT_DETAILS,uci->_tt->getNode());
-            }
-         }
-
-      _unsafeCallsToInline.setFirst(0);
-      }
-#endif
-
    // process calls that were devirtualized. See if they can be inlined or if
    // they need special JNI processing.
    //
