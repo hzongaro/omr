@@ -7258,7 +7258,7 @@ bool OMR::ValuePropagation::canClassBeTrustedAsFixedClass(TR::SymbolReference *s
    return true;
    }
 
-#define SEENIT(node, loc) {TR_ASSERT_FATAL((node) != NULL, "node was null " loc "\n"); TR_ASSERT_FATAL(!delayedTransformNodesProcessed.contains(node), "Seen node second time at " loc "\n"); delayedTransformNodesProcessed.add(node);}
+#define SEENIT(node, loc) {TR_ASSERT_FATAL_WITH_NODE((node), (node) != NULL, "node was null " loc "\n"); TR_ASSERT_FATAL(!delayedTransformNodesProcessed.contains(node), "Seen node second time at " loc "\n"); delayedTransformNodesProcessed.add(node);}
 
 void OMR::ValuePropagation::doDelayedTransformations(TR::NodeChecklist &delayedTransformNodesProcessed)
    {
