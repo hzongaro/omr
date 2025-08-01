@@ -62,6 +62,7 @@
 #include "infra/Bit.hpp"
 #include "infra/BitVector.hpp"
 #include "infra/Cfg.hpp"
+#include "infra/Checklist.hpp"
 #include "infra/Link.hpp"
 #include "infra/List.hpp"
 #include "infra/CfgEdge.hpp"
@@ -4000,7 +4001,8 @@ int32_t TR::GlobalValuePropagation::perform()
 
    // Perform transformations that were delayed until the end of the analysis
    //
-   doDelayedTransformations();
+TR::NodeChecklist delayedTransformNodeChecklist(comp());
+   doDelayedTransformations(delayedTransformNodeChecklist);
 
    if (_enableVersionBlocks)
       {
@@ -7256,14 +7258,18 @@ bool OMR::ValuePropagation::canClassBeTrustedAsFixedClass(TR::SymbolReference *s
    return true;
    }
 
-void OMR::ValuePropagation::doDelayedTransformations()
+#define SEENIT(node, loc) {TR_ASSERT_FATAL((node) != NULL, "node was null " loc "\n"); TR_ASSERT_FATAL(!delayedTransformNodesProcessed.contains(node), "Seen node second time at " loc "\n"); delayedTransformNodesProcessed.add(node);}
+
+void OMR::ValuePropagation::doDelayedTransformations(TR::NodeChecklist &delayedTransformNodesProcessed)
    {
+//fprintf(stderr, "doDelayedTransformations - 1\n");
    ListIterator<TR_TreeTopNodePair> treesIt1(&_scalarizedArrayCopies);
    TR_TreeTopNodePair *scalarizedArrayCopy;
    for (scalarizedArrayCopy = treesIt1.getFirst();
         scalarizedArrayCopy; scalarizedArrayCopy = treesIt1.getNext())
       {
       bool didTransformArrayCopy = false;
+SEENIT(scalarizedArrayCopy->_node, "(Z)");
       TR::TransformUtil::scalarizeArrayCopy(comp(), scalarizedArrayCopy->_node, scalarizedArrayCopy->_treetop, true, didTransformArrayCopy);
 
       if (didTransformArrayCopy)
@@ -7273,6 +7279,7 @@ void OMR::ValuePropagation::doDelayedTransformations()
       }
    _scalarizedArrayCopies.deleteAll();
 
+//fprintf(stderr, "doDelayedTransformations - 2\n");
    // NOTE: the array copy spine checks are processed before the reference, realtime, and
    //       unknown arraycopies because it refactors the CFG at a higher (outer) level
    //       than the others.  To simplify the CFG it should be run first.
@@ -7285,21 +7292,26 @@ void OMR::ValuePropagation::doDelayedTransformations()
            arrayCopySpineCheck;
            arrayCopySpineCheck = acscIt.getNext())
          {
+SEENIT(arrayCopySpineCheck->_arraycopyTree->getNode(), "(Y)");
          transformArrayCopySpineCheck(arrayCopySpineCheck);
          }
       _arrayCopySpineCheck.deleteAll();
       }
 
+//fprintf(stderr, "doDelayedTransformations - 3\n");
 #ifdef J9_PROJECT_SPECIFIC
    ListIterator<TR::TreeTop> convIt(&_converterCalls);
    TR::TreeTop *converterCallTree;
    for (converterCallTree = convIt.getFirst();
 		   converterCallTree; converterCallTree = convIt.getNext())
       {
+SEENIT(converterCallTree->getNode(), "(X)");
+if (converterCallTree->getNode()->getFirstChild()->getReferenceCount() > 0) SEENIT(converterCallTree->getNode()->getFirstChild(), "(XX)");
       transformConverterCall(converterCallTree);
       }
    _converterCalls.deleteAll();
 
+//fprintf(stderr, "doDelayedTransformations - 4\n");
    ListIterator<TR::TreeTop> objCloneIt(&_objectCloneCalls);
    ListIterator<ObjCloneInfo> objCloneTypeIt(&_objectCloneTypes);
       {
@@ -7307,6 +7319,8 @@ void OMR::ValuePropagation::doDelayedTransformations()
       ObjCloneInfo *cloneInfo = objCloneTypeIt.getFirst();
       while (callTree && cloneInfo)
          {
+SEENIT(callTree->getNode(), "(W)");
+if (callTree->getNode()->getFirstChild()->getReferenceCount() > 0) SEENIT(callTree->getNode()->getFirstChild(), "(WW)");
          transformObjectCloneCall(callTree, cloneInfo);
          callTree = objCloneIt.getNext();
          cloneInfo = objCloneTypeIt.getNext();
@@ -7315,6 +7329,7 @@ void OMR::ValuePropagation::doDelayedTransformations()
    _objectCloneCalls.deleteAll();
    _objectCloneTypes.deleteAll();
 
+//fprintf(stderr, "doDelayedTransformations - 5\n");
    ListIterator<TR::TreeTop> arrayCloneIt(&_arrayCloneCalls);
    ListIterator<ArrayCloneInfo> arrayCloneTypeIt(&_arrayCloneTypes);
       {
@@ -7322,6 +7337,8 @@ void OMR::ValuePropagation::doDelayedTransformations()
       ArrayCloneInfo *cloneInfo = arrayCloneTypeIt.getFirst();
       while (callTree && cloneInfo)
          {
+SEENIT(callTree->getNode(), "(V)");
+if (callTree->getNode()->getFirstChild()->getReferenceCount() > 0) SEENIT(callTree->getNode()->getFirstChild(), "(VV)");
          transformArrayCloneCall(callTree, cloneInfo);
          callTree = arrayCloneIt.getNext();
          cloneInfo = arrayCloneTypeIt.getNext();
@@ -7331,20 +7348,26 @@ void OMR::ValuePropagation::doDelayedTransformations()
    _arrayCloneTypes.deleteAll();
 #endif
 
+//fprintf(stderr, "doDelayedTransformations - 6\n");
    ListIterator<TR_TreeTopWrtBarFlag> treesIt(&_unknownTypeArrayCopyTrees);
    TR_TreeTopWrtBarFlag *unknownTypeArrayCopyTree;
    for (unknownTypeArrayCopyTree = treesIt.getFirst();
         unknownTypeArrayCopyTree; unknownTypeArrayCopyTree = treesIt.getNext())
       {
+SEENIT(unknownTypeArrayCopyTree->_treetop->getNode(), "(U)");
+if (unknownTypeArrayCopyTree->_treetop->getNode()->getOpCodeValue() != TR::arraycopy) SEENIT(unknownTypeArrayCopyTree->_treetop->getNode()->getFirstChild(), "(UU)");
       transformUnknownTypeArrayCopy(unknownTypeArrayCopyTree);
       }
    _unknownTypeArrayCopyTrees.deleteAll();
 
+//fprintf(stderr, "doDelayedTransformations - 7\n");
    treesIt.set(&_referenceArrayCopyTrees);
    TR_TreeTopWrtBarFlag *referenceArrayCopyTree;
    for (referenceArrayCopyTree = treesIt.getFirst();
         referenceArrayCopyTree; referenceArrayCopyTree = treesIt.getNext())
       {
+SEENIT(referenceArrayCopyTree->_treetop->getNode(), "(T)");
+if (referenceArrayCopyTree->_treetop->getNode()->getOpCodeValue() != TR::arraycopy) SEENIT(referenceArrayCopyTree->_treetop->getNode()->getFirstChild(), "(TT)");
       transformReferenceArrayCopy(referenceArrayCopyTree);
       }
    _referenceArrayCopyTrees.deleteAll();
@@ -7352,10 +7375,12 @@ void OMR::ValuePropagation::doDelayedTransformations()
 #ifdef J9_PROJECT_SPECIFIC
    if (comp()->generateArraylets())
       {
+//fprintf(stderr, "doDelayedTransformations - 8\n");
       ListIterator<TR_RealTimeArrayCopy> tt(&_needRunTimeCheckArrayCopy);
       TR_RealTimeArrayCopy *rtArrayCopyTree;
       for (rtArrayCopyTree = tt.getFirst(); rtArrayCopyTree; rtArrayCopyTree = tt.getNext())
          {
+if (rtArrayCopyTree->_treetop->getNode()->getFirstChild()->getReferenceCount() > 0) SEENIT(rtArrayCopyTree->_treetop->getNode()->getFirstChild(), "(S)");
          transformRealTimeArrayCopy(rtArrayCopyTree);
          }
       _needRunTimeCheckArrayCopy.deleteAll();
@@ -7368,6 +7393,7 @@ void OMR::ValuePropagation::doDelayedTransformations()
       _needMultiLeafArrayCopy.deleteAll();
       }
 
+//fprintf(stderr, "doDelayedTransformations - 9\n");
    if (TR::Compiler->om.areFlattenableValueTypesEnabled())
       {
       ListIterator<TR_NeedRuntimeTestNullRestrictedArrayCopy> tt(&_needRuntimeTestNullRestrictedArrayCopy);
@@ -7401,6 +7427,7 @@ void OMR::ValuePropagation::doDelayedTransformations()
    TR::CFGNode *node = NULL;
    if (_blocksToBeRemoved)
       {
+//fprintf(stderr, "doDelayedTransformations - 10\n");
       for (i = _blocksToBeRemoved->size()-1; i >= 0; --i)
          {
          node = _blocksToBeRemoved->element(i);
@@ -8050,6 +8077,8 @@ void OMR::ValuePropagation::doDelayedTransformations()
 
    _classesToCheckInit.setFirst(0);
    }
+
+#undef SEENIT
 
 TR_OpaqueClassBlock *OMR::ValuePropagation::findLikelySubtype(TR_OpaqueClassBlock *klass)
    {

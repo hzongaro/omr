@@ -4584,7 +4584,8 @@ void TR::LocalValuePropagation::postPerformOnBlocks()
    {
    // Perform transformations that were delayed until the end of the analysis
    //
-   doDelayedTransformations();
+   TR::NodeChecklist delayedTransformNodeChecklist(comp());
+   doDelayedTransformations(delayedTransformNodeChecklist);
 
    if (_enableVersionBlocks)
       versionBlocks();

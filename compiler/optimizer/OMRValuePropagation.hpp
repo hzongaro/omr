@@ -32,7 +32,7 @@
 #include "il/ILOpCodes.hpp"
 #include "il/Node.hpp"
 #include "infra/Link.hpp"
-#include "infra/List.hpp"
+#include "infra/Checklist.hpp"
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
@@ -64,6 +64,7 @@ namespace TR { class VPUnreachablePath; }
 class TR_ValueNumberInfo;
 namespace OMR { class ValuePropagation; }
 class TR_VirtualGuard;
+namespace TR { class VPDelayedTransformation; }
 namespace TR { class Block; }
 namespace TR { class CFGEdge; }
 namespace TR { class CFGNode; }
@@ -146,6 +147,27 @@ class ArraycopyTransformation : public TR::Optimization
    bool _changedTrees;
    };
 
+class DelayedTransformation
+   {
+   private:
+   OMR::ValuePropagation *_vp;
+   TR::Compilation *_comp;
+
+   public:
+   DelayedTransformation(OMR::ValuePropagation *vp) : _vp(vp) {}
+
+   virtual bool trace();
+
+   virtual void apply() = 0;
+
+   virtual void print() = 0;
+   };
+
+class DelayedInliningTransformation : TR::DelayedTransformation
+   {
+   public:
+   DelayedInliningTransformation(OMR::ValuePropagation *vp) : DelayedTransformation(vp) {}
+   };
 }
 
 namespace OMR {
@@ -489,7 +511,7 @@ class ValuePropagation : public TR::Optimization
    void launchNode(TR::Node *node, TR::Node *parent, int32_t whichChild);
 
    bool checkAllUnsafeReferences(TR::Node *node, vcount_t visitCount);
-   virtual void doDelayedTransformations();
+   virtual void doDelayedTransformations(TR::NodeChecklist &delayedTransformNodesProcessed);
 
    /**
     * @brief Look for a likely sub type for a given class
