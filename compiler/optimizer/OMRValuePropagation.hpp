@@ -31,7 +31,6 @@
 #include "il/DataTypes.hpp"
 #include "il/ILOpCodes.hpp"
 #include "il/Node.hpp"
-#include "infra/CriticalSection.hpp"
 #include "infra/Link.hpp"
 #include "infra/List.hpp"
 #include "optimizer/Optimization.hpp"
@@ -179,8 +178,6 @@ class PartialOrdering
    void setPairOrdering(TR::PartiallyOrderedInstance &predecessor, TR::PartiallyOrderedInstance &successor);
 
    void computeOrdering();
-
-   void addToList(List<TR::PartiallyOrderedInstance> &list, TR::PartiallyOrderedInstance *);
 
    int32_t testPrecedence(TR::PartiallyOrderedInstance &first, TR::PartiallyOrderedInstance &second);
    };
@@ -1089,7 +1086,6 @@ class PartiallyOrderedInstance
    static uint8_t _sNextAvailableIndex;
    static uint8_t getNextAvailableIndex(bool reserveIndex = true)
       {
-      OMR::CriticalSection initializePartiallyOrderedInstances;
       uint8_t currIndex = _sNextAvailableIndex;
       if (reserveIndex)
          {
