@@ -1089,7 +1089,7 @@ class PartiallyOrderedInstance
    static uint8_t _sNextAvailableIndex;
    static uint8_t getNextAvailableIndex(bool reserveIndex = true)
       {
-      OMR::CriticalSection initializePartiallyOrderedInstances();
+      OMR::CriticalSection initializePartiallyOrderedInstances;
       uint8_t currIndex = _sNextAvailableIndex;
       if (reserveIndex)
          {
