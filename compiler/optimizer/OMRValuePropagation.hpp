@@ -31,9 +31,11 @@
 #include "il/DataTypes.hpp"
 #include "il/ILOpCodes.hpp"
 #include "il/Node.hpp"
+#include "infra/CriticalSection.hpp"
 #include "infra/Link.hpp"
 #include "infra/List.hpp"
 #include "optimizer/Optimization.hpp"
+#include "optimizer/Optimization_inlines.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
 #define TREE_CLASS TR_HedgeTree
@@ -44,6 +46,8 @@
 
 #define VP_HASH_TABLE_SIZE 251
 #define VP_SPECIALKLASS -1
+
+#define USE_PARTIAL_ORDERING
 
 class TR_BitVector;
 class TR_OpaqueClassBlock;
@@ -61,6 +65,14 @@ namespace TR { class VPNonNullObject; }
 namespace TR { class VPNullObject; }
 namespace TR { class VPPreexistentObject; }
 namespace TR { class VPUnreachablePath; }
+namespace TR { class DelayedVPTransformation; }
+
+#if !defined(USE_PARTIAL_ORDERING)
+namespace TR { class EarlyDelayedVPTransformation; }
+namespace TR { class MidDelayedVPTransformation; }
+namespace TR { class LateDelayedVPTransformation; }
+#endif
+
 class TR_ValueNumberInfo;
 namespace OMR { class ValuePropagation; }
 class TR_VirtualGuard;
@@ -147,6 +159,36 @@ class ArraycopyTransformation : public TR::Optimization
    };
 
 }
+
+#if defined(USE_PARTIAL_ORDERING)
+
+namespace TR { class PartiallyOrderedInstance; }
+
+namespace TR {
+
+class PartialOrdering
+   {
+   protected:
+   TR::Compilation *_comp;
+   uint8_t *_precedes;
+   uint8_t _dimLen;
+
+   public:
+   PartialOrdering(TR::Compilation *comp, uint8_t instanceCount);
+
+   void setPairOrdering(TR::PartiallyOrderedInstance &predecessor, TR::PartiallyOrderedInstance &successor);
+
+   void computeOrdering();
+
+   void addToList(List<TR::PartiallyOrderedInstance> &list, TR::PartiallyOrderedInstance *);
+
+   int32_t testPrecedence(TR::PartiallyOrderedInstance &first, TR::PartiallyOrderedInstance &second);
+   };
+}
+
+#endif
+
+namespace TR { class DelayedCFGUpdatesVPTransformation; }
 
 namespace OMR {
 
@@ -861,7 +903,6 @@ class ValuePropagation : public TR::Optimization
         TR::Block            *_block;
         };
 
-    TR_LinkHead<CallInfo> _devirtualizedCalls;
     TR_LinkHead<CallInfo> _unsafeCallsToInline;
 
    struct ClassInitInfo : public TR_Link<ClassInitInfo>
@@ -935,13 +976,6 @@ class ValuePropagation : public TR::Optimization
    bool _disableVersionBlockForThisBlock;
    TR::Block *_startEBB;
 
-   // Blocks that are unreachable and can be removed.
-   //
-   TR_Array<TR::CFGNode*> *_blocksToBeRemoved;
-
-   // Edges that are to be removed.
-   //
-   TR_Array<TR::CFGEdge *> *_edgesToBeRemoved;
 
    CallNodeToGuardNodesMap *_callNodeToGuardNodes;
 
@@ -1019,12 +1053,179 @@ class ValuePropagation : public TR::Optimization
    List<TR::TreeTop> _arrayCloneCalls;
    List<ObjCloneInfo> _objectCloneTypes;
    List<ArrayCloneInfo> _arrayCloneTypes;
+   TR::DelayedCFGUpdatesVPTransformation *_delayedCFGUpdates;
+#if defined(USE_PARTIAL_ORDERING)
+   List<TR::DelayedVPTransformation> _delayedTransformations;
+   TR::PartialOrdering _delayedTransformationsOrdering;
+   void addDelayedTransformation(TR::DelayedVPTransformation *transformation);
+#else
+   List<TR::EarlyDelayedVPTransformation> _earlyDelayedTransformations;
+   List<TR::MidDelayedVPTransformation> _midDelayedTransformations;
+   List<TR::LateDelayedVPTransformation> _lateDelayedTransformations;
+#endif
 
    int32_t    *_parmMayBeVariant;
    bool       *_parmTypeValid;
 
    };
 }
+
+#if defined(USE_PARTIAL_ORDERING)
+
+namespace TR {
+
+class PartiallyOrderedInstance
+   {
+   friend TR::PartialOrdering;
+
+   private:
+   const char *_name;
+   uint8_t _index;
+
+   private:
+   uint32_t getIndex() { return _index; }
+   void setIndex(uint8_t index) { _index = index; }
+
+   static uint8_t _sNextAvailableIndex;
+   static uint8_t getNextAvailableIndex(bool reserveIndex = true)
+      {
+      OMR::CriticalSection initializePartiallyOrderedInstances();
+      uint8_t currIndex = _sNextAvailableIndex;
+      if (reserveIndex)
+         {
+         _sNextAvailableIndex++;
+         }
+      return currIndex;
+      }
+
+   public:
+   PartiallyOrderedInstance(const char *name) : _name(name), _index(getNextAvailableIndex()) {}
+
+   const char *getName() { return _name; }
+   };
+}
+#endif
+
+namespace TR {
+
+class DelayedVPTransformation
+   {
+   private:
+   OMR::ValuePropagation *_vp;
+   TR::Compilation *_comp;
+
+   public:
+   DelayedVPTransformation(OMR::ValuePropagation *vp) : _vp(vp), _comp(vp->comp()) {}
+
+   bool trace() { return _vp->trace(); }
+
+   TR::Compilation *comp()  { return _comp; }
+
+   TR::Optimization *optimization()  { return _vp; }
+
+   OMR::ValuePropagation *vp()  { return _vp; }
+
+   TR::Optimizer *optimizer()  { return _vp->optimizer(); }
+
+   virtual void apply() = 0;
+
+   virtual TR::PartiallyOrderedInstance &getPartialOrderInstance() = 0;
+   };
+
+#if !defined(USE_PARTIAL_ORDERING)
+class EarlyDelayedVPTransformation : public TR::DelayedVPTransformation
+   {
+   public:
+   EarlyDelayedVPTransformation(OMR::ValuePropagation *vp) : DelayedVPTransformation(vp) {}
+   };
+
+class MidDelayedVPTransformation : public TR::DelayedVPTransformation
+   {
+   public:
+   MidDelayedVPTransformation(OMR::ValuePropagation *vp) : DelayedVPTransformation(vp) {}
+   };
+
+class LateDelayedVPTransformation : public TR::DelayedVPTransformation
+   {
+   public:
+   LateDelayedVPTransformation(OMR::ValuePropagation *vp) : DelayedVPTransformation(vp) {}
+   };
+#endif
+
+#if defined(USE_PARTIAL_ORDERING)
+class DelayedInliningVPTransformation : public TR::DelayedVPTransformation
+#else
+class DelayedInliningVPTransformation : public TR::LateDelayedVPTransformation
+#endif
+   {
+   protected:
+   TR::TreeTop *_tt;
+   TR::Block   *_block;
+
+   public:
+   DelayedInliningVPTransformation(OMR::ValuePropagation *vp, TR::TreeTop *tt, TR::Block *block) :
+#if defined(USE_PARTIAL_ORDERING)
+                                      DelayedVPTransformation(vp),
+#else
+                                      LateDelayedVPTransformation(vp),
+#endif
+                                      _tt(tt), _block(block) {}
+
+#if defined(USE_PARTIAL_ORDERING)
+   TR::PartiallyOrderedInstance &getPartialOrderInstance() { return _sPartialOrderInstance; }
+#endif
+
+#if defined(USE_PARTIAL_ORDERING)
+   static TR::PartiallyOrderedInstance _sPartialOrderInstance; // ("DelayedInliningVPTransformation");
+#endif
+   };
+
+
+// Calls that have been devirtualized
+//
+class DevirtualizedVPTransformation : public TR::DelayedInliningVPTransformation
+   {
+   private:
+   TR_OpaqueClassBlock  *_thisType;
+   TR_PrexArgInfo       *_argInfo;
+
+   public:
+   DevirtualizedVPTransformation(OMR::ValuePropagation *vp,
+                                 TR::TreeTop *tt, TR::Block *block,
+                                 TR_OpaqueClassBlock   *thisType,
+                                 TR_PrexArgInfo        *argInfo) : DelayedInliningVPTransformation(vp, tt, block),
+                                                                   _thisType(thisType),
+                                                                   _argInfo(argInfo) {}
+   virtual void apply();
+   };
+
+#if defined(USE_PARTIAL_ORDERING)
+class DelayedCFGUpdatesVPTransformation : public TR::DelayedVPTransformation
+#else
+class DelayedCFGUpdatesVPTransformation : public TR::MidDelayedVPTransformation
+#endif
+   {
+   private:
+   TR_Array<TR::CFGEdge *> *_edgesToBeRemoved;
+   TR_Array<TR::CFGNode *> *_blocksToBeRemoved;
+   public:
+
+   DelayedCFGUpdatesVPTransformation(OMR::ValuePropagation *vp);
+
+#if defined(USE_PARTIAL_ORDERING)
+   static TR::PartiallyOrderedInstance _sPartialOrderInstance; // ("DelayedCFGUpdatesVPTransformation");
+
+   TR::PartiallyOrderedInstance &getPartialOrderInstance() { return _sPartialOrderInstance; }
+#endif
+
+   void recordEdgeToRemove(TR::CFGEdge *edge) { _edgesToBeRemoved->add(edge); }
+   void recordBlockToRemove(TR::CFGNode *block) { _blocksToBeRemoved->add(block); }
+
+   void apply();
+   };
+
+}
+
 
 TR::Node *generateArrayletAddressTree(TR::Compilation* comp, TR::Node *vcallNode, TR::DataType type, TR::Node *off,TR::Node *obj, TR::Node *spineShiftNode,TR::Node *shiftNode,TR::Node *strideShiftNode, TR::Node *hdrSize);
 TR::Node *generateArrayAddressTree(TR::Compilation* comp, TR::Node *node, int32_t offHigh, TR::Node *offNode, TR::Node *objNode, int32_t elementSize, TR::Node * &stride, TR::Node *hdrSize);

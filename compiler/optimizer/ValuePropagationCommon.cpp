@@ -136,6 +136,14 @@ OMR::ValuePropagation::ValuePropagation(TR::OptimizationManager *manager)
      _arrayCloneCalls(trMemory()),
      _objectCloneTypes(trMemory()),
      _arrayCloneTypes(trMemory()),
+#if defined(USE_PARTIAL_ORDERING)
+     _delayedTransformations(trMemory()),
+     _delayedTransformationsOrdering(comp(), 2),
+#else
+     _earlyDelayedTransformations(trMemory()),
+     _midDelayedTransformations(trMemory()),
+     _lateDelayedTransformations(trMemory()),
+#endif
      _parmMayBeVariant(NULL),
      _parmTypeValid(NULL),
      _constNodeInfo(comp()->allocator())
@@ -265,8 +273,14 @@ void OMR::ValuePropagation::initialize()
 
    _visitCount = comp()->incVisitCount();
 
-   _edgesToBeRemoved = new (trStackMemory()) TR_Array<TR::CFGEdge *>(trMemory(), 8, false, stackAlloc);
-   _blocksToBeRemoved = new (trStackMemory()) TR_Array<TR::CFGNode*>(trMemory(), 8, false, stackAlloc);
+   _delayedCFGUpdates = new (trStackMemory()) TR::DelayedCFGUpdatesVPTransformation(this);
+
+#if defined(USE_PARTIAL_ORDERING)
+   addDelayedTransformation(_delayedCFGUpdates);
+#else
+   _midDelayedTransformations.add(_delayedCFGUpdates);
+#endif
+
    _curDefinedOnAllPaths = NULL;
    if (_isGlobalPropagation)
       {
@@ -366,6 +380,11 @@ void OMR::ValuePropagation::initialize()
          _startEBB = NULL;
          }
       }
+
+#if defined(USE_PARTIAL_ORDERING)
+   _delayedTransformationsOrdering.setPairOrdering(TR::DelayedCFGUpdatesVPTransformation::_sPartialOrderInstance,
+                                                   TR::DelayedInliningVPTransformation::_sPartialOrderInstance);
+#endif
    }
 
 OMR::ValuePropagation::Relationship *OMR::ValuePropagation::copyRelationships(Relationship *first)
@@ -4685,7 +4704,7 @@ TR::TreeTop *TR::LocalValuePropagation::processBlock(TR::TreeTop *startTree)
          if (trace())
             traceMsg(comp(), "\nSkipping unreachable block_%d (extension of previous block)\n", _curBlock->getNumber());
 
-         _blocksToBeRemoved->add(_curBlock);
+         _delayedCFGUpdates->recordBlockToRemove(_curBlock);
          startTree = _curBlock->getExit();
          continue;
          }
@@ -4771,4 +4790,33 @@ void OMR::ValuePropagation::launchNode(TR::Node *node, TR::Node *parent, int32_t
          }
       }
 
+   }
+
+void OMR::ValuePropagation::addDelayedTransformation(TR::DelayedVPTransformation *transformation)
+   {
+   if (_delayedTransformations.isEmpty())
+      {
+      _delayedTransformations.add(transformation);
+      }
+   else
+      {
+      TR::PartiallyOrderedInstance &newEntryOrderPos = transformation->getPartialOrderInstance();
+      ListElement<TR::DelayedVPTransformation> *previousEntry = NULL;
+
+      for (ListElement<TR::DelayedVPTransformation> *nextEntry = _delayedTransformations.getListHead();
+           nextEntry != NULL;
+           nextEntry = nextEntry->getNextElement())
+         {
+         TR::PartiallyOrderedInstance &oldEntryOrderPos = nextEntry->getData()->getPartialOrderInstance();
+
+         if (_delayedTransformationsOrdering.testPrecedence(newEntryOrderPos, oldEntryOrderPos) < 0)
+            {
+            break;
+            }
+
+         previousEntry = nextEntry;
+         }
+
+      _delayedTransformations.addAfter(transformation, previousEntry);
+      }
    }

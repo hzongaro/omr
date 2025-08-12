@@ -3033,7 +3033,7 @@ void OMR::ValuePropagation::mustTakeException()
       {
       if ((*edge)->getTo() != cfg->getEnd())
          {
-         _edgesToBeRemoved->add(*edge);
+         _delayedCFGUpdates->recordEdgeToRemove(*edge);
          setUnreachablePath(*edge);
          }
       }
@@ -4710,11 +4710,11 @@ void TR::GlobalValuePropagation::processRegionNode(TR_StructureSubGraphNode *nod
          {
          if (node->getStructure()->asBlock())
             {
-            _blocksToBeRemoved->add(node->getStructure()->asBlock()->getBlock());
+            _delayedCFGUpdates->recordBlockToRemove(node->getStructure()->asBlock()->getBlock());
             }
          else if (node->getStructure()->asRegion())
             {
-            _blocksToBeRemoved->add(node->getStructure()->asRegion()->getEntryBlock());
+            _delayedCFGUpdates->recordBlockToRemove(node->getStructure()->asRegion()->getEntryBlock());
             }
          }
 
@@ -7396,66 +7396,48 @@ void OMR::ValuePropagation::doDelayedTransformations()
       }
 #endif
 
-   int32_t i;
-   TR::CFG *cfg = comp()->getFlowGraph();
-   TR::CFGNode *node = NULL;
-   if (_blocksToBeRemoved)
+#if !defined(USE_PARTIAL_ORDERING)
+   if (!_midDelayedTransformations.isEmpty())
       {
-      for (i = _blocksToBeRemoved->size()-1; i >= 0; --i)
+      ListIterator<TR::MidDelayedVPTransformation> iter(&_midDelayedTransformations);
+
+      for (TR::LateDelayedVPTransformation *lateTransform = iter.getCurrent();
+           lateTransform != NULL;
+           lateTransform = iter.getNext())
          {
-         node = _blocksToBeRemoved->element(i);
-         if (performTransformation(comp(), "%sRemoving unreachable block_%d at [%p]\n", OPT_DETAILS, node->getNumber(), node))
-            {
-            while (!node->getPredecessors().empty())
-               cfg->removeEdge(node->getPredecessors().front());
-            while (!node->getExceptionPredecessors().empty())
-               cfg->removeEdge(node->getExceptionPredecessors().front());
-            invalidateUseDefInfo();
-            invalidateValueNumberInfo();
-            }
+         midTransform->apply();
          }
+      _midDelayedTransformations.deleteAll();
       }
 
-   // If there were unreachable edges that still exist, remove them
-   //
-   TR::Region &stackRegion = comp()->trMemory()->currentStackRegion();
-   TR::list<TR::Block*, TR::Region&> removedEdgeSources(stackRegion);
-
-   if (_edgesToBeRemoved)
+   if (!_lateDelayedTransformations.isEmpty())
       {
-      for (i = _edgesToBeRemoved->size()-1; i >= 0; --i)
+      ListIterator<TR::LateDelayedVPTransformation> iter(&_lateDelayedTransformations);
+
+      for (TR::LateDelayedVPTransformation *lateTransform = iter.getCurrent();
+           lateTransform != NULL;
+           lateTransform = iter.getNext())
          {
-         TR::CFGEdge *edge = _edgesToBeRemoved->element(i);
-
-         // NB: this following transformation is not conditional - it must be done otherwise the CFG could
-         // be incorrect (for example, if a conditional branch was converted to a goto, you have to remove
-         // the extra edge in the CFG or else madness will ensue.
-         removedEdgeSources.push_back(toBlock(edge->getFrom()));
-         if (std::find(edge->getTo()->getPredecessors().begin(), edge->getTo()->getPredecessors().end(), edge) != edge->getTo()->getPredecessors().end())
-            {
-            if (trace())
-               traceMsg(comp(), "Removing unreachable edge from %d to %d\n", edge->getFrom()->getNumber(), edge->getTo()->getNumber());
-            if (cfg->removeEdge(edge))
-               {
-               invalidateUseDefInfo();
-               invalidateValueNumberInfo();
-               }
-            }
-
-         // If the "from" block is still in the cfg but has no successors,
-         // add an edge to the method's exit block.
-         //
-         node = edge->getFrom();
-         if (node->getSuccessors().empty())
-            {
-           // if (!cfg->getRemovedNodes().find(node))
-              if (!node->nodeIsRemoved())
-               cfg->addEdge(TR::CFGEdge::createEdge(node, cfg->getEnd(), trMemory()));
-            }
+         lateTransform->apply();
          }
-      }
 
-   TR_RegionStructure::extractUnconditionalExits(comp(), removedEdgeSources);
+      _lateDelayedTransformations.deleteAll();
+      }
+#else
+   if (!_delayedTransformations.isEmpty())
+      {
+      ListIterator<TR::DelayedVPTransformation> iter(&_delayedTransformations);
+
+      for (TR::DelayedVPTransformation *delayedTransform = iter.getCurrent();
+           delayedTransform != NULL;
+           delayedTransform = iter.getNext())
+         {
+         delayedTransform->apply();
+         }
+
+      _delayedTransformations.deleteAll();
+      }
+#endif
 
 #ifdef J9_PROJECT_SPECIFIC
    if (!_multiLeafCallsToInline.isEmpty())
@@ -7495,241 +7477,6 @@ void OMR::ValuePropagation::doDelayedTransformations()
       _unsafeCallsToInline.setFirst(0);
       }
 #endif
-
-   // process calls that were devirtualized. See if they can be inlined or if
-   // they need special JNI processing.
-   //
-   for (CallInfo *ci = _devirtualizedCalls.getFirst(); ci; ci = ci->getNext())
-      {
-      //if (comp()->getFlowGraph()->getRemovedNodes().find(ci->_block))
-        if(ci->_block->nodeIsRemoved())
-         continue;
-
-      TR::Node *callNode;
-      TR::Node *parent = ci->_tt->getNode();
-      if (parent->getNumChildren() && (callNode = parent->getFirstChild())->getOpCode().isCall())
-         {
-         bool callUnreachable = true;
-         bool callGuarded = callNode->isTheVirtualCallNodeForAGuardedInlinedCall();
-         if (callGuarded)
-            {
-            if (callNode->getOpCode().isCallIndirect())
-               {
-               // TODO : see if we can be smarter about the type of the guard being used
-               }
-            else
-               {
-               bool guardForDifferentCall = false;
-               TR::TreeTop *cursorTree = ci->_tt->getPrevTreeTop();
-               TR::Node *cursorNode = cursorTree->getNode();
-               while (cursorNode->getOpCodeValue() != TR::BBStart)
-                  {
-                  if (cursorNode->getNumChildren() > 0)
-                     cursorNode = cursorNode->getFirstChild();
-
-                  if (cursorNode->getOpCode().isCall() &&
-                      cursorNode->isTheVirtualCallNodeForAGuardedInlinedCall())
-                     {
-                     guardForDifferentCall = true;
-                     break;
-                     }
-                  cursorTree = cursorTree->getPrevTreeTop();
-                  cursorNode = cursorTree->getNode();
-                  }
-
-               if (!guardForDifferentCall)
-                  {
-                  TR::Block * guard = ci->_block->findVirtualGuardBlock(cfg);
-
-                  if (!guard)
-                     {
-                     TR::Block * foldedGuard = NULL;
-                     if (ci->_block->getPredecessors().size() == 1)
-                        foldedGuard = ci->_block->getPredecessors().front()->getFrom()->asBlock();
-
-                     if (foldedGuard && (foldedGuard != cfg->getStart()) && (foldedGuard->getSuccessors().size() == 1) &&
-                         (foldedGuard->getLastRealTreeTop()->getNode()->getOpCodeValue() == TR::Goto) &&
-                         (foldedGuard->getLastRealTreeTop()->getNode()->getBranchDestination() == ci->_block->getEntry()))
-                        callUnreachable = false;
-                     }
-
-                  if (guard && (guard->getSuccessors().size() == 2) && guard->getExit())
-                     {
-                     TR::Node *guardNode = guard->getLastRealTreeTop()->getNode();
-                     // check if the virtual guard has any inner
-                     // assumptions; guard should not be removed in
-                     // this case as inner assumptions could be violated
-                     //
-                     TR_VirtualGuard *virtualGuard;
-                     bool canBeRemoved;
-                     if (guardNode)
-                        {
-                        virtualGuard = comp()->findVirtualGuardInfo(guardNode);
-                        canBeRemoved = virtualGuard->canBeRemoved() && callNode->getOpCode().isCallDirect(); //do not remove guards for indirect calls. If the ifacmpne handler
-                        																			          //didn't do it, the chances are it is illegal to remove the guard
-                        }
-                     else
-                        canBeRemoved = true;
-
-                     if (guardNode &&
-                         guardNode->isProfiledGuard())
-                        {
-                        TR::Node *classTypeNode = guardNode->getSecondChild();
-
-                        int32_t guardType = -1; // unknown
-                        if (guardNode->getOpCodeValue() == TR::ifacmpne)
-                           {
-                           if (trace())
-                              traceMsg(comp(), "Got guard [%p] as ifacmpne\n", guardNode);
-                           guardType = 1; // change if to goto
-                           }
-                        else if (guardNode->getOpCodeValue() == TR::ifacmpeq)
-                           {
-                           if (trace())
-                              traceMsg(comp(), "Got guard [%p] as ifacmpeq\n", guardNode);
-                           guardType = 0; // remove branch
-                           }
-
-                        TR_YesNoMaybe typeCompatibleStatus = TR_maybe; // unknown
-                        if (classTypeNode->getOpCodeValue() == TR::aconst &&
-                            classTypeNode->isClassPointerConstant())
-                           {
-                           TR_OpaqueClassBlock *typeClass = (TR_OpaqueClassBlock *)classTypeNode->getAddress();
-                           TR_OpaqueClassBlock *receiverClass = callNode->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod()->containingClass();
-                           TR_YesNoMaybe result = comp()->fe()->isInstanceOf(typeClass,receiverClass,true);
-                           TR_YesNoMaybe isVPClassDerivedFromGuardClass = TR_no;
-                           TR_YesNoMaybe isGuardClassDerivedFromVPClass = TR_yes;
-                           if (ci->_thisType && (ci->_thisType != typeClass))
-                              {
-                              isVPClassDerivedFromGuardClass = comp()->fe()->isInstanceOf(ci->_thisType, typeClass, true);
-                              if (isVPClassDerivedFromGuardClass == TR_no)
-                                 isGuardClassDerivedFromVPClass = comp()->fe()->isInstanceOf(typeClass, ci->_thisType, true);
-                              }
-
-                           if ((result == TR_no) || (isVPClassDerivedFromGuardClass == TR_yes) || (isGuardClassDerivedFromVPClass == TR_no))
-                              {
-                              typeCompatibleStatus = TR_no; // types incompatible
-                              }
-                           else if ((result == TR_yes) &&
-                                    (ci->_thisType == typeClass) &&
-                                    canBeRemoved)
-                              {
-                              typeCompatibleStatus = TR_yes; // types compatible
-                              }
-                           else
-                              callUnreachable = false;
-
-                           if (trace())
-                              traceMsg(comp(), "typeCompatibleStatus [%p] %s\n", guardNode, comp()->getDebug()->getName(typeCompatibleStatus));
-                           }
-                        else
-                           {
-                           TR_ASSERT((classTypeNode->getOpCodeValue() == TR::aconst &&
-                                   classTypeNode->isMethodPointerConstant()), "Devirtualization of guarded profiled calls only works currently for vft-guards or method compare guards");
-                           void *profiledMethod = (void *)classTypeNode->getAddress();
-                           void *devirtualizedMethod = callNode->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier();
-
-                           if (profiledMethod != devirtualizedMethod)
-                              typeCompatibleStatus = TR_no; // incompatible
-                           else if (canBeRemoved)
-                              typeCompatibleStatus = TR_yes; // compatible
-                           else
-                              callUnreachable = false;
-                           }
-
-                        // take appropriate action
-                        //
-                        if (typeCompatibleStatus == TR_no)
-                           {
-                           // ifacmpne
-                           if ((guardType == 1) &&
-                                 performTransformation(comp(), "%sChanging branch (guard) %p in block_%d to goto due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
-                              {
-                              // change the if to goto
-                              changeBranchToGoto(this, guardNode, guard);
-                              callUnreachable = false;
-                              }
-                           else if ((guardType == 0) &&
-                                       performTransformation(comp(), "%sRemoving branch %p in block_%d due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
-                              {
-                              // remove branch
-                              guard->removeBranch(comp());
-                              callUnreachable = false;
-                              }
-                           }
-                        else if (typeCompatibleStatus == TR_yes)
-                           {
-                           // ifacmpne
-                           if ((guardType == 1) &&
-                                 performTransformation(comp(), "%sRemoving branch %p in block_%d due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
-                              {
-                              // remove branch
-                              guard->removeBranch(comp());
-                              //callUnreachable true;
-                              }
-                           else if ((guardType == 0) &&
-                                 performTransformation(comp(), "%sChanging branch (guard) %p in block_%d to goto due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
-                              {
-                              // change the if to goto
-                              changeBranchToGoto(this, guardNode, guard);
-                              //callUnreachable  true;
-                              }
-                           }
-                        }
-                     }
-                  }
-               }
-            }
-
-         //else
-         //traceMsg(comp(), "Reached 2 for call %p\n", callNode);
-         //traceMsg(comp(), "unreachable %d guarded %d\n", callUnreachable, callGuarded);
-         if (!callGuarded || !callUnreachable)
-            {
-            TR::ResolvedMethodSymbol *methodSymbol = callNode->getSymbol()->castToResolvedMethodSymbol();
-#ifdef J9_PROJECT_SPECIFIC
-            if (methodSymbol->isJNI())
-               callNode->processJNICall(ci->_tt, comp()->getMethodSymbol());
-            else
-#endif
-               {
-               if (comp()->getMethodHotness() <= warm && comp()->getOption(TR_DisableInliningDuringVPAtWarm))
-                  {
-                  if (trace()) traceMsg(comp(), "\tDo not inline call at [%p]\n", callNode);
-                  }
-               else
-                  {
-#ifdef J9_PROJECT_SPECIFIC
-                  TR_InlineCall newInlineCall(optimizer(), this);
-
-                  // restrict the amount of inlining in warm/cold bodies
-                  int32_t initialMaxSize = 0;
-                  if (comp()->getMethodHotness() <= warm)
-                     {
-                     initialMaxSize = comp()->getOptions()->getMaxSzForVPInliningWarm();
-                     newInlineCall.setSizeThreshold(initialMaxSize);
-                     }
-
-                  if (!newInlineCall.inlineCall(ci->_tt, ci->_thisType, true, ci->_argInfo, initialMaxSize))
-                     {
-                     // If inlining failed, try to issue a direct call
-                     if (!callNode->getSymbolReference()->getSymbol()->castToMethodSymbol()->isInterpreted() ||
-                         callNode->getSymbolReference()->getSymbol()->castToMethodSymbol()->isJITInternalNative())
-                        {
-                        if (callNode->getOpCode().isCallIndirect())
-                           {
-                           //printf("XXX Added devirtualized call info in %s for %x\n", comp()->signature(), callNode);
-                           comp()->findOrCreateDevirtualizedCall(callNode, ci->_thisType);
-                           }
-                        }
-                     }
-#endif
-                  }
-               }
-            }
-         }
-      }
-   _devirtualizedCalls.setFirst(0);
 
 #ifdef J9_PROJECT_SPECIFIC
    ListIterator<TR::Node> nodesIt(&_javaLangClassGetComponentTypeCalls);
@@ -7803,6 +7550,8 @@ void OMR::ValuePropagation::doDelayedTransformations()
 
       invalidateUseDefInfo();
       invalidateValueNumberInfo();
+
+      TR::CFG *cfg = comp()->getFlowGraph();
 
       if (debug("traceThrowToGoto"))
          printf("\nthrow converted to goto in %s ", comp()->signature());
@@ -8051,6 +7800,383 @@ void OMR::ValuePropagation::doDelayedTransformations()
    _classesToCheckInit.setFirst(0);
    }
 
+void TR::DevirtualizedVPTransformation::apply()
+   {
+   // process calls that were devirtualized. See if they can be inlined or if
+   // they need special JNI processing.
+   //
+
+   //if (comp()->getFlowGraph()->getRemovedNodes().find(_block))
+   if(_block->nodeIsRemoved())
+      return;
+
+   TR::Node *callNode;
+   TR::Node *parent = _tt->getNode();
+   if (parent->getNumChildren() && (callNode = parent->getFirstChild())->getOpCode().isCall())
+      {
+      bool callUnreachable = true;
+      bool callGuarded = callNode->isTheVirtualCallNodeForAGuardedInlinedCall();
+      if (callGuarded)
+         {
+         if (callNode->getOpCode().isCallIndirect())
+            {
+            // TODO : see if we can be smarter about the type of the guard being used
+            }
+         else
+            {
+            bool guardForDifferentCall = false;
+            TR::TreeTop *cursorTree = _tt->getPrevTreeTop();
+            TR::Node *cursorNode = cursorTree->getNode();
+            while (cursorNode->getOpCodeValue() != TR::BBStart)
+               {
+               if (cursorNode->getNumChildren() > 0)
+                  cursorNode = cursorNode->getFirstChild();
+
+               if (cursorNode->getOpCode().isCall() &&
+                   cursorNode->isTheVirtualCallNodeForAGuardedInlinedCall())
+                  {
+                  guardForDifferentCall = true;
+                  break;
+                  }
+               cursorTree = cursorTree->getPrevTreeTop();
+               cursorNode = cursorTree->getNode();
+               }
+
+            TR::CFG *cfg = comp()->getFlowGraph();
+
+            if (!guardForDifferentCall)
+               {
+               TR::Block * guard = _block->findVirtualGuardBlock(cfg);
+
+               if (!guard)
+                  {
+                  TR::Block * foldedGuard = NULL;
+                  if (_block->getPredecessors().size() == 1)
+                     foldedGuard = _block->getPredecessors().front()->getFrom()->asBlock();
+
+                  if (foldedGuard && (foldedGuard != cfg->getStart()) && (foldedGuard->getSuccessors().size() == 1) &&
+                      (foldedGuard->getLastRealTreeTop()->getNode()->getOpCodeValue() == TR::Goto) &&
+                      (foldedGuard->getLastRealTreeTop()->getNode()->getBranchDestination() == _block->getEntry()))
+                     callUnreachable = false;
+                  }
+
+               if (guard && (guard->getSuccessors().size() == 2) && guard->getExit())
+                  {
+                  TR::Node *guardNode = guard->getLastRealTreeTop()->getNode();
+                  // check if the virtual guard has any inner
+                  // assumptions; guard should not be removed in
+                  // this case as inner assumptions could be violated
+                  //
+                  TR_VirtualGuard *virtualGuard;
+                  bool canBeRemoved;
+                  if (guardNode)
+                     {
+                     virtualGuard = comp()->findVirtualGuardInfo(guardNode);
+                     canBeRemoved = virtualGuard->canBeRemoved() && callNode->getOpCode().isCallDirect(); //do not remove guards for indirect calls. If the ifacmpne handler
+                                                                                             	          //didn't do it, the chances are it is illegal to remove the guard
+                     }
+                  else
+                     canBeRemoved = true;
+
+                  if (guardNode &&
+                      guardNode->isProfiledGuard())
+                     {
+                     TR::Node *classTypeNode = guardNode->getSecondChild();
+
+                     int32_t guardType = -1; // unknown
+                     if (guardNode->getOpCodeValue() == TR::ifacmpne)
+                        {
+                        if (trace())
+                           traceMsg(comp(), "Got guard [%p] as ifacmpne\n", guardNode);
+                        guardType = 1; // change if to goto
+                        }
+                     else if (guardNode->getOpCodeValue() == TR::ifacmpeq)
+                        {
+                        if (trace())
+                           traceMsg(comp(), "Got guard [%p] as ifacmpeq\n", guardNode);
+                        guardType = 0; // remove branch
+                        }
+
+                     TR_YesNoMaybe typeCompatibleStatus = TR_maybe; // unknown
+                     if (classTypeNode->getOpCodeValue() == TR::aconst &&
+                         classTypeNode->isClassPointerConstant())
+                        {
+                        TR_OpaqueClassBlock *typeClass = (TR_OpaqueClassBlock *)classTypeNode->getAddress();
+                        TR_OpaqueClassBlock *receiverClass = callNode->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod()->containingClass();
+                        TR_YesNoMaybe result = comp()->fe()->isInstanceOf(typeClass,receiverClass,true);
+                        TR_YesNoMaybe isVPClassDerivedFromGuardClass = TR_no;
+                        TR_YesNoMaybe isGuardClassDerivedFromVPClass = TR_yes;
+                        if (_thisType && (_thisType != typeClass))
+                           {
+                           isVPClassDerivedFromGuardClass = comp()->fe()->isInstanceOf(_thisType, typeClass, true);
+                           if (isVPClassDerivedFromGuardClass == TR_no)
+                              isGuardClassDerivedFromVPClass = comp()->fe()->isInstanceOf(typeClass, _thisType, true);
+                           }
+
+                        if ((result == TR_no) || (isVPClassDerivedFromGuardClass == TR_yes) || (isGuardClassDerivedFromVPClass == TR_no))
+                           {
+                           typeCompatibleStatus = TR_no; // types incompatible
+                           }
+                        else if ((result == TR_yes) &&
+                                 (_thisType == typeClass) &&
+                                 canBeRemoved)
+                           {
+                           typeCompatibleStatus = TR_yes; // types compatible
+                           }
+                        else
+                           callUnreachable = false;
+
+                        if (trace())
+                           traceMsg(comp(), "typeCompatibleStatus [%p] %s\n", guardNode, comp()->getDebug()->getName(typeCompatibleStatus));
+                        }
+                     else
+                        {
+                        TR_ASSERT((classTypeNode->getOpCodeValue() == TR::aconst &&
+                                classTypeNode->isMethodPointerConstant()), "Devirtualization of guarded profiled calls only works currently for vft-guards or method compare guards");
+                        void *profiledMethod = (void *)classTypeNode->getAddress();
+                        void *devirtualizedMethod = callNode->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier();
+
+                        if (profiledMethod != devirtualizedMethod)
+                           typeCompatibleStatus = TR_no; // incompatible
+                        else if (canBeRemoved)
+                           typeCompatibleStatus = TR_yes; // compatible
+                        else
+                           callUnreachable = false;
+                        }
+
+                     // take appropriate action
+                     //
+                     if (typeCompatibleStatus == TR_no)
+                        {
+                        // ifacmpne
+                        if ((guardType == 1) &&
+                              performTransformation(comp(), "%sChanging branch (guard) %p in block_%d to goto due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
+                           {
+                           // change the if to goto
+                           changeBranchToGoto(vp(), guardNode, guard);
+                           callUnreachable = false;
+                           }
+                        else if ((guardType == 0) &&
+                                    performTransformation(comp(), "%sRemoving branch %p in block_%d due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
+                           {
+                           // remove branch
+                           guard->removeBranch(comp());
+                           callUnreachable = false;
+                           }
+                        }
+                     else if (typeCompatibleStatus == TR_yes)
+                        {
+                        // ifacmpne
+                        if ((guardType == 1) &&
+                              performTransformation(comp(), "%sRemoving branch %p in block_%d due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
+                           {
+                           // remove branch
+                           guard->removeBranch(comp());
+                           //callUnreachable true;
+                           }
+                        else if ((guardType == 0) &&
+                              performTransformation(comp(), "%sChanging branch (guard) %p in block_%d to goto due to devirtualization\n", OPT_DETAILS, guardNode, guard->getNumber()))
+                           {
+                           // change the if to goto
+                           changeBranchToGoto(vp(), guardNode, guard);
+                           //callUnreachable  true;
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         }
+
+      //else
+      //traceMsg(comp(), "Reached 2 for call %p\n", callNode);
+      //traceMsg(comp(), "unreachable %d guarded %d\n", callUnreachable, callGuarded);
+      if (!callGuarded || !callUnreachable)
+         {
+         TR::ResolvedMethodSymbol *methodSymbol = callNode->getSymbol()->castToResolvedMethodSymbol();
+#ifdef J9_PROJECT_SPECIFIC
+         if (methodSymbol->isJNI())
+            callNode->processJNICall(_tt, comp()->getMethodSymbol());
+         else
+#endif
+            {
+            if (comp()->getMethodHotness() <= warm && comp()->getOption(TR_DisableInliningDuringVPAtWarm))
+               {
+               if (trace()) traceMsg(comp(), "\tDo not inline call at [%p]\n", callNode);
+               }
+            else
+               {
+#ifdef J9_PROJECT_SPECIFIC
+               TR_InlineCall newInlineCall(optimizer(), vp());
+
+               // restrict the amount of inlining in warm/cold bodies
+               int32_t initialMaxSize = 0;
+               if (comp()->getMethodHotness() <= warm)
+                  {
+                  initialMaxSize = comp()->getOptions()->getMaxSzForVPInliningWarm();
+                  newInlineCall.setSizeThreshold(initialMaxSize);
+                  }
+
+               if (!newInlineCall.inlineCall(_tt, _thisType, true, _argInfo, initialMaxSize))
+                  {
+                  // If inlining failed, try to issue a direct call
+                  if (!callNode->getSymbolReference()->getSymbol()->castToMethodSymbol()->isInterpreted() ||
+                      callNode->getSymbolReference()->getSymbol()->castToMethodSymbol()->isJITInternalNative())
+                     {
+                     if (callNode->getOpCode().isCallIndirect())
+                        {
+                        //printf("XXX Added devirtualized call info in %s for %x\n", comp()->signature(), callNode);
+                        comp()->findOrCreateDevirtualizedCall(callNode, _thisType);
+                        }
+                     }
+                  }
+#endif
+               }
+            }
+         }
+      }
+   }
+
+TR::DelayedCFGUpdatesVPTransformation::DelayedCFGUpdatesVPTransformation(OMR::ValuePropagation *vp) :
+#if defined(USE_PARTIAL_ORDERING)
+                                                  DelayedVPTransformation(vp),
+#else
+                                                  MidDelayedVPTransformation(vp),
+#endif
+                                                  _edgesToBeRemoved(NULL),
+                                                  _blocksToBeRemoved(NULL)
+      {
+      _edgesToBeRemoved = new (vp->trStackMemory()) TR_Array<TR::CFGEdge *>(vp->trMemory(), 8, false, stackAlloc);
+      _blocksToBeRemoved = new (vp->trStackMemory()) TR_Array<TR::CFGNode*>(vp->trMemory(), 8, false, stackAlloc);
+      }
+
+void TR::DelayedCFGUpdatesVPTransformation::apply()
+   {
+   int32_t i;
+   TR::CFG *cfg = comp()->getFlowGraph();
+   TR::CFGNode *node = NULL;
+   if (_blocksToBeRemoved)
+      {
+      for (i = _blocksToBeRemoved->size()-1; i >= 0; --i)
+         {
+         node = _blocksToBeRemoved->element(i);
+         if (performTransformation(comp(), "%sRemoving unreachable block_%d at [%p]\n", OPT_DETAILS, node->getNumber(), node))
+            {
+            while (!node->getPredecessors().empty())
+               cfg->removeEdge(node->getPredecessors().front());
+            while (!node->getExceptionPredecessors().empty())
+               cfg->removeEdge(node->getExceptionPredecessors().front());
+            vp()->invalidateUseDefInfo();
+            vp()->invalidateValueNumberInfo();
+            }
+         }
+      }
+
+   // If there were unreachable edges that still exist, remove them
+   //
+   TR::Region &stackRegion = comp()->trMemory()->currentStackRegion();
+   TR::list<TR::Block*, TR::Region&> removedEdgeSources(stackRegion);
+
+   if (_edgesToBeRemoved)
+      {
+      for (i = _edgesToBeRemoved->size()-1; i >= 0; --i)
+         {
+         TR::CFGEdge *edge = _edgesToBeRemoved->element(i);
+
+         // NB: this following transformation is not conditional - it must be done otherwise the CFG could
+         // be incorrect (for example, if a conditional branch was converted to a goto, you have to remove
+         // the extra edge in the CFG or else madness will ensue.
+         removedEdgeSources.push_back(toBlock(edge->getFrom()));
+         if (std::find(edge->getTo()->getPredecessors().begin(), edge->getTo()->getPredecessors().end(), edge) != edge->getTo()->getPredecessors().end())
+            {
+            if (trace())
+               traceMsg(comp(), "Removing unreachable edge from %d to %d\n", edge->getFrom()->getNumber(), edge->getTo()->getNumber());
+            if (cfg->removeEdge(edge))
+               {
+               vp()->invalidateUseDefInfo();
+               vp()->invalidateValueNumberInfo();
+               }
+            }
+         // If the "from" block is still in the cfg but has no successors,
+         // add an edge to the method's exit block.
+         //
+         node = edge->getFrom();
+         if (node->getSuccessors().empty())
+            {
+           // if (!cfg->getRemovedNodes().find(node))
+              if (!node->nodeIsRemoved())
+               cfg->addEdge(TR::CFGEdge::createEdge(node, cfg->getEnd(), optimizer()->trMemory()));
+            }
+         }
+      }
+
+   TR_RegionStructure::extractUnconditionalExits(comp(), removedEdgeSources);
+   }
+
+#define PRECEDENCE_IDX(first, second) ((first) * _dimLen + (second))
+#define PRECEDES(first, second) ((_precedes[PRECEDENCE_IDX(first, second) >> 3] & (0x80 >> (PRECEDENCE_IDX(first, second) & 0x7))) != 0)
+
+TR::PartialOrdering::PartialOrdering(TR::Compilation *comp, uint8_t instanceCount) : _comp(comp)
+   {
+   _dimLen = (((instanceCount + 7 ) & 0xF8) >> 3) << 3;
+   uint8_t numBytes = _dimLen * (_dimLen >> 3);
+   _precedes = new (comp->trStackMemory()) uint8_t[numBytes];
+   memset(_precedes, 0, sizeof(uint8_t)*numBytes);
+   }
+
+void TR::PartialOrdering::setPairOrdering(TR::PartiallyOrderedInstance &predecessor, TR::PartiallyOrderedInstance &successor)
+   {
+   uint8_t pos = predecessor.getIndex() * _dimLen + successor.getIndex();
+   _precedes[pos >> 3] |= (0x80 >> (pos & 0x7));
+   }
+
+void TR::PartialOrdering::computeOrdering()
+   {
+   bool changed = false;
+
+   do
+      {
+      changed = false;
+
+      for (uint8_t firstIdx = 0; firstIdx < _dimLen; firstIdx++)
+         {
+         for (uint8_t secondIdx = 0; secondIdx < _dimLen; secondIdx++)
+            {
+            if (PRECEDES(firstIdx, secondIdx))
+               {
+               for (uint8_t colIdx = 0; colIdx < _dimLen; colIdx)
+                  {
+                  uint8_t oldPredValue = _precedes[firstIdx * _dimLen + colIdx];
+                  uint8_t newPredValue = oldPredValue | _precedes[secondIdx *_dimLen + colIdx];
+
+                  if (newPredValue != oldPredValue)
+                     {
+                     _precedes[firstIdx * _dimLen + colIdx] = newPredValue;
+                     changed = true;
+                     }
+                  }
+               }
+            }
+
+         TR_ASSERT_FATAL(!PRECEDES(firstIdx, firstIdx), "Found a cycle in predecessors\n");
+         }
+      }
+   while (changed);
+   }
+
+int32_t TR::PartialOrdering::testPrecedence(TR::PartiallyOrderedInstance &first, TR::PartiallyOrderedInstance &second)
+   {
+   uint8_t firstIdx = first.getIndex();
+   uint8_t secondIdx = second.getIndex();
+
+   uint16_t firstPrecedesSecondIdx = firstIdx * _dimLen + secondIdx;
+   bool firstPrecedesSecond = PRECEDES(firstIdx, secondIdx);
+   bool secondPrecedesFirst = PRECEDES(secondIdx, firstIdx);
+
+   return firstPrecedesSecond ? -1 : (secondPrecedesFirst ? 1 : 0);
+   }
+
+
 TR_OpaqueClassBlock *OMR::ValuePropagation::findLikelySubtype(TR_OpaqueClassBlock *klass)
    {
    return NULL;
@@ -8114,6 +8240,12 @@ TR::Compilation * OMR::ValuePropagation::ValueConstraintHandler::comp()
    {
    return _vp->comp();
    }
+
+uint8_t TR::PartiallyOrderedInstance::_sNextAvailableIndex = 0;
+
+TR::PartiallyOrderedInstance TR::DelayedInliningVPTransformation::_sPartialOrderInstance("DelayedInliningVPTransformation");
+
+TR::PartiallyOrderedInstance TR::DelayedCFGUpdatesVPTransformation::_sPartialOrderInstance("DelayedCFGUpdatesVPTransformation");
 
 OMR::ValuePropagation::InductionVariable::InductionVariable(TR::Symbol * sym, TR::Node * entryDef, int32_t incrVN, TR::VPConstraint * incr, OMR::ValuePropagation * vp)
    : _symbol(sym), _entryDef(entryDef), _entryConstraint(0), _incrementVN(incrVN), _increment(incr)

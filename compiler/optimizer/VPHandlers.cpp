@@ -5288,7 +5288,9 @@ static void devirtualizeCall(OMR::ValuePropagation *vp, TR::Node *node)
    if ((vp->lastTimeThrough() || !node->getOpCode().isIndirect()) &&
        (vp->_isGlobalPropagation || !vp->getLastRun()) &&
        !methodSymbol->isInterface())
-      vp->_devirtualizedCalls.add(new (vp->trStackMemory()) OMR::ValuePropagation::CallInfo(vp, thisType, argInfo));
+      {
+      vp->_delayedTransformations.add(new (vp->trStackMemory()) TR::DevirtualizedVPTransformation(vp, vp->_curTree, vp->_curBlock, thisType, argInfo));
+      }
    vp->invalidateUseDefInfo();
    vp->invalidateValueNumberInfo();
    }
@@ -5362,7 +5364,7 @@ TR::Node *constrainCall(OMR::ValuePropagation *vp, TR::Node *node)
                vp->removeNode(guardNode, false);
                TR::TransformUtil::removeTree(vp->comp(), treeTop);
                vp->setEnableSimplifier();
-               vp->_edgesToBeRemoved->add(edge);
+               vp->_delayedCFGUpdates->recordEdgeToRemove(edge);
                }
             }
          }
@@ -8966,7 +8968,7 @@ static void changeConditionalToGoto(OMR::ValuePropagation *vp, TR::Node *node, T
    TR::CFGEdge *edge = vp->findOutEdge(vp->_curBlock->getSuccessors(), fallThrough);
    TR::Block *target = node->getBranchDestination()->getNode()->getBlock();
    if (fallThrough != target)
-      vp->_edgesToBeRemoved->add(edge);
+      vp->_delayedCFGUpdates->recordEdgeToRemove(edge);
    vp->printEdgeConstraints(vp->createEdgeConstraints(edge, true));
    }
 
@@ -9043,7 +9045,7 @@ static void removeConditionalBranch(OMR::ValuePropagation *vp, TR::Node *node, T
    TR::Block *fallThrough = vp->_curBlock->getExit()->getNextTreeTop()->getNode()->getBlock();
    TR::Block *target = node->getBranchDestination()->getNode()->getBlock();
    if (fallThrough != target && edgeIsUnreachable)
-      vp->_edgesToBeRemoved->add(branchEdge);
+      vp->_delayedCFGUpdates->recordEdgeToRemove(branchEdge);
    }
 
 
@@ -11108,7 +11110,7 @@ TR::Node *constrainSwitch(OMR::ValuePropagation *vp, TR::Node *node)
                      remainingTargets.find(toBlock((*e)->getTo())))
                   continue;
                vp->setUnreachablePath(*e);
-               vp->_edgesToBeRemoved->add(*e);
+               vp->_delayedCFGUpdates->recordEdgeToRemove(*e);
                }
             }
          if(low >= minCase && high <= maxCase)
@@ -11161,7 +11163,7 @@ TR::Node *constrainSwitch(OMR::ValuePropagation *vp, TR::Node *node)
                      remainingTargets.find(toBlock((*e)->getTo())))
                   continue;
                vp->setUnreachablePath(*e);
-               vp->_edgesToBeRemoved->add(*e);
+               vp->_delayedCFGUpdates->recordEdgeToRemove(*e);
                }
             }
          if(low >= minCase && high <= maxCase)
