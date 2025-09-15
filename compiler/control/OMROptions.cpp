@@ -4824,6 +4824,12 @@ const char *OMR::Options::setCounts()
         for (i = minHotness; i <= maxHotness; ++i) {
             while (s[0] == ' ')
                 ++s;
+            if (i > minHotness && s[0] == '/') {
+                ++s;
+                while (s[0] == ' ') {
+                    ++s;
+                }
+            }
             if (OMR_ISDIGIT(s[0])) {
                 count[i] = atoi(s);
                 while (OMR_ISDIGIT(s[0]))
@@ -4835,13 +4841,19 @@ const char *OMR::Options::setCounts()
                 } else {
                     initialCount = count[i];
                 }
-            } else if (s[0] == '-') {
+            } else if (s[0] == '-' || s[0] == '_') {
                 count[i] = -1;
                 ++s;
             } else
                 count[i] = -1;
             while (s[0] == ' ')
                 ++s;
+            if (s[0] == '/') {
+                ++s;
+                while (s[0] == ' ') {
+                    ++s;
+                }
+            }
             if (OMR_ISDIGIT(s[0])) {
                 bcount[i] = atoi(s);
                 while (OMR_ISDIGIT(s[0]))
@@ -4852,13 +4864,19 @@ const char *OMR::Options::setCounts()
                         bcount[i] = -1;
                 } else
                     initialBCount = bcount[i];
-            } else if (s[0] == '-') {
+            } else if (s[0] == '-' || s[0] == '_') {
                 bcount[i] = -1;
                 ++s;
             } else
                 bcount[i] = -1;
             while (s[0] == ' ')
                 ++s;
+            if (s[0] == '/') {
+                ++s;
+                while (s[0] == ' ') {
+                    ++s;
+                }
+            }
             if (OMR_ISDIGIT(s[0])) {
                 milcount[i] = atoi(s);
                 while (OMR_ISDIGIT(s[0]))
@@ -4869,7 +4887,7 @@ const char *OMR::Options::setCounts()
                         milcount[i] = -1;
                 } else
                     initialMILCount = milcount[i];
-            } else if (s[0] == '-') {
+            } else if (s[0] == '-' || s[0] == '_') {
                 milcount[i] = -1;
                 ++s;
             } else
