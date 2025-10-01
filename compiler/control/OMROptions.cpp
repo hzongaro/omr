@@ -5710,10 +5710,14 @@ void OMR::Options::setAggressiveThroughput()
      * optimization levels.  In addition, they have the potential to create
      * improper regions which inhibit other throughput-focused optimizations.
      */
-    self()->setDisabled(OMR::loopReplicator, true);
-    self()->setDisabled(OMR::loopStrider, true);
-    self()->setDisabled(OMR::escapeAnalysis, true);
-    self()->setOption(TR_DisableLoopTransfer);
+static const char *dontDisableOptsWithThroughput = feGetEnv("TR_dontDisableOptsWithThroughput");
+
+    if (dontDisableOptsWithThroughput == NULL) {
+        self()->setDisabled(OMR::loopReplicator, true);
+        self()->setDisabled(OMR::loopStrider, true);
+        self()->setDisabled(OMR::escapeAnalysis, true);
+        self()->setOption(TR_DisableLoopTransfer);
+    }
 #endif
     self()->setOption(TR_DisablePersistIProfile); // Want to rely on freshly collected IProfiler data
     self()->setOption(TR_UseHigherMethodCounts); // Increase counts to gather more IProfiler data
