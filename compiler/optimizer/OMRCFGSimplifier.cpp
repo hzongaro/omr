@@ -365,7 +365,7 @@ bool OMR::CFGSimplifier::simplifyInstanceOfTestToCheckcast(bool needToDuplicateT
 //
 //
 //  Simplification:
-//    BNDCHK (i, length)  ----(exp edge) ------
+//    BNDCHK (length, i)  ----(exp edge) ------
 //      |                                      |
 //    return                                   |
 //                                             |
@@ -375,7 +375,7 @@ bool OMR::CFGSimplifier::simplifyInstanceOfTestToCheckcast(bool needToDuplicateT
 // Or,
 //
 //  Simplification:
-//    BNDCHK (i, length)  ----(exp edge) ------
+//    BNDCHK (length, i)  ----(exp edge) ------
 //      |                                      |
 //    goto =================                   |
 //                          |                  |
@@ -389,9 +389,10 @@ bool OMR::CFGSimplifier::simplifyInstanceOfTestToCheckcast(bool needToDuplicateT
 //
 bool OMR::CFGSimplifier::simplifyBoundCheckWithThrowException(bool needToDuplicateTree)
 {
-    static char *disableSimplifyBoundCheckWithThrowException
-        = feGetEnv("TR_disableSimplifyBoundCheckWithThrowException");
-    if (disableSimplifyBoundCheckWithThrowException != NULL)
+    static const char *enableSimplifyBoundCheckWithThrowException
+        = feGetEnv("TR_enableSimplifyBoundCheckWithThrowException");
+
+    if (enableSimplifyBoundCheckWithThrowException == NULL)
         return false;
     if (trace())
         traceMsg(comp(), "Start simplifyBoundCheckWithThrowException\n");
