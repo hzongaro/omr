@@ -6079,14 +6079,23 @@ TR::Register *genericLoadHelper(TR::Node *node, TR::CodeGenerator *cg, TR::Memor
     TR::InstOpCode::Mnemonic load = loadInstrs[form][numberOfBytesLog2][isSourceSigned][numberOfExtendBits / 32 - 1];
 
     if (form == RegReg) {
+traceMsg(cg->comp(), "In genericLoadHelper - numberOfBits == %d; numberOfExtendBits == %d, form == RegReg\n", numberOfBits, numberOfExtendBits);
+traceMsg(cg->comp(), "isSourceSigned == %d; couldIgnoreExtend_OR_canClobberSrcReg == %d\n", isSourceSigned, couldIgnoreExtend_OR_canClobberSrcReg);
         if (!canClobberSrcReg) {
             targetRegister = cg->allocateRegister();
         }
 
         if (TR::InstOpCode::getInstructionFormat(load) == RR_FORMAT)
+{
+traceMsg(cg->comp(), "   Generating RR instruction\n");
             generateRRInstruction(cg, load, node, targetRegister, srcRegister);
+}
         else
+{
+traceMsg(cg->comp(), "   Generating RRE instruction\n");
             generateRREInstruction(cg, load, node, targetRegister, srcRegister);
+}
+traceMsg(cg->comp(), "   After Generating instruction\n");
     } else {
         // TODO: I don't think we need to be doing this. We should track where these things are allocated and prevent
         // the allocation at the source. That is, this API needs to be properly defined and explicitly state whether
@@ -6185,6 +6194,8 @@ TR::Register *OMR::Z::TreeEvaluator::extendCastEvaluator(TR::Node *node, TR::Cod
      *
      * In this case, a load is needed to zero the high half of the long to corretly convert iu to l.
      */
+traceMsg(comp, "In OMR::Z::TreeEvaluator::extendCastEvaluator for n%dn - node->isUnneededConversion() == %d; isSourceTypeSigned == %d; childRegister->alreadySignExtended() == %d\n', node->getGlobalIndex(), node->isUnneededConversion(), isSourceTypeSigned, childRegister->alreadySignExtended());
+traceMsg(comp, "srcSize == %d, numberOfExtendBits == %d, canClobberSrc == %d\n", srcSize, numberOfExtendBits, canClobberSrc);
     if (!node->isUnneededConversion() && !(isSourceTypeSigned && childRegister->alreadySignExtended())) {
         targetRegister = genericLoadHelper<srcSize, numberOfExtendBits, RegReg>(firstChild, cg, NULL, targetRegister,
             isSourceTypeSigned, canClobberSrc);
