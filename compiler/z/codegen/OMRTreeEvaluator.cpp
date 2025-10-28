@@ -6194,7 +6194,7 @@ TR::Register *OMR::Z::TreeEvaluator::extendCastEvaluator(TR::Node *node, TR::Cod
      *
      * In this case, a load is needed to zero the high half of the long to corretly convert iu to l.
      */
-traceMsg(comp, "In OMR::Z::TreeEvaluator::extendCastEvaluator for n%dn - node->isUnneededConversion() == %d; isSourceTypeSigned == %d; childRegister->alreadySignExtended() == %d\n', node->getGlobalIndex(), node->isUnneededConversion(), isSourceTypeSigned, childRegister->alreadySignExtended());
+traceMsg(comp, "In OMR::Z::TreeEvaluator::extendCastEvaluator for n%dn - node->isUnneededConversion() == %d; isSourceTypeSigned == %d; childRegister->alreadySignExtended() == %d\n", node->getGlobalIndex(), node->isUnneededConversion(), isSourceTypeSigned, childRegister->alreadySignExtended());
 traceMsg(comp, "srcSize == %d, numberOfExtendBits == %d, canClobberSrc == %d\n", srcSize, numberOfExtendBits, canClobberSrc);
     if (!node->isUnneededConversion() && !(isSourceTypeSigned && childRegister->alreadySignExtended())) {
         targetRegister = genericLoadHelper<srcSize, numberOfExtendBits, RegReg>(firstChild, cg, NULL, targetRegister,
