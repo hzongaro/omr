@@ -14714,6 +14714,7 @@ TR::Node *endBlockSimplifier(TR::Node *node, TR::Block *block, TR::Simplifier *s
 
     block->setIsCold(nextBlock->isCold());
     block->setIsSuperCold(nextBlock->isSuperCold());
+TR_ASSERT_FATAL(nextBlock->getPredecessors().size() == 0, "nextBlock was removed from CFG.  It should not have predecessors.\n");
     if ((nextBlock->getPredecessors().size() == 1) && (block->getFrequency() <= nextBlock->getFrequency()))
         block->setFrequency(nextBlock->getFrequency());
 
