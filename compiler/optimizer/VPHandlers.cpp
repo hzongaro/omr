@@ -348,6 +348,7 @@ static bool tryFoldCompileTimeLoad(OMR::ValuePropagation *vp, TR::Node *node, bo
                 && constraint->getClassType() && constraint->getClassType()->asFixedClass() && constraint->getClass()) {
                 logprintf(vp->trace(), log, " - %s %p is class object - transforming\n", curNode->getOpCode().getName(),
                     curNode);
+TR_ASSERT_FATAL(false, "Do we ever get here?\n");
                 TR::Node *nodeToRemove = NULL;
                 uintptr_t clazz = (uintptr_t)constraint->getClass();
                 bool didSomething
