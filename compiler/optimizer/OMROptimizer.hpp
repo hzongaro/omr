@@ -292,13 +292,7 @@ public:
 
     void dumpPostOptTrees();
 
-#ifdef DEBUG
-    int32_t getDumpGraphsIndex() { return _dumpGraphsIndex; }
-
     void doStructureChecks();
-#else
-    void doStructureChecks() {}
-#endif
 
     TR_Hotness checkMaxHotnessOfInlinedMethods(TR::Compilation *comp);
 

@@ -172,10 +172,10 @@ OMR::OptimizationManager::OptimizationManager(TR::Optimizer *o, OptimizationFact
             _flags.set(requiresStructure);
             break;
         case OMR::inductionVariableAnalysis:
-            _flags.set(requiresStructure | checkStructure);
+            _flags.set(requiresStructure | checkStructure );
             break;
         case OMR::reorderArrayIndexExpr:
-            _flags.set(requiresStructure | checkStructure);
+            _flags.set(requiresStructure | checkStructure );
             break;
         case OMR::liveRangeSplitter:
             _flags.set(requiresStructure);

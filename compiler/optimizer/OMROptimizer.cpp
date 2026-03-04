@@ -2502,7 +2502,6 @@ int32_t *OMR::Optimizer::getSymReferencesTable()
     return _symReferencesTable;
 }
 
-#ifdef DEBUG
 void OMR::Optimizer::doStructureChecks()
 {
     TR::CFG *cfg = getMethodSymbol()->getFlowGraph();
@@ -2518,7 +2517,6 @@ void OMR::Optimizer::doStructureChecks()
         }
     }
 }
-#endif
 
 bool OMR::Optimizer::getLastRun(OMR::Optimizations opt)
 {
