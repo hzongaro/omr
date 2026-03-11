@@ -1050,6 +1050,7 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpEvaluator(TR::Node *node, TR:
     generateRegRegInstruction(TR::InstOpCode::SUBRegReg(), node, deltaReg, s2Reg, cg); // delta = s1 - s2
     // If s1 and s2 are the same address, jump to equalLabel
     generateLabelInstruction(TR::InstOpCode::JE4, node, equalLabel, cg);
+
     generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, qwordCounterReg, strLenReg, cg);
     generateRegImmInstruction(TR::InstOpCode::SHRRegImm1(), node, qwordCounterReg, 4, cg);
     generateLabelInstruction(TR::InstOpCode::JE4, node, byteStart, cg);
@@ -1157,6 +1158,7 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     TR::LabelSymbol *startLabel = generateLabelSymbol(cg);
     TR::LabelSymbol *qwordLoop = generateLabelSymbol(cg);
     TR::LabelSymbol *byteStart = generateLabelSymbol(cg);
+    TR::LabelSymbol *byteStartAfterVectorEqual = generateLabelSymbol(cg);
     TR::LabelSymbol *byteLoop = generateLabelSymbol(cg);
     TR::LabelSymbol *qwordUnequal = generateLabelSymbol(cg);
     TR::LabelSymbol *byteUnequal = generateLabelSymbol(cg);
@@ -1164,6 +1166,8 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     TR::LabelSymbol *greaterThanLabel = generateLabelSymbol(cg);
     TR::LabelSymbol *equalLabel = generateLabelSymbol(cg);
     TR::LabelSymbol *doneLabel = generateLabelSymbol(cg);
+    TR::LabelSymbol *sameAddressLabel = generateLabelSymbol(cg);
+    TR::LabelSymbol *mergeLabel = generateLabelSymbol(cg);
 
     startLabel->setStartInternalControlFlow();
     doneLabel->setEndInternalControlFlow();
@@ -1189,6 +1193,19 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
         highReg = strLenReg->getHighOrder();
     }
 
+    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/start", cg->comp()->signature()),
+        TR::DebugCounter::Exorbitant);
+
+    generateRegRegInstruction(TR::InstOpCode::CMPRegReg(), node, s1Reg, s2Reg, cg);
+    generateLabelInstruction(TR::InstOpCode::JE4, node, sameAddressLabel, cg);
+    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/addressesdiffer", cg->comp()->signature()),
+        TR::DebugCounter::Exorbitant);
+    generateLabelInstruction(TR::InstOpCode::JMP4, node, mergeLabel, cg);
+    generateLabelInstruction(TR::InstOpCode::label, node, sameAddressLabel, cg);
+    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/addressessame", cg->comp()->signature()),
+        TR::DebugCounter::Exorbitant);
+    generateLabelInstruction(TR::InstOpCode::label, node, mergeLabel, cg);
+
     generateRegImmInstruction(TR::InstOpCode::MOVRegImm4(), node, resultReg, 0, cg);
     generateLabelInstruction(TR::InstOpCode::label, node, startLabel, cg);
     generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, qwordCounterReg, strLenReg, cg);
@@ -1208,13 +1225,21 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     cg->stopUsingRegister(xmm2Reg);
 
     generateLabelInstruction(TR::InstOpCode::JNE4, node, qwordUnequal, cg);
+
     generateRegImmInstruction(TR::InstOpCode::ADDRegImm4(), node, resultReg, 16, cg);
     generateRegImmInstruction(TR::InstOpCode::SUBRegImm4(), node, qwordCounterReg, 1, cg);
     generateLabelInstruction(TR::InstOpCode::JG4, node, qwordLoop, cg);
 
-    generateLabelInstruction(TR::InstOpCode::JMP4, node, byteStart, cg);
+    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/vcmpsame", cg->comp()->signature()),
+        TR::DebugCounter::Exorbitant);
+
+    generateLabelInstruction(TR::InstOpCode::JMP4, node, byteStartAfterVectorEqual, cg);
 
     generateLabelInstruction(TR::InstOpCode::label, node, qwordUnequal, cg);
+
+    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/vcmpdiff", cg->comp()->signature()),
+        TR::DebugCounter::Exorbitant);
+    
     generateRegInstruction(TR::InstOpCode::NOT2Reg, node, equalTestReg, cg);
     generateRegRegInstruction(TR::InstOpCode::BSF2RegReg, node, equalTestReg, equalTestReg, cg);
     generateRegRegInstruction(TR::InstOpCode::ADDRegReg(), node, resultReg, equalTestReg, cg);
@@ -1223,6 +1248,9 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     cg->stopUsingRegister(qwordCounterReg);
     cg->stopUsingRegister(equalTestReg);
 
+    generateLabelInstruction(TR::InstOpCode::label, node, byteStartAfterVectorEqual, cg);
+    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/bytecmpaftervectorequal", cg->comp()->signature()),
+        TR::DebugCounter::Exorbitant);
     generateLabelInstruction(TR::InstOpCode::label, node, byteStart, cg);
     generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, byteCounterReg, strLenReg, cg);
     generateRegImmInstruction(TR::InstOpCode::ANDRegImm4(), node, byteCounterReg, 0xf, cg);
