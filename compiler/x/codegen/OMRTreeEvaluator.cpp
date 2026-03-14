@@ -1189,8 +1189,26 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
         highReg = strLenReg->getHighOrder();
     }
 
-    generateRegImmInstruction(TR::InstOpCode::MOVRegImm4(), node, resultReg, 0, cg);
+    // Test whether the address operands are equal - if so, arrays are equal, so finish with
+    // resultReg containing the array length
+    //
+    generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, resultReg, strLenReg, cg);
+
+    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/start", cg->comp()->signature()),
+        1, TR::DebugCounter::Exorbitant);
+
     generateLabelInstruction(TR::InstOpCode::label, node, startLabel, cg);
+
+    generateRegRegInstruction(TR::InstOpCode::CMPRegReg(), node, s1Reg, s2Reg, cg);
+    generateLabelInstruction(TR::InstOpCode::JE4, node, doneLabel, cg);
+
+    generateRegImmInstruction(TR::InstOpCode::MOVRegImm4(), node, resultReg, 0, cg);
+
+    // Loop comparing sixteen bytes at a time, for strLenReg >> 4 iterations
+    // Result of each byte of comparison is placed in xmm1RegResult - 0 if unequal; -1 if equal -
+    // and MSB of each byte is copied into low order two bytes of equalTestReg to test whether
+    // all sixteen bytes were equal
+    //
     generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, qwordCounterReg, strLenReg, cg);
     generateRegImmInstruction(TR::InstOpCode::SHRRegImm1(), node, qwordCounterReg, 4, cg);
     generateLabelInstruction(TR::InstOpCode::JE4, node, byteStart, cg);
@@ -1214,6 +1232,10 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
 
     generateLabelInstruction(TR::InstOpCode::JMP4, node, byteStart, cg);
 
+    // Some byte was/were unequal in sixteen byte comparison.  Each byte comparison is represented
+    // by one bit in low-order two bytes of equalTestReg - 0 if unequal; 1 if equal.  Complement
+    // those bits and use BSF instruction to find the first 1 bit (now representing unequal).
+    //
     generateLabelInstruction(TR::InstOpCode::label, node, qwordUnequal, cg);
     generateRegInstruction(TR::InstOpCode::NOT2Reg, node, equalTestReg, cg);
     generateRegRegInstruction(TR::InstOpCode::BSF2RegReg, node, equalTestReg, equalTestReg, cg);
@@ -1223,7 +1245,43 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     cg->stopUsingRegister(qwordCounterReg);
     cg->stopUsingRegister(equalTestReg);
 
+    // Process 0 to 15 residual bytes
+    static const bool useResidualArraycmplenLoop = true; // (feGetEnv("TR_useResidualArraycmplenLoop") != NULL);
+
     generateLabelInstruction(TR::InstOpCode::label, node, byteStart, cg);
+
+    if (useResidualArraycmplenLoop) {
+    TR::LabelSymbol *resIs0to11Label = generateLabelSymbol(cg);
+    TR::LabelSymbol *resIs0to7Label = generateLabelSymbol(cg);
+    TR::LabelSymbol *resIs0to3Label = generateLabelSymbol(cg);
+    TR::LabelSymbol *doneTestingResidueLength = generateLabelSymbol(cg);
+
+    generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, 0xc, cg);
+    generateLabelInstruction(TR::InstOpCode::JB4, node, resIs0to11Label, cg);
+    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/residue12to15", cg->comp()->signature()),
+        1, TR::DebugCounter::Exorbitant);
+    generateLabelInstruction(TR::InstOpCode::JMP4, node, doneTestingResidueLength, cg);
+
+    generateLabelInstruction(TR::InstOpCode::label, node, resIs0to11Label, cg);
+    generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, 0x8, cg);
+    generateLabelInstruction(TR::InstOpCode::JB4, node, resIs0to7Label, cg);
+    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/residue8to11", cg->comp()->signature()),
+        1, TR::DebugCounter::Exorbitant);
+    generateLabelInstruction(TR::InstOpCode::JMP4, node, doneTestingResidueLength, cg);
+
+    generateLabelInstruction(TR::InstOpCode::label, node, resIs0to7Label, cg);
+    generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, 0x4, cg);
+    generateLabelInstruction(TR::InstOpCode::JB4, node, resIs0to3Label, cg);
+    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/residue4to7", cg->comp()->signature()),
+        1, TR::DebugCounter::Exorbitant);
+    generateLabelInstruction(TR::InstOpCode::JMP4, node, doneTestingResidueLength, cg);
+
+    generateLabelInstruction(TR::InstOpCode::label, node, resIs0to3Label, cg);
+    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/residue0to3", cg->comp()->signature()),
+        1, TR::DebugCounter::Exorbitant);
+
+    generateLabelInstruction(TR::InstOpCode::label, node, doneTestingResidueLength, cg);
+
     generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, byteCounterReg, strLenReg, cg);
     generateRegImmInstruction(TR::InstOpCode::ANDRegImm4(), node, byteCounterReg, 0xf, cg);
     generateLabelInstruction(TR::InstOpCode::JE4, node, doneLabel, cg);
@@ -1241,6 +1299,21 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     generateRegImmInstruction(TR::InstOpCode::ADDRegImm4(), node, resultReg, 1, cg);
     generateRegImmInstruction(TR::InstOpCode::SUBRegImm4(), node, byteCounterReg, 1, cg);
     generateLabelInstruction(TR::InstOpCode::JG4, node, byteLoop, cg);
+    } else {
+#if 0
+        TR::LabelSymbol *test8Bytes = generateLabelSymbol(cg);
+        TR::LabelSymbol *test4Bytes = generateLabelSymbol(cg);
+        TR::LabelSymbol *test2Bytes = generateLabelSymbol(cg);
+        TR::LabelSymbol *test1Byte = generateLabelSymbol(cg);
+
+        generateRegImmInstruction(TR::InstOpCode::TEST4, node, strLenReg, 0x8, cg);
+        generateRegMemInstruction(TR::InstOpCode::L8RegMem, node, s2ByteReg,
+            generateX86MemoryReference(s2Reg, resultReg, 0, cg), cg);
+        generateRegMemInstruction(TR::InstOpCode::SUB8RegMem, node,
+            s2ByteReg, generateX86MemoryReference(s1Reg, resultReg, 0, cg), cg);
+        generateLabelInstruction(TR::InstOpCode::label, node, test8Bytes, cg);
+#endif
+    }
 
     cg->stopUsingRegister(byteCounterReg);
     cg->stopUsingRegister(s1Reg);
