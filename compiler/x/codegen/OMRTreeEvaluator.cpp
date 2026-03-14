@@ -1194,9 +1194,6 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     //
     generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, resultReg, strLenReg, cg);
 
-    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/start", cg->comp()->signature()),
-        1, TR::DebugCounter::Exorbitant);
-
     generateLabelInstruction(TR::InstOpCode::label, node, startLabel, cg);
 
     generateRegRegInstruction(TR::InstOpCode::CMPRegReg(), node, s1Reg, s2Reg, cg);
