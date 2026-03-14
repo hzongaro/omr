@@ -1246,46 +1246,53 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     cg->stopUsingRegister(equalTestReg);
 
     // Process 0 to 15 residual bytes
-    static const bool useResidualArraycmplenLoop = true; // (feGetEnv("TR_useResidualArraycmplenLoop") != NULL);
-
     generateLabelInstruction(TR::InstOpCode::label, node, byteStart, cg);
-
-    if (useResidualArraycmplenLoop) {
-    TR::LabelSymbol *resIs0to11Label = generateLabelSymbol(cg);
-    TR::LabelSymbol *resIs0to7Label = generateLabelSymbol(cg);
-    TR::LabelSymbol *resIs0to3Label = generateLabelSymbol(cg);
-    TR::LabelSymbol *doneTestingResidueLength = generateLabelSymbol(cg);
-
-    generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, 0xc, cg);
-    generateLabelInstruction(TR::InstOpCode::JB4, node, resIs0to11Label, cg);
-    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/residue12to15", cg->comp()->signature()),
-        1, TR::DebugCounter::Exorbitant);
-    generateLabelInstruction(TR::InstOpCode::JMP4, node, doneTestingResidueLength, cg);
-
-    generateLabelInstruction(TR::InstOpCode::label, node, resIs0to11Label, cg);
-    generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, 0x8, cg);
-    generateLabelInstruction(TR::InstOpCode::JB4, node, resIs0to7Label, cg);
-    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/residue8to11", cg->comp()->signature()),
-        1, TR::DebugCounter::Exorbitant);
-    generateLabelInstruction(TR::InstOpCode::JMP4, node, doneTestingResidueLength, cg);
-
-    generateLabelInstruction(TR::InstOpCode::label, node, resIs0to7Label, cg);
-    generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, 0x4, cg);
-    generateLabelInstruction(TR::InstOpCode::JB4, node, resIs0to3Label, cg);
-    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/residue4to7", cg->comp()->signature()),
-        1, TR::DebugCounter::Exorbitant);
-    generateLabelInstruction(TR::InstOpCode::JMP4, node, doneTestingResidueLength, cg);
-
-    generateLabelInstruction(TR::InstOpCode::label, node, resIs0to3Label, cg);
-    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/residue0to3", cg->comp()->signature()),
-        1, TR::DebugCounter::Exorbitant);
-
-    generateLabelInstruction(TR::InstOpCode::label, node, doneTestingResidueLength, cg);
 
     generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, byteCounterReg, strLenReg, cg);
     generateRegImmInstruction(TR::InstOpCode::ANDRegImm4(), node, byteCounterReg, 0xf, cg);
     generateLabelInstruction(TR::InstOpCode::JE4, node, doneLabel, cg);
     cg->stopUsingRegister(strLenReg);
+
+    static const char *arraycmplenUnrollAmountEnvVar = feGetEnv("TR_x86ArraycmplenUnrollAmount");
+    static const int32_t arraycmplenUnrollAmount = (arraycmplenUnrollAmountEnvVar == NULL) ? 4 : atoi(arraycmplenUnrollAmountEnvVar);
+
+    switch (arraycmplenUnrollAmount) {
+        case 1:
+        case 2:
+        case 4:
+        case 8: {
+            break;
+        }
+        default: {
+            TR_ASSERT_FATAL(false, "Unexpected arraycmplen unroll amount of %d\n", arraycmplenUnrollAmount);
+            break;
+        }
+    }
+
+    if (arraycmplenUnrollAmount > 1) {
+        TR::LabelSymbol *unrolledLoop = generateLabelSymbol(cg);
+
+        generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, arraycmplenUnrollAmount, cg);
+        generateLabelInstruction(TR::InstOpCode::JB4, node, byteLoop, cg);
+
+        generateLabelInstruction(TR::InstOpCode::label, node, unrolledLoop, cg);
+        generateRegImmInstruction(TR::InstOpCode::SUBRegImm4(), node, byteCounterReg, arraycmplenUnrollAmount, cg);
+
+        for (int i = 0; i < arraycmplenUnrollAmount; i++) {
+            generateRegMemInstruction(TR::InstOpCode::L1RegMem, node, s2ByteReg,
+                generateX86MemoryReference(s2Reg, resultReg, 0, cg), cg);
+            generateMemRegInstruction(TR::InstOpCode::CMP1MemReg, node, generateX86MemoryReference(s1Reg, resultReg, 0, cg),
+                s2ByteReg, cg);
+            generateLabelInstruction(TR::InstOpCode::JNE4, node, doneLabel, cg);
+            generateRegImmInstruction(TR::InstOpCode::ADDRegImm4(), node, resultReg, 1, cg);
+        }
+
+        generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, arraycmplenUnrollAmount, cg);
+        generateLabelInstruction(TR::InstOpCode::JAE4, node, unrolledLoop, cg);
+
+        generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, 0, cg);
+        generateLabelInstruction(TR::InstOpCode::JE4, node, doneLabel, cg);
+    }
 
     generateLabelInstruction(TR::InstOpCode::label, node, byteLoop, cg);
     generateRegMemInstruction(TR::InstOpCode::L1RegMem, node, s2ByteReg,
@@ -1299,21 +1306,6 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     generateRegImmInstruction(TR::InstOpCode::ADDRegImm4(), node, resultReg, 1, cg);
     generateRegImmInstruction(TR::InstOpCode::SUBRegImm4(), node, byteCounterReg, 1, cg);
     generateLabelInstruction(TR::InstOpCode::JG4, node, byteLoop, cg);
-    } else {
-#if 0
-        TR::LabelSymbol *test8Bytes = generateLabelSymbol(cg);
-        TR::LabelSymbol *test4Bytes = generateLabelSymbol(cg);
-        TR::LabelSymbol *test2Bytes = generateLabelSymbol(cg);
-        TR::LabelSymbol *test1Byte = generateLabelSymbol(cg);
-
-        generateRegImmInstruction(TR::InstOpCode::TEST4, node, strLenReg, 0x8, cg);
-        generateRegMemInstruction(TR::InstOpCode::L8RegMem, node, s2ByteReg,
-            generateX86MemoryReference(s2Reg, resultReg, 0, cg), cg);
-        generateRegMemInstruction(TR::InstOpCode::SUB8RegMem, node,
-            s2ByteReg, generateX86MemoryReference(s1Reg, resultReg, 0, cg), cg);
-        generateLabelInstruction(TR::InstOpCode::label, node, test8Bytes, cg);
-#endif
-    }
 
     cg->stopUsingRegister(byteCounterReg);
     cg->stopUsingRegister(s1Reg);
