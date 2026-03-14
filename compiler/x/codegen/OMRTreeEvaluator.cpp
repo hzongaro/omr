@@ -1256,6 +1256,9 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     TR::LabelSymbol *resIs0to3Label = generateLabelSymbol(cg);
     TR::LabelSymbol *doneTestingResidueLength = generateLabelSymbol(cg);
 
+    generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, byteCounterReg, strLenReg, cg);
+    generateRegImmInstruction(TR::InstOpCode::ANDRegImm4(), node, byteCounterReg, 0xf, cg);
+
     generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, 0xc, cg);
     generateLabelInstruction(TR::InstOpCode::JB4, node, resIs0to11Label, cg);
     cg->generateDebugCounter(TR::DebugCounter::debugCounterName(cg->comp(), "arraycmplen/%s/residue12to15", cg->comp()->signature()),
@@ -1282,8 +1285,7 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
 
     generateLabelInstruction(TR::InstOpCode::label, node, doneTestingResidueLength, cg);
 
-    generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, byteCounterReg, strLenReg, cg);
-    generateRegImmInstruction(TR::InstOpCode::ANDRegImm4(), node, byteCounterReg, 0xf, cg);
+    generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, 0x0, cg);
     generateLabelInstruction(TR::InstOpCode::JE4, node, doneLabel, cg);
     cg->stopUsingRegister(strLenReg);
 
