@@ -290,6 +290,7 @@ private:
     void findUnsafeLoads(OMR::UnsafeSubexpressionRemover &usr, TR_BitVector *unsafeLoads, TR::Node *node);
 
 protected:
+    virtual bool isExpensiveOperation(TR::Node*);
     virtual bool storeIsSinkingCandidate(TR::Block *block, TR::Node *node, int32_t symIdx, bool sinkIndirectLoads,
         uint32_t &indirectLoadCount, int32_t &depth, bool &isLoadStatic, vcount_t &treeVisitCount,
         vcount_t &highVisitCount)
@@ -302,7 +303,7 @@ protected:
     virtual bool storeCanMoveThroughBlock(TR_BitVector *blockKilledSet, TR_BitVector *blockUsedSet, int32_t symIdx,
         TR_BitVector *allBlockUsedSymbols = NULL, TR_BitVector *allBlockKilledSymbols = NULL);
     virtual bool treeIsSinkableStore(TR::Node *node, bool sinkIndirectLoads, uint32_t &indirectLoadCount,
-        int32_t &depth, bool &isLoadStatic, vcount_t visitCount);
+        int32_t &depth, bool &isLoadStatic, vcount_t visitCount, bool &underCommonedNode);
     bool checkLiveMergingPaths(TR_BlockListEntry *blockEntry, int32_t symIdx);
     bool shouldSinkStoreAlongEdge(int symIdx, TR::CFGNode *block, TR::CFGNode *succBlock, int32_t sourceBlockFrequency,
         bool isLoadStatic, vcount_t visitCount, TR_BitVector *allEdgeInfoUsedOrKilledSymbols);

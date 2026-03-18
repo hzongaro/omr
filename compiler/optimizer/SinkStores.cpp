@@ -1689,7 +1689,7 @@ TR::RegisterMappedSymbol *TR_SinkStores::getSinkableSymbol(TR::Node *node)
 }
 
 bool TR_SinkStores::treeIsSinkableStore(TR::Node *node, bool sinkIndirectLoads, uint32_t &indirectLoadCount,
-    int32_t &depth, bool &isLoadStatic, vcount_t visitCount)
+    int32_t &depth, bool &isLoadStatic, vcount_t visitCount, bool &underCommonedNode)
 {
     OMR::Logger *log = comp()->log();
 
@@ -1700,7 +1700,6 @@ bool TR_SinkStores::treeIsSinkableStore(TR::Node *node, bool sinkIndirectLoads, 
     }
 
     int32_t numChildren = node->getNumChildren();
-    static bool underCommonedNode;
 
     /* initialization upon first entry */
     if (depth == 0) {
@@ -1767,6 +1766,11 @@ bool TR_SinkStores::treeIsSinkableStore(TR::Node *node, bool sinkIndirectLoads, 
             return false;
         }
 
+        if ((underCommonedNode || node->getReferenceCount() > 0) && isExpensiveOperation(node)) {
+            logprints(trace(), log, "        store holds a commoned operation that is expensive - might be costly to duplicate it\n");
+            return false;
+        }
+
         if (node->getOpCode().isStore() &&
           (node->dontEliminateStores() ||
           (node->getSymbolReference()->getSymbol()->isAuto() &&
@@ -1799,13 +1803,23 @@ bool TR_SinkStores::treeIsSinkableStore(TR::Node *node, bool sinkIndirectLoads, 
     for (int32_t c = 0; c < numChildren; c++) {
         int32_t childDepth = currentDepth;
         TR::Node *child = node->getChild(c);
-        if (!treeIsSinkableStore(child, sinkIndirectLoads, indirectLoadCount, childDepth, isLoadStatic, visitCount))
+        if (!treeIsSinkableStore(child, sinkIndirectLoads, indirectLoadCount, childDepth, isLoadStatic, visitCount,
+            underCommonedNode))
             return false;
         if (childDepth > depth)
             depth = childDepth;
     }
     underCommonedNode = previouslyCommoned;
     return true;
+}
+
+bool TR_SinkStores::isExpensiveOperation(TR::Node *node)
+{
+    const TR::ILOpCode &opCode = node->getOpCode();
+    if (opCode.isDiv() || opCode.isRem()) {
+        return true;
+    }
+    return false;
 }
 
 bool TR_GeneralSinkStores::storeIsSinkingCandidate(TR::Block *block, TR::Node *node, int32_t symIdx,
@@ -1818,9 +1832,10 @@ bool TR_GeneralSinkStores::storeIsSinkingCandidate(TR::Block *block, TR::Node *n
     // for now, just try to push any store we can...in future, might want to limit candidates somewhat
 
     comp()->setCurrentBlock(block);
+    bool underCommonedNode = false;
     return (symIdx >= 0 && _liveOnNotAllPaths->_outSetInfo[b]->get(symIdx)
         && treeIsSinkableStore(node, sinkIndirectLoads, indirectLoadCount, depth, isLoadStatic,
-            comp()->getVisitCount()));
+            comp()->getVisitCount(), underCommonedNode));
 }
 
 const char *TR_GeneralSinkStores::optDetailString() const throw() { return "O^O GENERAL SINK STORES: "; }
