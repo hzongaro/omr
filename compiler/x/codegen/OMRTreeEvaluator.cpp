@@ -1242,6 +1242,7 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     cg->stopUsingRegister(qwordCounterReg);
     cg->stopUsingRegister(equalTestReg);
 
+    // Process 0 to 15 residual bytes
     generateLabelInstruction(TR::InstOpCode::label, node, byteStart, cg);
     generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, byteCounterReg, strLenReg, cg);
     generateRegImmInstruction(TR::InstOpCode::ANDRegImm4(), node, byteCounterReg, 0xf, cg);
