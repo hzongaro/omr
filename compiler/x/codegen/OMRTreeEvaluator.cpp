@@ -1244,10 +1244,52 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
 
     // Process 0 to 15 residual bytes
     generateLabelInstruction(TR::InstOpCode::label, node, byteStart, cg);
+
     generateRegRegInstruction(TR::InstOpCode::MOVRegReg(), node, byteCounterReg, strLenReg, cg);
     generateRegImmInstruction(TR::InstOpCode::ANDRegImm4(), node, byteCounterReg, 0xf, cg);
     generateLabelInstruction(TR::InstOpCode::JE4, node, doneLabel, cg);
     cg->stopUsingRegister(strLenReg);
+
+    static const char *arraycmplenUnrollAmountEnvVar = feGetEnv("TR_x86ArraycmplenUnrollAmount");
+    static const int32_t arraycmplenUnrollAmount = (arraycmplenUnrollAmountEnvVar == NULL) ? 4 : atoi(arraycmplenUnrollAmountEnvVar);
+
+    switch (arraycmplenUnrollAmount) {
+        case 1:
+        case 2:
+        case 4:
+        case 8: {
+            break;
+        }
+        default: {
+            TR_ASSERT_FATAL(false, "Unexpected arraycmplen unroll amount of %d\n", arraycmplenUnrollAmount);
+            break;
+        }
+    }
+
+    if (arraycmplenUnrollAmount > 1) {
+        TR::LabelSymbol *unrolledLoop = generateLabelSymbol(cg);
+
+        generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, arraycmplenUnrollAmount, cg);
+        generateLabelInstruction(TR::InstOpCode::JB4, node, byteLoop, cg);
+
+        generateLabelInstruction(TR::InstOpCode::label, node, unrolledLoop, cg);
+        generateRegImmInstruction(TR::InstOpCode::SUBRegImm4(), node, byteCounterReg, arraycmplenUnrollAmount, cg);
+
+        for (int i = 0; i < arraycmplenUnrollAmount; i++) {
+            generateRegMemInstruction(TR::InstOpCode::L1RegMem, node, s2ByteReg,
+                generateX86MemoryReference(s2Reg, resultReg, 0, cg), cg);
+            generateMemRegInstruction(TR::InstOpCode::CMP1MemReg, node, generateX86MemoryReference(s1Reg, resultReg, 0, cg),
+                s2ByteReg, cg);
+            generateLabelInstruction(TR::InstOpCode::JNE4, node, doneLabel, cg);
+            generateRegImmInstruction(TR::InstOpCode::ADDRegImm4(), node, resultReg, 1, cg);
+        }
+
+        generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, arraycmplenUnrollAmount, cg);
+        generateLabelInstruction(TR::InstOpCode::JAE4, node, unrolledLoop, cg);
+
+        generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, byteCounterReg, 0, cg);
+        generateLabelInstruction(TR::InstOpCode::JE4, node, doneLabel, cg);
+    }
 
     generateLabelInstruction(TR::InstOpCode::label, node, byteLoop, cg);
     generateRegMemInstruction(TR::InstOpCode::L1RegMem, node, s2ByteReg,
