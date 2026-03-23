@@ -1700,8 +1700,10 @@ bool TR_SinkStores::treeIsSinkableStore(TR::Node *node, bool sinkIndirectLoads, 
     }
 
     int32_t numChildren = node->getNumChildren();
+    static bool s_underCommonedNode;
 
     if (depth == 0) {
+        s_underCommonedNode = false;
         TR_ASSERT_FATAL(!underCommonedNode, "underCommonedNode must not be true at root of a tree\n");
     }
 
@@ -1778,10 +1780,22 @@ bool TR_SinkStores::treeIsSinkableStore(TR::Node *node, bool sinkIndirectLoads, 
         }
     }
 
+    if (!comp()->cg()->getSupportsJavaFloatSemantics() && node->getOpCode().isFloatingPoint()) {
+        if (!s_underCommonedNode && underCommonedNode) {
+            TR_ASSERT_FATAL(false, "Encountered a case for non-java-float semantics where s_underCommonedNode is false but underCommonedNode is true");
+        }
+    }
+
     if (!comp()->cg()->getSupportsJavaFloatSemantics() && node->getOpCode().isFloatingPoint()
         && (underCommonedNode || node->getReferenceCount() > 1)) {
         logprints(trace(), log, "         fp store failure\n");
         return false;
+    }
+
+    if (numChildren == 0 && node->getOpCode().isLoadVarDirect() && node->getSymbolReference()->getSymbol()->isStatic()) {
+        if (!s_underCommonedNode && underCommonedNode) {
+            TR_ASSERT_FATAL(false, "Encountered a case for static load where s_underCommonedNode is false but underCommonedNode is true");
+        }
     }
 
     if (numChildren == 0 && node->getOpCode().isLoadVarDirect() && node->getSymbolReference()->getSymbol()->isStatic()
@@ -1791,8 +1805,11 @@ bool TR_SinkStores::treeIsSinkableStore(TR::Node *node, bool sinkIndirectLoads, 
     }
 
     int32_t currentDepth = ++depth;
-    if (node->getReferenceCount() > 1)
+    bool previouslyCommoned = s_underCommonedNode;
+    if (node->getReferenceCount() > 1) {
         underCommonedNode = true;
+        s_underCommonedNode = true;
+    }
     for (int32_t c = 0; c < numChildren; c++) {
         int32_t childDepth = currentDepth;
         TR::Node *child = node->getChild(c);
@@ -1802,6 +1819,7 @@ bool TR_SinkStores::treeIsSinkableStore(TR::Node *node, bool sinkIndirectLoads, 
         if (childDepth > depth)
             depth = childDepth;
     }
+    s_underCommonedNode = previouslyCommoned;
     return true;
 }
 
