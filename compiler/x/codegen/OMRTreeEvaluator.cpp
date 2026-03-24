@@ -1199,7 +1199,7 @@ TR::Register *OMR::X86::TreeEvaluator::SSE2ArraycmpLenEvaluator(TR::Node *node, 
     generateRegRegInstruction(TR::InstOpCode::CMPRegReg(), node, s1Reg, s2Reg, cg);
     generateLabelInstruction(TR::InstOpCode::JE4, node, doneLabel, cg);
 
-    generateRegImmInstruction(TR::InstOpCode::MOVRegImm4(), node, resultReg, 0, cg);
+    generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, resultReg, resultReg, cg);
 
     // Loop comparing sixteen bytes at a time, for strLenReg >> 4 iterations
     // Result of each byte of comparison is placed in xmm1RegResult - 0 if unequal; -1 if equal -
