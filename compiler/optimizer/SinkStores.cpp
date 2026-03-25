@@ -1765,6 +1765,11 @@ bool TR_SinkStores::treeIsSinkableStore(TR::Node *node, bool sinkIndirectLoads, 
             return false;
         }
 
+        if ((underCommonedNode || node->getReferenceCount() > 0) && isExpensiveOperation(node)) {
+            logprints(trace(), log, "        store holds a commoned operation that is expensive - might be costly to duplicate it\n");
+            return false;
+        }
+
         if (node->getOpCode().isStore() &&
           (node->dontEliminateStores() ||
           (node->getSymbolReference()->getSymbol()->isAuto() &&
@@ -1797,6 +1802,15 @@ bool TR_SinkStores::treeIsSinkableStore(TR::Node *node, bool sinkIndirectLoads, 
             depth = childDepth;
     }
     return true;
+}
+
+bool TR_SinkStores::isExpensiveOperation(TR::Node *node)
+{
+    const TR::ILOpCode &opCode = node->getOpCode();
+    if (opCode.isDiv() || opCode.isRem()) {
+        return true;
+    }
+    return false;
 }
 
 bool TR_GeneralSinkStores::storeIsSinkingCandidate(TR::Block *block, TR::Node *node, int32_t symIdx,
