@@ -290,6 +290,7 @@ private:
     void findUnsafeLoads(OMR::UnsafeSubexpressionRemover &usr, TR_BitVector *unsafeLoads, TR::Node *node);
 
 protected:
+    virtual bool isExpensiveOperation(TR::Node*);
     virtual bool storeIsSinkingCandidate(TR::Block *block, TR::Node *node, int32_t symIdx, bool sinkIndirectLoads,
         uint32_t &indirectLoadCount, int32_t &depth, bool &isLoadStatic, vcount_t &treeVisitCount,
         vcount_t &highVisitCount)
