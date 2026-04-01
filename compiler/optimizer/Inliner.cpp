@@ -1616,6 +1616,14 @@ void TR_InlinerBase::addAdditionalGuard(TR::Node *callNode, TR::ResolvedMethodSy
     TR::TreeTop *tt = guardBlock->append(TR::TreeTop::create(comp(),
         createVirtualGuard(callNode, calleeSymbol, slowPath->getEntry(),
             calleeSymbol->getFirstTreeTop()->getNode()->getInlinedSiteIndex(), thisClass, favourVFTCompare, guard)));
+
+    TR_ByteCodeInfo &bcInfo = calleeSymbol->getFirstTreeTop()->getNode()->getByteCodeInfo();
+    TR::DebugCounter::prependDebugCounter(comp(),
+        TR::DebugCounter::debugCounterName(comp(), "before.virtualGuards.byJittedBody/%s/(%s)/(%s)/%s/bcinfo=%d.%d",
+            comp()->getHotnessName(comp()->getMethodHotness()), comp()->signature(),
+            calleeSymbol->signature(trMemory()), tracer()->getGuardKindString(guard), bcInfo.getCallerIndex(),
+            bcInfo.getByteCodeIndex()),
+        tt, 1, TR::DebugCounter::Cheap);
     guardBlock->setDoNotProfile();
     prevBlock->getExit()->join(guardBlock->getEntry());
     guardBlock->getExit()->join(inlinedBody->getEntry());
@@ -1682,11 +1690,20 @@ TR::TreeTop *TR_InlinerBase::addGuardForVirtual(TR::ResolvedMethodSymbol *caller
         block4->setDoNotProfile();
 
     TR::TreeTop *virtualGuard = NULL;
-    if (guard->_kind != TR_InnerGuard)
+    if (guard->_kind != TR_InnerGuard) {
         virtualGuard = block1->append(TR::TreeTop::create(comp(),
             createVirtualGuard(callNode, calleeSymbol, block4->getEntry(),
                 calleeSymbol->getFirstTreeTop()->getNode()->getInlinedSiteIndex(), thisClass, tif.favourVftCompare(),
                 guard)));
+
+        TR_ByteCodeInfo &bcInfo = calleeSymbol->getFirstTreeTop()->getNode()->getByteCodeInfo();
+        TR::DebugCounter::prependDebugCounter(comp(),
+            TR::DebugCounter::debugCounterName(comp(), "before.virtualGuards.byJittedBody/%s/(%s)/(%s)/%s/bcinfo=%d.%d",
+                comp()->getHotnessName(comp()->getMethodHotness()), comp()->signature(),
+                calleeSymbol->signature(trMemory()), tracer()->getGuardKindString(guard), bcInfo.getCallerIndex(),
+                bcInfo.getByteCodeIndex()),
+            virtualGuard, 1, TR::DebugCounter::Cheap);
+    }
 
     static const char *disableHCRGuards = feGetEnv("TR_DisableHCRGuards");
 
@@ -1731,6 +1748,14 @@ TR::TreeTop *TR_InlinerBase::addGuardForVirtual(TR::ResolvedMethodSymbol *caller
                 createVirtualGuard(callNode, calleeSymbol, block4->getEntry(),
                     calleeSymbol->getFirstTreeTop()->getNode()->getInlinedSiteIndex(), methodClass,
                     tif.favourVftCompare(), hcrGuard)));
+
+            TR_ByteCodeInfo &bcInfo = calleeSymbol->getFirstTreeTop()->getNode()->getByteCodeInfo();
+            TR::DebugCounter::prependDebugCounter(comp(),
+                TR::DebugCounter::debugCounterName(comp(), "before.virtualGuards.byJittedBody/%s/(%s)/(%s)/%s/bcinfo=%d.%d",
+                    comp()->getHotnessName(comp()->getMethodHotness()), comp()->signature(),
+                    calleeSymbol->signature(trMemory()), tracer()->getGuardKindString(hcrGuard), bcInfo.getCallerIndex(),
+                    bcInfo.getByteCodeIndex()),
+                hcrTreeTop, 1, TR::DebugCounter::Cheap);
             hcrBlock->setDoNotProfile();
             block1->getExit()->join(hcrBlock->getEntry());
             hcrBlock->getExit()->join(block2->getEntry());
