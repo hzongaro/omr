@@ -416,6 +416,7 @@ int32_t TR_LoopVersioner::performWithoutDominators()
         _writtenAndNotJustForHeapification->empty();
         _additionInfo->empty();
         _asyncCheckTree = NULL;
+        _asyncCheckLoop = -1;
 
         // Initialize induction variable information
         //
@@ -450,10 +451,14 @@ int32_t TR_LoopVersioner::performWithoutDominators()
                 logprintf(trace(), log, "Limit in loop test tree %p is invariant\n",
                     _loopTestTree->getNode()->getSecondChild());
                 _loopConditionInvariant = true;
-            } else
+            } else {
                 _asyncCheckTree = NULL;
-        } else
+                _asyncCheckLoop = -1;
+            }
+        } else {
             _asyncCheckTree = NULL;
+            _asyncCheckLoop = -1;
+        }
 
         bool nullChecksWillBeEliminated = false;
 
@@ -2650,6 +2655,21 @@ bool TR_LoopVersioner::detectChecksToBeEliminated(TR_RegionStructure *whileLoop,
             if (currentOpCode.getOpCodeValue() == TR::asynccheck) {
                 _asyncCheckTree = currentTree;
 
+                TR_Structure *parent = nextBlockStructure->getParent();
+                while (parent) {
+                    TR_RegionStructure *region = parent->asRegion();
+
+                    if (region->isNaturalLoop() || region->containsInternalCycles()) {
+                        if (region->getNumber() == whileLoop->getNumber()) {
+//                            _asyncCheckTree = currentTree;
+                        }
+                        _asyncCheckLoop = region->getNumber();
+                        break;
+                    }
+                    parent = parent->getParent();
+                }
+
+
                 if (_loopTestTree && (_loopTestTree->getNode()->getNumChildren() > 1) && _asyncCheckTree
                     && shouldOnlySpecializeLoops()) {
                     bool isIncreasing;
@@ -2660,10 +2680,14 @@ bool TR_LoopVersioner::detectChecksToBeEliminated(TR_RegionStructure *whileLoop,
                     if (_canPredictIters) {
                         int32_t numIters = whileLoop->getEntryBlock()->getFrequency();
                         // if (numIters > 0.90*comp()->getRecompilationInfo()->getMaxBlockCount())
-                        if (numIters < 0.90 * (MAX_BLOCK_COUNT + MAX_COLD_BLOCK_COUNT))
+                        if (numIters < 0.90 * (MAX_BLOCK_COUNT + MAX_COLD_BLOCK_COUNT)) {
                             _asyncCheckTree = NULL;
-                    } else
+                            _asyncCheckLoop = -1;
+                        }
+                    } else {
                         _asyncCheckTree = NULL;
+                        _asyncCheckLoop = -1;
+                    }
                 }
             }
             vcount_t visitCount = comp()->incVisitCount(); //@TODO: unsafe API/use pattern
@@ -3516,6 +3540,7 @@ void TR_LoopVersioner::versionNaturalLoop(TR_RegionStructure *whileLoop, List<TR
 
             if (prep != NULL) {
                 nodeWillBeRemovedIfPossible(_asyncCheckTree->getNode(), prep);
+TR_ASSERT_FATAL(loopNum == _asyncCheckLoop, "Looking at loop number %d, but asynccheck n%dn was in loop %d\n", loopNum, _asyncCheckTree->getNode()->getGlobalIndex(), _asyncCheckLoop);
                 _curLoop->_loopImprovements.push_back(
                     new (_curLoop->_memRegion) RemoveAsyncCheck(this, prep, _asyncCheckTree));
             }

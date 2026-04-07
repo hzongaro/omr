@@ -102,6 +102,7 @@ int32_t TR_LoopCanonicalizer::perform()
     _insertionTreeTop = NULL;
     _loopTestTree = NULL;
     _asyncCheckTree = NULL;
+    _asyncCheckLoop = -1;
     _cannotBeEliminated = NULL;
 
     _neverRead = NULL;

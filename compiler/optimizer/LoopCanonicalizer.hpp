@@ -207,6 +207,7 @@ public:
     TR::Block *_loopTestBlock;
     TR::TreeTop **_storeTrees;
     TR::TreeTop *_currTree, *_insertionTreeTop, *_loopTestTree, *_asyncCheckTree;
+    int32_t _asyncCheckLoop;
     TR_BitVector *_cannotBeEliminated, *_writtenAndNotJustForHeapification, *_autosAccessed;
     TR_BitVector *_neverRead, *_neverWritten;
     TR::SparseBitVector _writtenExactlyOnce;
