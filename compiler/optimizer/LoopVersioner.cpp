@@ -2537,7 +2537,6 @@ bool TR_LoopVersioner::detectChecksToBeEliminated(TR_RegionStructure *whileLoop,
     OMR::Logger *log = comp()->log();
     bool foundPotentialChecks = false;
     int32_t warmBranchCount = 0;
-    const int loopNum = whileLoop->getNumber();
 
     TR_ScratchList<TR::Block> blocksInWhileLoop(trMemory());
     whileLoop->getBlocks(&blocksInWhileLoop);
@@ -2611,7 +2610,7 @@ bool TR_LoopVersioner::detectChecksToBeEliminated(TR_RegionStructure *whileLoop,
                 && performTransformation(comp(),
                     "%sDisregard unimportant block_%d frequency %d < %d from block_%d in loop %d\n",
                     OPT_DETAILS_LOOP_VERSIONER, nextBlock->getNumber(), blockFrequency, loopFrequency,
-                    hotBlock->getNumber(), loopNum)) {
+                    hotBlock->getNumber(), whileLoop->getNumber())) {
                 isUnimportant = true;
                 if (trace() || comp()->getOption(TR_CountOptTransformations)) {
                     for (TR::TreeTop *tt = entryTree; isUnimportant && tt != exitTree; tt = tt->getNextTreeTop()) {
@@ -2657,7 +2656,7 @@ bool TR_LoopVersioner::detectChecksToBeEliminated(TR_RegionStructure *whileLoop,
                     TR_RegionStructure *region = parent->asRegion();
 
                     if (region->isNaturalLoop() || region->containsInternalCycles()) {
-                        if (region->getNumber() == loopNum) {
+                        if (region == whileLoop) {
                             asyncCheckTrees->add(currentTree);
                         }
                         break;
