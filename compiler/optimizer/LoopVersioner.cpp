@@ -2665,7 +2665,6 @@ bool TR_LoopVersioner::detectChecksToBeEliminated(TR_RegionStructure *whileLoop,
                     parent = parent->getParent();
                 }
 
-
                 if (!asyncCheckTrees->isEmpty() && _loopTestTree && (_loopTestTree->getNode()->getNumChildren() > 1)
                     && shouldOnlySpecializeLoops()) {
                     bool isIncreasing;
@@ -2987,8 +2986,7 @@ void TR_LoopVersioner::versionNaturalLoop(TR_RegionStructure *whileLoop, List<TR
     List<TR::TreeTop> *checkCastTrees, List<TR::TreeTop> *arrayStoreCheckTrees, List<TR::TreeTop> *asyncCheckTrees,
     List<TR::Node> *specializedNodes, List<TR_NodeParentSymRef> *invariantNodes,
     List<TR_NodeParentSymRefWeightTuple> *invariantTranslationNodesList, List<TR_Structure> *innerWhileLoops,
-    List<TR_Structure> *clonedInnerWhileLoops, bool skipVersioningAsynchk,
-    SharedSparseBitVector &reverseBranchInLoops)
+    List<TR_Structure> *clonedInnerWhileLoops, bool skipVersioningAsynchk, SharedSparseBitVector &reverseBranchInLoops)
 {
     OMR::Logger *log = comp()->log();
     const int loopNum = whileLoop->getNumber();
@@ -3112,8 +3110,12 @@ void TR_LoopVersioner::versionNaturalLoop(TR_RegionStructure *whileLoop, List<TR
             && blocksInWhileLoop.find(lastTree->getBranchDestination()->getNode()->getBlock())
             && lastTree->isTheVirtualGuardForAGuardedInlinedCall()
             && isBranchSuitableToDoLoopTransfer(&blocksInWhileLoop, lastTree, comp())
-            && performTransformation(comp(), "%s Adding loop transfer candidate (VirtualGuardPair) for n%un [%p]\n",
-                OPT_DETAILS_LOOP_VERSIONER, lastTree->getGlobalIndex(), lastTree)) {
+            && performTransformation(comp(),
+                "%s Adding loop transfer candidate (VirtualGuardPair) for n%un [%p] bci=[%d,%d,%d]\n",
+                OPT_DETAILS_LOOP_VERSIONER, lastTree->getGlobalIndex(), lastTree,
+                lastTree->getBranchDestination()->getNode()->getByteCodeInfo().getCallerIndex(),
+                lastTree->getBranchDestination()->getNode()->getByteCodeInfo().getByteCodeIndex(),
+                comp()->getLineNumber(lastTree->getBranchDestination()->getNode()))) {
             dumpOptDetails(comp(), "hotGuardBlock %d coldGuardBlock %d\n", nextBlock->getNumber(),
                 nextClonedBlock->getNumber());
 
