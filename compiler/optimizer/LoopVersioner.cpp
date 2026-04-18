@@ -723,6 +723,9 @@ void TR_LoopVersioner::performLoopTransfer()
                 hotGuardBlock->changeBranchDestination(coldGuard->getBranchDestination(), cfg);
                 dumpOptDetails(comp(), "loop transfer, changed target of guard [%p] in [%d] to [%d]\n", hotGuard,
                     hotGuardBlock->getNumber(), coldGuard->getBranchDestination()->getNode()->getBlock()->getNumber());
+                logprintf(trace(), comp()->log(), "loop transfer, changed target of guard [%p] in [%d] to [%d]\n",
+                    hotGuard, hotGuardBlock->getNumber(),
+                    coldGuard->getBranchDestination()->getNode()->getBlock()->getNumber());
                 const char *debugCounter = TR::DebugCounter::debugCounterName(comp(),
                     "loopVersioner.transfer/(%s)/%s/origin=block_%d", comp()->signature(),
                     comp()->getHotnessName(comp()->getMethodHotness()), hotGuardBlock->getNumber());
