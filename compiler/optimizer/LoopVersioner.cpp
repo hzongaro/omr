@@ -2983,21 +2983,21 @@ static void traceCannot(const char *what, TR::Node *culprit, TR::Compilation *co
     dumpOptDetails(comp, "Cannot %s due to n%un [%p]\n", what, culprit->getGlobalIndex(), culprit);
 }
 
-static bool myPerformTransformation(TR::Compilation *comp, TR::Node *lastTree)
+static bool myPerformTransformation(TR::Optimization *opt, TR::Node *lastTree)
 {
-    bool perftransform = performTransformation(comp,
+    bool perfTransform = performTransformation(opt->comp(),
         "%s Adding loop transfer candidate (VirtualGuardPair) for n%un [%p] bci=[%d,%d,%d]\n",
         OPT_DETAILS_LOOP_VERSIONER, lastTree->getGlobalIndex(), lastTree,
         lastTree->getBranchDestination()->getNode()->getByteCodeInfo().getCallerIndex(),
         lastTree->getBranchDestination()->getNode()->getByteCodeInfo().getByteCodeIndex(),
-        comp->getLineNumber(lastTree->getBranchDestination()->getNode()));
-    logprintf(comp->trace(), comp->log(),
+        opt->comp()->getLineNumber(lastTree->getBranchDestination()->getNode()));
+    logprintf(opt->trace(), opt->comp()->log(),
         "%s Adding loop transfer candidate (VirtualGuardPair) for n%un [%p] bci=[%d,%d,%d] - performTransformation "
         "result == %d\n",
         OPT_DETAILS_LOOP_VERSIONER, lastTree->getGlobalIndex(), lastTree,
         lastTree->getBranchDestination()->getNode()->getByteCodeInfo().getCallerIndex(),
         lastTree->getBranchDestination()->getNode()->getByteCodeInfo().getByteCodeIndex(),
-        comp->getLineNumber(lastTree->getBranchDestination()->getNode()), perfTransform);
+        opt->comp()->getLineNumber(lastTree->getBranchDestination()->getNode()), perfTransform);
     return perfTransform;
 }
 
@@ -3131,509 +3131,901 @@ void TR_LoopVersioner::versionNaturalLoop(TR_RegionStructure *whileLoop, List<TR
             && blocksInWhileLoop.find(lastTree->getBranchDestination()->getNode()->getBlock())
             && lastTree->isTheVirtualGuardForAGuardedInlinedCall()
             && isBranchSuitableToDoLoopTransfer(&blocksInWhileLoop, lastTree, comp())
-            && myPerformTransformation(comp(), lastTree))
+            && myPerformTransformation(this, lastTree)) {
             dumpOptDetails(comp(), "hotGuardBlock %d coldGuardBlock %d\n", nextBlock->getNumber(),
                 nextClonedBlock->getNumber());
 
-        // create the virtual guard info for this loop
-        //
-        if (!vgInfo) {
-            vgInfo = new (trStackMemory()) VirtualGuardInfo(comp());
-            vgInfo->_loopEntry = blockAtHeadOfLoop;
-            _virtualGuardInfo.add(vgInfo);
+            // create the virtual guard info for this loop
+            //
+            if (!vgInfo) {
+                vgInfo = new (trStackMemory()) VirtualGuardInfo(comp());
+                vgInfo->_loopEntry = blockAtHeadOfLoop;
+                _virtualGuardInfo.add(vgInfo);
+            }
+
+            VirtualGuardPair *virtualGuardPair
+                = (VirtualGuardPair *)trMemory()->allocateStackMemory(sizeof(VirtualGuardPair));
+            virtualGuardPair->_hotGuardBlock = nextBlock;
+            virtualGuardPair->_coldGuardBlock = nextClonedBlock;
+            logprintf(trace(), log, "virtualGuardPair at guard node %p hotGuardBlock %d coldGuardBlock %d\n",
+                nextBlock->getLastRealTreeTop()->getNode(), nextBlock->getNumber(), nextClonedBlock->getNumber());
+            virtualGuardPair->_isGuarded = false;
+            // check if the virtual guard is in an inner loop
+            //
+            TR_RegionStructure *parent = nextBlock->getStructureOf()->getParent()->asRegion();
+            if ((parent != whileLoop) && (parent && parent->isNaturalLoop())) {
+                TR::Block *entry = parent->getEntryBlock();
+                virtualGuardPair->_coldGuardLoopEntryBlock = entry;
+                virtualGuardPair->_isInsideInnerLoop = true;
+            } else
+                virtualGuardPair->_isInsideInnerLoop = false;
+
+            vgInfo->_virtualGuardPairs.add(virtualGuardPair);
+
+            // Since we've decided to do loop transfer (assuming that we don't
+            // version this guard first), the taken side of the guard will
+            // definitely be absent from the loop after all transformations have
+            // been done, so it should be ignored when searching the loop for GC
+            // points or calls.
+            _curLoop->_definitelyRemovableNodes.add(lastTree);
+            _curLoop->_optimisticallyRemovableNodes.add(lastTree);
         }
 
-        VirtualGuardPair *virtualGuardPair
-            = (VirtualGuardPair *)trMemory()->allocateStackMemory(sizeof(VirtualGuardPair));
-        virtualGuardPair->_hotGuardBlock = nextBlock;
-        virtualGuardPair->_coldGuardBlock = nextClonedBlock;
-        logprintf(trace(), log, "virtualGuardPair at guard node %p hotGuardBlock %d coldGuardBlock %d\n",
-            nextBlock->getLastRealTreeTop()->getNode(), nextBlock->getNumber(), nextClonedBlock->getNumber());
-        virtualGuardPair->_isGuarded = false;
-        // check if the virtual guard is in an inner loop
-        //
-        TR_RegionStructure *parent = nextBlock->getStructureOf()->getParent()->asRegion();
-        if ((parent != whileLoop) && (parent && parent->isNaturalLoop())) {
-            TR::Block *entry = parent->getEntryBlock();
-            virtualGuardPair->_coldGuardLoopEntryBlock = entry;
-            virtualGuardPair->_isInsideInnerLoop = true;
-        } else
-            virtualGuardPair->_isInsideInnerLoop = false;
-
-        vgInfo->_virtualGuardPairs.add(virtualGuardPair);
-
-        // Since we've decided to do loop transfer (assuming that we don't
-        // version this guard first), the taken side of the guard will
-        // definitely be absent from the loop after all transformations have
-        // been done, so it should be ignored when searching the loop for GC
-        // points or calls.
-        _curLoop->_definitelyRemovableNodes.add(lastTree);
-        _curLoop->_optimisticallyRemovableNodes.add(lastTree);
+        correspondingBlocks[nextBlock->getNumber()] = nextClonedBlock;
     }
 
-    correspondingBlocks[nextBlock->getNumber()] = nextClonedBlock;
-}
-
-// fixup the coldguard's loop entry
-//
-if (vgInfo) {
-    ListIterator<VirtualGuardPair> vgIt(&vgInfo->_virtualGuardPairs);
-    for (VirtualGuardPair *vg = vgIt.getFirst(); vg; vg = vgIt.getNext()) {
-        if (vg->_isInsideInnerLoop)
-            vg->_coldGuardLoopEntryBlock = correspondingBlocks[vg->_coldGuardLoopEntryBlock->getNumber()];
-    }
-}
-
-// Append the new cloned blocks (non versioned loop)
-// to the end of the method in the same tree order as the
-// corresponding blocks in the original loop. This
-// should preserve fall throughs where possible.
-//
-TR::TreeTop *stopTree = endTree;
-for (treeTop = comp()->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop()) {
-    TR::Block *block = treeTop->getNode()->getBlock();
-    TR::Block *clonedBlock = correspondingBlocks[block->getNumber()];
-    if (clonedBlock) {
-        TR::TreeTop *newEntryTree = clonedBlock->getEntry();
-        TR::TreeTop *newExitTree = clonedBlock->getExit();
-        endTree->join(newEntryTree);
-        newExitTree->setNextTreeTop(NULL);
-        endTree = newExitTree;
-    }
-
-    treeTop = treeTop->getNode()->getBlock()->getExit();
-    if (treeTop == stopTree)
-        break;
-}
-
-// Start adjusting the CFG now; set structure to NULL
-// before doing this to avoid generalized structure
-// repair. We will repair structure ourselves later on.
-//
-_cfg->setStructure(NULL);
-
-TR_ScratchList<TR_BlockStructure> newGotoBlockStructures(trMemory());
-blocksIt.reset();
-for (nextBlock = blocksIt.getCurrent(); nextBlock; nextBlock = blocksIt.getNext()) {
-    // Iterate over the original blocks being cloned and examine
-    // successors for each blocks trying to then fix up the CFG
-    // edges for correspoding blocks
+    // fixup the coldguard's loop entry
     //
-    for (auto edge = nextBlock->getSuccessors().begin(); edge != nextBlock->getSuccessors().end(); ++edge) {
-        TR::Block *succ = toBlock((*edge)->getTo());
-        TR::Block *nextClonedBlock = correspondingBlocks[nextBlock->getNumber()];
-        TR::Block *clonedSucc = correspondingBlocks[succ->getNumber()];
+    if (vgInfo) {
+        ListIterator<VirtualGuardPair> vgIt(&vgInfo->_virtualGuardPairs);
+        for (VirtualGuardPair *vg = vgIt.getFirst(); vg; vg = vgIt.getNext()) {
+            if (vg->_isInsideInnerLoop)
+                vg->_coldGuardLoopEntryBlock = correspondingBlocks[vg->_coldGuardLoopEntryBlock->getNumber()];
+        }
+    }
 
-        if (clonedSucc) {
-            // If this successor also has a cloned counterpart,
-            // i.e. it belongs to the loop being cloned.
-            //
-            TR::CFGEdge *e = TR::CFGEdge::createEdge(nextClonedBlock, clonedSucc, trMemory());
-            _cfg->addEdge(e);
+    // Append the new cloned blocks (non versioned loop)
+    // to the end of the method in the same tree order as the
+    // corresponding blocks in the original loop. This
+    // should preserve fall throughs where possible.
+    //
+    TR::TreeTop *stopTree = endTree;
+    for (treeTop = comp()->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop()) {
+        TR::Block *block = treeTop->getNode()->getBlock();
+        TR::Block *clonedBlock = correspondingBlocks[block->getNumber()];
+        if (clonedBlock) {
+            TR::TreeTop *newEntryTree = clonedBlock->getEntry();
+            TR::TreeTop *newExitTree = clonedBlock->getExit();
+            endTree->join(newEntryTree);
+            newExitTree->setNextTreeTop(NULL);
+            endTree = newExitTree;
+        }
 
-            if (_neitherLoopCold) {
-                if (!shouldOnlySpecializeLoops())
-                    e->setFrequency((*edge)->getFrequency());
-                else {
-                    int32_t specializedBlockFrequency
-                        = TR::Block::getScaledSpecializedFrequency((*edge)->getFrequency());
+        treeTop = treeTop->getNode()->getBlock()->getExit();
+        if (treeTop == stopTree)
+            break;
+    }
 
-                    e->setFrequency(specializedBlockFrequency);
-                }
-            }
+    // Start adjusting the CFG now; set structure to NULL
+    // before doing this to avoid generalized structure
+    // repair. We will repair structure ourselves later on.
+    //
+    _cfg->setStructure(NULL);
 
-            nextClonedBlock->getLastRealTreeTop()->adjustBranchOrSwitchTreeTop(comp(), succ->getEntry(),
-                clonedSucc->getEntry());
-        } else {
-            // This successor does not belong to the loop being cloned;
-            // so there is no cloned counterpart for it. If the block
-            // branches explicitly to its successor, then we can simply
-            // add an edge from the cloned block to the successor; else
-            // if it was fall through then we have to add a new goto block
-            // which would branch explicitly to the successor.
-            //
-            TR::Node *lastNode = nextClonedBlock->getLastRealTreeTop()->getNode();
-            bool callWithException = false;
-            if (lastNode->getNumChildren() > 0) {
-                if (lastNode->getFirstChild()->getOpCodeValue() == TR::athrow)
-                    lastNode = lastNode->getFirstChild();
-                TR::ILOpCode &childOpCode = lastNode->getFirstChild()->getOpCode();
-                if (childOpCode.isCall() && childOpCode.isJumpWithMultipleTargets()) {
-                    callWithException = true;
-                }
-            }
-            TR::ILOpCode &lastOpCode = lastNode->getOpCode();
+    TR_ScratchList<TR_BlockStructure> newGotoBlockStructures(trMemory());
+    blocksIt.reset();
+    for (nextBlock = blocksIt.getCurrent(); nextBlock; nextBlock = blocksIt.getNext()) {
+        // Iterate over the original blocks being cloned and examine
+        // successors for each blocks trying to then fix up the CFG
+        // edges for correspoding blocks
+        //
+        for (auto edge = nextBlock->getSuccessors().begin(); edge != nextBlock->getSuccessors().end(); ++edge) {
+            TR::Block *succ = toBlock((*edge)->getTo());
+            TR::Block *nextClonedBlock = correspondingBlocks[nextBlock->getNumber()];
+            TR::Block *clonedSucc = correspondingBlocks[succ->getNumber()];
 
-            bool fallsThrough = false;
-            if (!(lastOpCode.isBranch() || (lastOpCode.isJumpWithMultipleTargets() && lastOpCode.hasBranchChildren())
-                    || lastOpCode.isReturn() || (lastOpCode.getOpCodeValue() == TR::athrow) || callWithException))
-                fallsThrough = true;
-            else if (lastOpCode.isBranch()) {
-                if (lastNode->getBranchDestination() != succ->getEntry())
-                    fallsThrough = true;
-            }
+            if (clonedSucc) {
+                // If this successor also has a cloned counterpart,
+                // i.e. it belongs to the loop being cloned.
+                //
+                TR::CFGEdge *e = TR::CFGEdge::createEdge(nextClonedBlock, clonedSucc, trMemory());
+                _cfg->addEdge(e);
 
-            if (!fallsThrough)
-                _cfg->addEdge(TR::CFGEdge::createEdge(nextClonedBlock, succ, trMemory()));
-            else {
-                TR::Block *newGotoBlock
-                    = TR::Block::createEmptyBlock(lastNode, comp(), (*edge)->getFrequency(), nextClonedBlock);
-                newGotoBlock->setIsSpecialized(nextClonedBlock->isSpecialized());
-                _cfg->addNode(newGotoBlock);
-
-                logprintf(trace(), log, "Creating new goto block : %d for node %p\n", newGotoBlock->getNumber(),
-                    lastNode);
-
-                TR::TreeTop *gotoBlockEntryTree = newGotoBlock->getEntry();
-                TR::TreeTop *gotoBlockExitTree = newGotoBlock->getExit();
-                TR::Node *gotoNode = TR::Node::create(lastNode, TR::Goto);
-                TR::TreeTop *gotoTree = TR::TreeTop::create(comp(), gotoNode, NULL, NULL);
-                TR_ASSERT(succ->getEntry(), "Entry tree of succ is NULL\n");
-                gotoNode->setBranchDestination(succ->getEntry());
-                gotoBlockEntryTree->join(gotoTree);
-                gotoTree->join(gotoBlockExitTree);
-                TR::TreeTop *clonedExit = nextClonedBlock->getExit();
-                TR::TreeTop *treeAfterClonedExit = clonedExit->getNextTreeTop();
-                clonedExit->join(gotoBlockEntryTree);
-                gotoBlockExitTree->join(treeAfterClonedExit);
-                if (endTree == clonedExit)
-                    endTree = gotoBlockExitTree;
-
-                TR::CFGEdge *e1 = TR::CFGEdge::createEdge(nextClonedBlock, newGotoBlock, trMemory());
-                _cfg->addEdge(e1);
-                TR::CFGEdge *e2 = TR::CFGEdge::createEdge(newGotoBlock, succ, trMemory());
-                _cfg->addEdge(e2);
                 if (_neitherLoopCold) {
-                    if (!shouldOnlySpecializeLoops()) {
-                        e1->setFrequency((*edge)->getFrequency());
-                        e2->setFrequency((*edge)->getFrequency());
-                    } else {
-                        int32_t specializedBlockFrequency
-                            = TR::Block::getScaledSpecializedFrequency((*edge)->getFrequency());
-
-                        e1->setFrequency(specializedBlockFrequency);
-                        e2->setFrequency(specializedBlockFrequency);
-                    }
-                }
-
-                TR_BlockStructure *newGotoBlockStructure = new (_cfg->structureMemoryRegion())
-                    TR_BlockStructure(comp(), newGotoBlock->getNumber(), newGotoBlock);
-                newGotoBlockStructure->setCreatedByVersioning(true);
-                if (!_neitherLoopCold) {
-                    newGotoBlock->setIsCold();
-                    newGotoBlock->setFrequency(VERSIONED_COLD_BLOCK_COUNT);
-                } else if (_neitherLoopCold && shouldOnlySpecializeLoops()) {
-                    // newGotoBlock->setIsRare();
-                    if ((*edge)->getFrequency() < 0)
-                        newGotoBlock->setFrequency((*edge)->getFrequency());
+                    if (!shouldOnlySpecializeLoops())
+                        e->setFrequency((*edge)->getFrequency());
                     else {
                         int32_t specializedBlockFrequency
                             = TR::Block::getScaledSpecializedFrequency((*edge)->getFrequency());
-                        if ((*edge)->getFrequency() <= MAX_COLD_BLOCK_COUNT)
-                            specializedBlockFrequency = (*edge)->getFrequency();
-                        else if (specializedBlockFrequency <= MAX_COLD_BLOCK_COUNT)
-                            specializedBlockFrequency = MAX_COLD_BLOCK_COUNT + 1;
-                        newGotoBlock->setFrequency(specializedBlockFrequency);
+
+                        e->setFrequency(specializedBlockFrequency);
                     }
                 }
-                newGotoBlockStructures.add(newGotoBlockStructure);
-            }
-        }
-    }
 
-    // Adjust exception edges for the new cloned blocks
-    //
-    for (auto edge = nextBlock->getExceptionSuccessors().begin(); edge != nextBlock->getExceptionSuccessors().end();
-         ++edge) {
-        TR::Block *succ = toBlock((*edge)->getTo());
-        TR::Block *nextClonedBlock = correspondingBlocks[nextBlock->getNumber()];
-        TR::Block *clonedSucc = correspondingBlocks[succ->getNumber()];
-
-        if (clonedSucc) {
-            _cfg->addEdge(TR::CFGEdge::createExceptionEdge(nextClonedBlock, clonedSucc, trMemory()));
-        } else {
-            _cfg->addEdge(TR::CFGEdge::createExceptionEdge(nextClonedBlock, succ, trMemory()));
-        }
-    }
-}
-
-// Locate the loop invariant block for the original loop
-//
-TR::Block *invariantBlock = NULL;
-for (auto nextPred = blockAtHeadOfLoop->getPredecessors().begin();
-     nextPred != blockAtHeadOfLoop->getPredecessors().end(); ++nextPred) {
-    TR::CFGNode *nextNode = (*nextPred)->getFrom();
-    if (!correspondingBlocks[nextNode->getNumber()]) {
-        invariantBlock = toBlock(nextNode);
-        break;
-    }
-}
-
-// Create a new loop invariant block for the cloned loop
-//
-TR::Block *blockAtHeadOfClonedLoop = correspondingBlocks[blockAtHeadOfLoop->getNumber()];
-TR::TreeTop *blockHeadTreeTop = blockAtHeadOfClonedLoop->getEntry();
-TR::Node *blockHeadNode = blockHeadTreeTop->getNode();
-TR::Block *clonedLoopInvariantBlock = TR::Block::createEmptyBlock(invariantBlock->getEntry()->getNode(), comp(),
-    invariantBlock->getFrequency(), invariantBlock);
-clonedLoopInvariantBlock->setIsSpecialized(invariantBlock->isSpecialized());
-_cfg->addNode(clonedLoopInvariantBlock);
-TR::TreeTop *clonedInvariantEntryTree = clonedLoopInvariantBlock->getEntry();
-TR::TreeTop *clonedInvariantExitTree = clonedLoopInvariantBlock->getExit();
-TR::Node *gotoNode = TR::Node::create(blockHeadNode, TR::Goto, 0, blockHeadTreeTop);
-TR::TreeTop *gotoTree = TR::TreeTop::create(comp(), gotoNode, NULL, NULL);
-clonedInvariantEntryTree->join(gotoTree);
-gotoTree->join(clonedInvariantExitTree);
-
-_exitGotoTarget = clonedLoopInvariantBlock->getEntry();
-
-if (vgInfo) {
-    vgInfo->_coldLoopEntryBlock = blockAtHeadOfClonedLoop;
-    vgInfo->_coldLoopInvariantBlock = clonedLoopInvariantBlock;
-}
-
-// --------------------------------------------------------------------------------
-//
-// Now construct each comparison test that needs to be
-// done as part of this versioning.
-//
-// The first one is to check if the loop driving induction
-// variable is incremented not a by a constt but by a loop invariant
-// local, then is the local greater than zero. This is reqd to
-// guarantee the direction in which the value of the induction variable
-// is moving in.
-//
-// --------------------------------------------------------------------------------
-
-TR_ScratchList<TR::Node> comparisonTrees(trMemory());
-
-if (_requiresAdditionalCheckForIncrement
-    && performTransformation(comp(),
-        "%s Creating test outside loop for checking if loop driving induction variable is incremented by a loop "
-        "invariant that is greater than 0\n",
-        OPT_DETAILS_LOOP_VERSIONER)) {
-    if (_constNode->getType().isInt32()) {
-        TR::Node *nextComparisonNode = TR::Node::createif(TR::ificmple, _constNode,
-            TR::Node::create(blockHeadNode, TR::iconst, 0, 0), clonedLoopInvariantBlock->getEntry());
-        dumpOptDetails(comp(), "Node %p has been created testing if increment check is required\n", nextComparisonNode);
-        comparisonTrees.add(nextComparisonNode);
-    } else if (_constNode->getType().isInt64()) {
-        TR::Node *nextComparisonNode = TR::Node::createif(TR::iflcmple, _constNode,
-            TR::Node::create(blockHeadNode, TR::lconst, 0, 0), clonedLoopInvariantBlock->getEntry());
-        dumpOptDetails(comp(), "Node %p has been created testing if increment check is required\n", nextComparisonNode);
-        comparisonTrees.add(nextComparisonNode);
-    } else {
-        TR_ASSERT(0,
-            "Unable to create test outside of loop for checking if iv update increment is greater than 0 due to "
-            "unknown type\n");
-    }
-}
-
-if (_loopConditionInvariant && !asyncCheckTrees->isEmpty()) {
-    bool isIncreasing;
-    TR::SymbolReference *firstChildSymRef;
-    bool _canPredictIters = canPredictIters(whileLoop, blocksInWhileLoop, isIncreasing, firstChildSymRef);
-
-    if (_numberOfTreesInLoop == 0) {
-        TR_ASSERT(0, "Loop must have at least one tree in it\n");
-        _numberOfTreesInLoop = 1;
-    }
-
-    TR::Node *loopLimit = _loopTestTree->getNode()->getSecondChild();
-    int32_t profiledLoopLimit = DEFAULT_LOOP_LIMIT / _numberOfTreesInLoop;
-    TR::ILOpCodes comparisonOpCode = TR::ificmpgt;
-
-    if (loopLimit->getType().isInt32() && !loopLimit->getByteCodeInfo().doNotProfile()) {
-#ifdef J9_PROJECT_SPECIFIC
-        TR_ValueInfo *valueInfo = static_cast<TR_ValueInfo *>(
-            TR_ValueProfileInfoManager::getProfiledValueInfo(loopLimit, comp(), ValueInfo));
-        if (valueInfo) {
-            if (valueInfo->getTotalFrequency()) {
-                dumpOptDetails(comp(),
-                    "From value profiling, loop test node %p has value %d freq %d total freq %d, and max value "
-                    "%d\n",
-                    loopLimit, valueInfo->getTopValue(),
-                    (int32_t)(valueInfo->getTopProbability() * valueInfo->getTotalFrequency()),
-                    valueInfo->getTotalFrequency(), valueInfo->getMaxValue());
-
-                // if (shouldOnlySpecializeLoops())
-                {
-                    // if we estimate loop count to mostly be over
-                    // the static limit, do not version based on async
-                    // checks--leave them in, so we can still run the
-                    // version without bounds checks
-                    TR_ScratchList<TR_ExtraValueInfo> valuesSortedByFrequency(trMemory());
-                    valueInfo->getSortedList(comp(), &valuesSortedByFrequency);
-                    ListIterator<TR_ExtraValueInfo> sortedValuesIt(&valuesSortedByFrequency);
-
-                    float totalFreq = (float)valueInfo->getTotalFrequency();
-                    float valuedFreq = 0;
-
-                    for (TR_ExtraValueInfo *profiledInfo = sortedValuesIt.getFirst(); profiledInfo != NULL;
-                         profiledInfo = sortedValuesIt.getNext()) {
-                        if (profiledInfo->_value < profiledLoopLimit)
-                            valuedFreq += (float)profiledInfo->_value;
-                    }
-
-                    if (valueInfo->getMaxValue() > profiledLoopLimit && valuedFreq / totalFreq < 0.95f) {
-                        dumpOptDetails(comp(),
-                            "Maximum profiled value of %d exceeds profiled loop limit of %d, and value profiled "
-                            "iterations below limit account for only %5.3f of iterations.  Delaying asyncCheck "
-                            "removal for node %p\n",
-                            valueInfo->getMaxValue(), profiledLoopLimit, valuedFreq / totalFreq, loopLimit);
-                        _canPredictIters = false;
-                    }
-                }
+                nextClonedBlock->getLastRealTreeTop()->adjustBranchOrSwitchTreeTop(comp(), succ->getEntry(),
+                    clonedSucc->getEntry());
             } else {
-                // NO Value Profiling Info
-                int32_t numIters = whileLoop->getEntryBlock()->getFrequency();
-                // if (numIters > 0.90*comp()->getRecompilationInfo()->getMaxBlockCount())
-                if (numIters > 0.90 * (MAX_BLOCK_COUNT + MAX_COLD_BLOCK_COUNT))
-                    _canPredictIters = false;
+                // This successor does not belong to the loop being cloned;
+                // so there is no cloned counterpart for it. If the block
+                // branches explicitly to its successor, then we can simply
+                // add an edge from the cloned block to the successor; else
+                // if it was fall through then we have to add a new goto block
+                // which would branch explicitly to the successor.
+                //
+                TR::Node *lastNode = nextClonedBlock->getLastRealTreeTop()->getNode();
+                bool callWithException = false;
+                if (lastNode->getNumChildren() > 0) {
+                    if (lastNode->getFirstChild()->getOpCodeValue() == TR::athrow)
+                        lastNode = lastNode->getFirstChild();
+                    TR::ILOpCode &childOpCode = lastNode->getFirstChild()->getOpCode();
+                    if (childOpCode.isCall() && childOpCode.isJumpWithMultipleTargets()) {
+                        callWithException = true;
+                    }
+                }
+                TR::ILOpCode &lastOpCode = lastNode->getOpCode();
+
+                bool fallsThrough = false;
+                if (!(lastOpCode.isBranch()
+                        || (lastOpCode.isJumpWithMultipleTargets() && lastOpCode.hasBranchChildren())
+                        || lastOpCode.isReturn() || (lastOpCode.getOpCodeValue() == TR::athrow) || callWithException))
+                    fallsThrough = true;
+                else if (lastOpCode.isBranch()) {
+                    if (lastNode->getBranchDestination() != succ->getEntry())
+                        fallsThrough = true;
+                }
+
+                if (!fallsThrough)
+                    _cfg->addEdge(TR::CFGEdge::createEdge(nextClonedBlock, succ, trMemory()));
+                else {
+                    TR::Block *newGotoBlock
+                        = TR::Block::createEmptyBlock(lastNode, comp(), (*edge)->getFrequency(), nextClonedBlock);
+                    newGotoBlock->setIsSpecialized(nextClonedBlock->isSpecialized());
+                    _cfg->addNode(newGotoBlock);
+
+                    logprintf(trace(), log, "Creating new goto block : %d for node %p\n", newGotoBlock->getNumber(),
+                        lastNode);
+
+                    TR::TreeTop *gotoBlockEntryTree = newGotoBlock->getEntry();
+                    TR::TreeTop *gotoBlockExitTree = newGotoBlock->getExit();
+                    TR::Node *gotoNode = TR::Node::create(lastNode, TR::Goto);
+                    TR::TreeTop *gotoTree = TR::TreeTop::create(comp(), gotoNode, NULL, NULL);
+                    TR_ASSERT(succ->getEntry(), "Entry tree of succ is NULL\n");
+                    gotoNode->setBranchDestination(succ->getEntry());
+                    gotoBlockEntryTree->join(gotoTree);
+                    gotoTree->join(gotoBlockExitTree);
+                    TR::TreeTop *clonedExit = nextClonedBlock->getExit();
+                    TR::TreeTop *treeAfterClonedExit = clonedExit->getNextTreeTop();
+                    clonedExit->join(gotoBlockEntryTree);
+                    gotoBlockExitTree->join(treeAfterClonedExit);
+                    if (endTree == clonedExit)
+                        endTree = gotoBlockExitTree;
+
+                    TR::CFGEdge *e1 = TR::CFGEdge::createEdge(nextClonedBlock, newGotoBlock, trMemory());
+                    _cfg->addEdge(e1);
+                    TR::CFGEdge *e2 = TR::CFGEdge::createEdge(newGotoBlock, succ, trMemory());
+                    _cfg->addEdge(e2);
+                    if (_neitherLoopCold) {
+                        if (!shouldOnlySpecializeLoops()) {
+                            e1->setFrequency((*edge)->getFrequency());
+                            e2->setFrequency((*edge)->getFrequency());
+                        } else {
+                            int32_t specializedBlockFrequency
+                                = TR::Block::getScaledSpecializedFrequency((*edge)->getFrequency());
+
+                            e1->setFrequency(specializedBlockFrequency);
+                            e2->setFrequency(specializedBlockFrequency);
+                        }
+                    }
+
+                    TR_BlockStructure *newGotoBlockStructure = new (_cfg->structureMemoryRegion())
+                        TR_BlockStructure(comp(), newGotoBlock->getNumber(), newGotoBlock);
+                    newGotoBlockStructure->setCreatedByVersioning(true);
+                    if (!_neitherLoopCold) {
+                        newGotoBlock->setIsCold();
+                        newGotoBlock->setFrequency(VERSIONED_COLD_BLOCK_COUNT);
+                    } else if (_neitherLoopCold && shouldOnlySpecializeLoops()) {
+                        // newGotoBlock->setIsRare();
+                        if ((*edge)->getFrequency() < 0)
+                            newGotoBlock->setFrequency((*edge)->getFrequency());
+                        else {
+                            int32_t specializedBlockFrequency
+                                = TR::Block::getScaledSpecializedFrequency((*edge)->getFrequency());
+                            if ((*edge)->getFrequency() <= MAX_COLD_BLOCK_COUNT)
+                                specializedBlockFrequency = (*edge)->getFrequency();
+                            else if (specializedBlockFrequency <= MAX_COLD_BLOCK_COUNT)
+                                specializedBlockFrequency = MAX_COLD_BLOCK_COUNT + 1;
+                            newGotoBlock->setFrequency(specializedBlockFrequency);
+                        }
+                    }
+                    newGotoBlockStructures.add(newGotoBlockStructure);
+                }
             }
         }
-        // compjazz 108308 disallow versioning of async checks for long running GPU Loops when forced to compile at
-        // scorching without jit value info.
-        else if (comp()->getOptions()->getEnableGPU(TR_EnableGPU) && comp()->hasIntStreamForEach()
-            && comp()->getMethodHotness() == scorching) {
-            _canPredictIters = false;
-        }
-#endif
-    }
 
-    if (_canPredictIters && firstChildSymRef) {
-        TR_InductionVariable *v = whileLoop->findMatchingIV(firstChildSymRef);
-        if (v && v->getEntry() && v->getExit()) {
-            TR::VPConstraint *entryVal = v->getEntry();
-            TR::VPConstraint *exitVal = v->getExit();
-            TR::VPConstraint *incrVal = v->getIncr();
-            if (entryVal->asIntConstraint() && exitVal->asIntConstraint() && incrVal->asIntConstraint()) {
-                int64_t minDelta;
-                if (incrVal->getLowInt() > 0)
-                    minDelta = (int64_t)exitVal->getLowInt() - entryVal->getHighInt();
-                else if (incrVal->getHighInt() < 0)
-                    minDelta = (int64_t)entryVal->getLowInt() - exitVal->getHighInt();
-                else
-                    minDelta = TR::getMinSigned<TR::Int64>();
-                if (minDelta > profiledLoopLimit)
-                    _canPredictIters = false;
+        // Adjust exception edges for the new cloned blocks
+        //
+        for (auto edge = nextBlock->getExceptionSuccessors().begin(); edge != nextBlock->getExceptionSuccessors().end();
+             ++edge) {
+            TR::Block *succ = toBlock((*edge)->getTo());
+            TR::Block *nextClonedBlock = correspondingBlocks[nextBlock->getNumber()];
+            TR::Block *clonedSucc = correspondingBlocks[succ->getNumber()];
+
+            if (clonedSucc) {
+                _cfg->addEdge(TR::CFGEdge::createExceptionEdge(nextClonedBlock, clonedSucc, trMemory()));
+            } else {
+                _cfg->addEdge(TR::CFGEdge::createExceptionEdge(nextClonedBlock, succ, trMemory()));
             }
         }
     }
 
-    if (shouldOnlySpecializeLoops()) {
-        int32_t numIters = whileLoop->getEntryBlock()->getFrequency();
-        if (numIters < 0.90 * (MAX_BLOCK_COUNT + MAX_COLD_BLOCK_COUNT))
-            _canPredictIters = false;
+    // Locate the loop invariant block for the original loop
+    //
+    TR::Block *invariantBlock = NULL;
+    for (auto nextPred = blockAtHeadOfLoop->getPredecessors().begin();
+         nextPred != blockAtHeadOfLoop->getPredecessors().end(); ++nextPred) {
+        TR::CFGNode *nextNode = (*nextPred)->getFrom();
+        if (!correspondingBlocks[nextNode->getNumber()]) {
+            invariantBlock = toBlock(nextNode);
+            break;
+        }
     }
 
-    // `_duplicateConditionalTree` is set only when `_conditionalTree` is set. `_conditionalTree`
-    // is set only when`_neitherLoopCold` is true. Therefore, if `_duplicateConditionalTree` exists,
-    // the loops are unbiased. When the loops are unbiased, do not version asynch check
-    // so that the conditional in both loops can be folded away.
-    bool asyncCheckVersioningOK = _duplicateConditionalTree ? false : true;
+    // Create a new loop invariant block for the cloned loop
+    //
+    TR::Block *blockAtHeadOfClonedLoop = correspondingBlocks[blockAtHeadOfLoop->getNumber()];
+    TR::TreeTop *blockHeadTreeTop = blockAtHeadOfClonedLoop->getEntry();
+    TR::Node *blockHeadNode = blockHeadTreeTop->getNode();
+    TR::Block *clonedLoopInvariantBlock = TR::Block::createEmptyBlock(invariantBlock->getEntry()->getNode(), comp(),
+        invariantBlock->getFrequency(), invariantBlock);
+    clonedLoopInvariantBlock->setIsSpecialized(invariantBlock->isSpecialized());
+    _cfg->addNode(clonedLoopInvariantBlock);
+    TR::TreeTop *clonedInvariantEntryTree = clonedLoopInvariantBlock->getEntry();
+    TR::TreeTop *clonedInvariantExitTree = clonedLoopInvariantBlock->getExit();
+    TR::Node *gotoNode = TR::Node::create(blockHeadNode, TR::Goto, 0, blockHeadTreeTop);
+    TR::TreeTop *gotoTree = TR::TreeTop::create(comp(), gotoNode, NULL, NULL);
+    clonedInvariantEntryTree->join(gotoTree);
+    gotoTree->join(clonedInvariantExitTree);
 
-    if (asyncCheckVersioningOK && !comp()->getOption(TR_DisableAsyncCheckVersioning) && !refineAliases()
-        && _canPredictIters && comp()->getProfilingMode() != JitProfiling
-        && performTransformation(comp(), "%s Creating test outside loop for deciding if async check is required\n",
+    _exitGotoTarget = clonedLoopInvariantBlock->getEntry();
+
+    if (vgInfo) {
+        vgInfo->_coldLoopEntryBlock = blockAtHeadOfClonedLoop;
+        vgInfo->_coldLoopInvariantBlock = clonedLoopInvariantBlock;
+    }
+
+    // --------------------------------------------------------------------------------
+    //
+    // Now construct each comparison test that needs to be
+    // done as part of this versioning.
+    //
+    // The first one is to check if the loop driving induction
+    // variable is incremented not a by a constt but by a loop invariant
+    // local, then is the local greater than zero. This is reqd to
+    // guarantee the direction in which the value of the induction variable
+    // is moving in.
+    //
+    // --------------------------------------------------------------------------------
+
+    TR_ScratchList<TR::Node> comparisonTrees(trMemory());
+
+    if (_requiresAdditionalCheckForIncrement
+        && performTransformation(comp(),
+            "%s Creating test outside loop for checking if loop driving induction variable is incremented by a loop "
+            "invariant that is greater than 0\n",
             OPT_DETAILS_LOOP_VERSIONER)) {
-        TR::Node *lowerBound = _loopTestTree->getNode()->getFirstChild()->duplicateTreeForCodeMotion();
-        TR::Node *upperBound = _loopTestTree->getNode()->getSecondChild()->duplicateTreeForCodeMotion();
-        TR::Node *loopLimit = isIncreasing ? TR::Node::create(TR::isub, 2, upperBound, lowerBound)
-                                           : TR::Node::create(TR::isub, 2, lowerBound, upperBound);
+        if (_constNode->getType().isInt32()) {
+            TR::Node *nextComparisonNode = TR::Node::createif(TR::ificmple, _constNode,
+                TR::Node::create(blockHeadNode, TR::iconst, 0, 0), clonedLoopInvariantBlock->getEntry());
+            dumpOptDetails(comp(), "Node %p has been created testing if increment check is required\n",
+                nextComparisonNode);
+            comparisonTrees.add(nextComparisonNode);
+        } else if (_constNode->getType().isInt64()) {
+            TR::Node *nextComparisonNode = TR::Node::createif(TR::iflcmple, _constNode,
+                TR::Node::create(blockHeadNode, TR::lconst, 0, 0), clonedLoopInvariantBlock->getEntry());
+            dumpOptDetails(comp(), "Node %p has been created testing if increment check is required\n",
+                nextComparisonNode);
+            comparisonTrees.add(nextComparisonNode);
+        } else {
+            TR_ASSERT(0,
+                "Unable to create test outside of loop for checking if iv update increment is greater than 0 due to "
+                "unknown type\n");
+        }
+    }
 
-        TR::Node *nextComparisonNode = TR::Node::createif(comparisonOpCode, loopLimit,
-            TR::Node::create(loopLimit, TR::iconst, 0, profiledLoopLimit), clonedLoopInvariantBlock->getEntry());
-        nextComparisonNode->setIsMaxLoopIterationGuard(true);
+    if (_loopConditionInvariant && !asyncCheckTrees->isEmpty()) {
+        bool isIncreasing;
+        TR::SymbolReference *firstChildSymRef;
+        bool _canPredictIters = canPredictIters(whileLoop, blocksInWhileLoop, isIncreasing, firstChildSymRef);
 
-        LoopEntryPrep *prep = createLoopEntryPrep(LoopEntryPrep::TEST, nextComparisonNode);
+        if (_numberOfTreesInLoop == 0) {
+            TR_ASSERT(0, "Loop must have at least one tree in it\n");
+            _numberOfTreesInLoop = 1;
+        }
 
-        if (prep != NULL) {
-            ListElement<TR::TreeTop> *nextTree = asyncCheckTrees->getListHead();
+        TR::Node *loopLimit = _loopTestTree->getNode()->getSecondChild();
+        int32_t profiledLoopLimit = DEFAULT_LOOP_LIMIT / _numberOfTreesInLoop;
+        TR::ILOpCodes comparisonOpCode = TR::ificmpgt;
 
-            while (nextTree != NULL) {
-                TR::TreeTop *asyncCheckTree = nextTree->getData();
+        if (loopLimit->getType().isInt32() && !loopLimit->getByteCodeInfo().doNotProfile()) {
+#ifdef J9_PROJECT_SPECIFIC
+            TR_ValueInfo *valueInfo = static_cast<TR_ValueInfo *>(
+                TR_ValueProfileInfoManager::getProfiledValueInfo(loopLimit, comp(), ValueInfo));
+            if (valueInfo) {
+                if (valueInfo->getTotalFrequency()) {
+                    dumpOptDetails(comp(),
+                        "From value profiling, loop test node %p has value %d freq %d total freq %d, and max value "
+                        "%d\n",
+                        loopLimit, valueInfo->getTopValue(),
+                        (int32_t)(valueInfo->getTopProbability() * valueInfo->getTotalFrequency()),
+                        valueInfo->getTotalFrequency(), valueInfo->getMaxValue());
 
-                nodeWillBeRemovedIfPossible(asyncCheckTree->getNode(), prep);
-                _curLoop->_loopImprovements.push_back(
-                    new (_curLoop->_memRegion) RemoveAsyncCheck(this, prep, asyncCheckTree));
+                    // if (shouldOnlySpecializeLoops())
+                    {
+                        // if we estimate loop count to mostly be over
+                        // the static limit, do not version based on async
+                        // checks--leave them in, so we can still run the
+                        // version without bounds checks
+                        TR_ScratchList<TR_ExtraValueInfo> valuesSortedByFrequency(trMemory());
+                        valueInfo->getSortedList(comp(), &valuesSortedByFrequency);
+                        ListIterator<TR_ExtraValueInfo> sortedValuesIt(&valuesSortedByFrequency);
 
-                nextTree = nextTree->getNextElement();
+                        float totalFreq = (float)valueInfo->getTotalFrequency();
+                        float valuedFreq = 0;
+
+                        for (TR_ExtraValueInfo *profiledInfo = sortedValuesIt.getFirst(); profiledInfo != NULL;
+                             profiledInfo = sortedValuesIt.getNext()) {
+                            if (profiledInfo->_value < profiledLoopLimit)
+                                valuedFreq += (float)profiledInfo->_value;
+                        }
+
+                        if (valueInfo->getMaxValue() > profiledLoopLimit && valuedFreq / totalFreq < 0.95f) {
+                            dumpOptDetails(comp(),
+                                "Maximum profiled value of %d exceeds profiled loop limit of %d, and value profiled "
+                                "iterations below limit account for only %5.3f of iterations.  Delaying asyncCheck "
+                                "removal for node %p\n",
+                                valueInfo->getMaxValue(), profiledLoopLimit, valuedFreq / totalFreq, loopLimit);
+                            _canPredictIters = false;
+                        }
+                    }
+                } else {
+                    // NO Value Profiling Info
+                    int32_t numIters = whileLoop->getEntryBlock()->getFrequency();
+                    // if (numIters > 0.90*comp()->getRecompilationInfo()->getMaxBlockCount())
+                    if (numIters > 0.90 * (MAX_BLOCK_COUNT + MAX_COLD_BLOCK_COUNT))
+                        _canPredictIters = false;
+                }
+            }
+            // compjazz 108308 disallow versioning of async checks for long running GPU Loops when forced to compile at
+            // scorching without jit value info.
+            else if (comp()->getOptions()->getEnableGPU(TR_EnableGPU) && comp()->hasIntStreamForEach()
+                && comp()->getMethodHotness() == scorching) {
+                _canPredictIters = false;
+            }
+#endif
+        }
+
+        if (_canPredictIters && firstChildSymRef) {
+            TR_InductionVariable *v = whileLoop->findMatchingIV(firstChildSymRef);
+            if (v && v->getEntry() && v->getExit()) {
+                TR::VPConstraint *entryVal = v->getEntry();
+                TR::VPConstraint *exitVal = v->getExit();
+                TR::VPConstraint *incrVal = v->getIncr();
+                if (entryVal->asIntConstraint() && exitVal->asIntConstraint() && incrVal->asIntConstraint()) {
+                    int64_t minDelta;
+                    if (incrVal->getLowInt() > 0)
+                        minDelta = (int64_t)exitVal->getLowInt() - entryVal->getHighInt();
+                    else if (incrVal->getHighInt() < 0)
+                        minDelta = (int64_t)entryVal->getLowInt() - exitVal->getHighInt();
+                    else
+                        minDelta = TR::getMinSigned<TR::Int64>();
+                    if (minDelta > profiledLoopLimit)
+                        _canPredictIters = false;
+                }
+            }
+        }
+
+        if (shouldOnlySpecializeLoops()) {
+            int32_t numIters = whileLoop->getEntryBlock()->getFrequency();
+            if (numIters < 0.90 * (MAX_BLOCK_COUNT + MAX_COLD_BLOCK_COUNT))
+                _canPredictIters = false;
+        }
+
+        // `_duplicateConditionalTree` is set only when `_conditionalTree` is set. `_conditionalTree`
+        // is set only when`_neitherLoopCold` is true. Therefore, if `_duplicateConditionalTree` exists,
+        // the loops are unbiased. When the loops are unbiased, do not version asynch check
+        // so that the conditional in both loops can be folded away.
+        bool asyncCheckVersioningOK = _duplicateConditionalTree ? false : true;
+
+        if (asyncCheckVersioningOK && !comp()->getOption(TR_DisableAsyncCheckVersioning) && !refineAliases()
+            && _canPredictIters && comp()->getProfilingMode() != JitProfiling
+            && performTransformation(comp(), "%s Creating test outside loop for deciding if async check is required\n",
+                OPT_DETAILS_LOOP_VERSIONER)) {
+            TR::Node *lowerBound = _loopTestTree->getNode()->getFirstChild()->duplicateTreeForCodeMotion();
+            TR::Node *upperBound = _loopTestTree->getNode()->getSecondChild()->duplicateTreeForCodeMotion();
+            TR::Node *loopLimit = isIncreasing ? TR::Node::create(TR::isub, 2, upperBound, lowerBound)
+                                               : TR::Node::create(TR::isub, 2, lowerBound, upperBound);
+
+            TR::Node *nextComparisonNode = TR::Node::createif(comparisonOpCode, loopLimit,
+                TR::Node::create(loopLimit, TR::iconst, 0, profiledLoopLimit), clonedLoopInvariantBlock->getEntry());
+            nextComparisonNode->setIsMaxLoopIterationGuard(true);
+
+            LoopEntryPrep *prep = createLoopEntryPrep(LoopEntryPrep::TEST, nextComparisonNode);
+
+            if (prep != NULL) {
+                ListElement<TR::TreeTop> *nextTree = asyncCheckTrees->getListHead();
+
+                while (nextTree != NULL) {
+                    TR::TreeTop *asyncCheckTree = nextTree->getData();
+
+                    nodeWillBeRemovedIfPossible(asyncCheckTree->getNode(), prep);
+                    _curLoop->_loopImprovements.push_back(
+                        new (_curLoop->_memRegion) RemoveAsyncCheck(this, prep, asyncCheckTree));
+
+                    nextTree = nextTree->getNextElement();
+                }
             }
         }
     }
-}
 
-// Construct the tests for invariant or induction var expressions that need
-// to be bounds checked.
-//
-if (!boundCheckTrees->isEmpty()) {
-    bool reverseBranch = false;
-    if (_loopConditionInvariant
-        && !blocksInWhileLoop.find(_loopTestTree->getNode()->getBranchDestination()->getNode()->getBlock()))
-        reverseBranch = true;
-    buildBoundCheckComparisonsTree(boundCheckTrees, spineCheckTrees, reverseBranch);
-}
+    // Construct the tests for invariant or induction var expressions that need
+    // to be bounds checked.
+    //
+    if (!boundCheckTrees->isEmpty()) {
+        bool reverseBranch = false;
+        if (_loopConditionInvariant
+            && !blocksInWhileLoop.find(_loopTestTree->getNode()->getBranchDestination()->getNode()->getBlock()))
+            reverseBranch = true;
+        buildBoundCheckComparisonsTree(boundCheckTrees, spineCheckTrees, reverseBranch);
+    }
 
-// Construct the tests for invariant or induction var expressions that need
-// to be bounds checked.
-//
-if (shouldOnlySpecializeLoops() && !spineCheckTrees->isEmpty()) {
-    buildSpineCheckComparisonsTree(spineCheckTrees);
-}
+    // Construct the tests for invariant or induction var expressions that need
+    // to be bounds checked.
+    //
+    if (shouldOnlySpecializeLoops() && !spineCheckTrees->isEmpty()) {
+        buildSpineCheckComparisonsTree(spineCheckTrees);
+    }
 
-// Construct the tests for invariant expressions that need
-// to be div checked.
-//
-if (!divCheckTrees->isEmpty() && !shouldOnlySpecializeLoops()) {
-    buildDivCheckComparisonsTree(divCheckTrees);
-}
+    // Construct the tests for invariant expressions that need
+    // to be div checked.
+    //
+    if (!divCheckTrees->isEmpty() && !shouldOnlySpecializeLoops()) {
+        buildDivCheckComparisonsTree(divCheckTrees);
+    }
 
-// Construct specialization tests
-//
-if (!specializedNodes->isEmpty()) {
-    TR::SymbolReference **symRefs = (TR::SymbolReference **)trMemory()->allocateStackMemory(
-        comp()->getSymRefCount() * sizeof(TR::SymbolReference *));
-    memset(symRefs, 0, comp()->getSymRefCount() * sizeof(TR::SymbolReference *));
+    // Construct specialization tests
+    //
+    if (!specializedNodes->isEmpty()) {
+        TR::SymbolReference **symRefs = (TR::SymbolReference **)trMemory()->allocateStackMemory(
+            comp()->getSymRefCount() * sizeof(TR::SymbolReference *));
+        memset(symRefs, 0, comp()->getSymRefCount() * sizeof(TR::SymbolReference *));
 
-    bool specializedLongs = buildSpecializationTree(nullCheckTrees, divCheckTrees, checkCastTrees, arrayStoreCheckTrees,
-        &comparisonTrees, specializedNodes, invariantBlock, symRefs);
+        bool specializedLongs = buildSpecializationTree(nullCheckTrees, divCheckTrees, checkCastTrees,
+            arrayStoreCheckTrees, &comparisonTrees, specializedNodes, invariantBlock, symRefs);
 
-    if (specializedLongs) {
+        if (specializedLongs) {
+            ListIterator<TR::Block> blocksIt(&blocksInWhileLoop);
+            TR::Block *nextBlock;
+            for (nextBlock = blocksIt.getCurrent(); nextBlock; nextBlock = blocksIt.getNext()) {
+                vcount_t visitCount = comp()->incVisitCount();
+                TR::TreeTop *cursor = nextBlock->getEntry();
+                while (cursor != nextBlock->getExit()) {
+                    convertSpecializedLongsToInts(cursor->getNode(), visitCount, symRefs);
+                    cursor = cursor->getNextTreeTop();
+                }
+            }
+        }
+
+        // Ensure that substitution for specialization leaves behind no malformed
+        // NULLCHK or DIVCHK nodes. These checks used to be eagerly (and
+        // generally incorrectly) removed by collectAllExpressionsToBeChecked().
+        //
+        // TODO: Specialization should be changed to defer its transformations,
+        // using the privatization analysis to determine whether it's okay to
+        // stop re-reading certain data each iteration. Substitution of constant
+        // values should probably be integrated with substitution of loads of
+        // privatization temps.
+        //
         ListIterator<TR::Block> blocksIt(&blocksInWhileLoop);
-        TR::Block *nextBlock;
-        for (nextBlock = blocksIt.getCurrent(); nextBlock; nextBlock = blocksIt.getNext()) {
-            vcount_t visitCount = comp()->incVisitCount();
-            TR::TreeTop *cursor = nextBlock->getEntry();
-            while (cursor != nextBlock->getExit()) {
-                convertSpecializedLongsToInts(cursor->getNode(), visitCount, symRefs);
-                cursor = cursor->getNextTreeTop();
+        for (TR::Block *block = blocksIt.getCurrent(); block != NULL; block = blocksIt.getNext()) {
+            TR::TreeTop *entry = block->getEntry();
+            TR::TreeTop *exit = block->getExit();
+            for (TR::TreeTopIterator it(entry, comp()); !it.isAt(exit); it.stepForward()) {
+                TR::TreeTop *tt = it.currentTree();
+                TR::Node *node = tt->getNode();
+                TR::ILOpCode op = node->getOpCode();
+                if (op.isNullCheck() || op.getOpCodeValue() == TR::DIVCHK) {
+                    TR::ILOpCodes childOp = node->getChild(0)->getOpCodeValue();
+                    if (childOp == TR::iconst || childOp == TR::iu2l) {
+                        dumpOptDetails(comp(), "Removing check n%un [%p] because child has been specialized\n",
+                            node->getGlobalIndex(), node);
+
+                        TR::Node::recreate(node, TR::treetop);
+                    }
+                }
             }
         }
     }
 
-    // Ensure that substitution for specialization leaves behind no malformed
-    // NULLCHK or DIVCHK nodes. These checks used to be eagerly (and
-    // generally incorrectly) removed by collectAllExpressionsToBeChecked().
+    // Construct trees for refined alias version
+    if (refineAliases())
+        buildAliasRefinementComparisonTrees(nullCheckTrees, divCheckTrees, checkCastTrees, arrayStoreCheckTrees,
+            &comparisonTrees, clonedLoopInvariantBlock);
+
+    // Construct the tests for invariant conditionals.
     //
-    // TODO: Specialization should be changed to defer its transformations,
-    // using the privatization analysis to determine whether it's okay to
-    // stop re-reading certain data each iteration. Substitution of constant
-    // values should probably be integrated with substitution of loads of
-    // privatization temps.
+    if (!conditionalTrees->isEmpty())
+        buildConditionalTree(conditionalTrees, reverseBranchInLoops);
+
+    // Construct the tests for invariant expressions that need
+    // to be cast.
     //
-    ListIterator<TR::Block> blocksIt(&blocksInWhileLoop);
-    for (TR::Block *block = blocksIt.getCurrent(); block != NULL; block = blocksIt.getNext()) {
-        TR::TreeTop *entry = block->getEntry();
-        TR::TreeTop *exit = block->getExit();
-        for (TR::TreeTopIterator it(entry, comp()); !it.isAt(exit); it.stepForward()) {
-            TR::TreeTop *tt = it.currentTree();
+    if (!checkCastTrees->isEmpty())
+        buildCheckCastComparisonsTree(checkCastTrees);
+
+    if (!arrayStoreCheckTrees->isEmpty())
+        buildArrayStoreCheckComparisonsTree(arrayStoreCheckTrees);
+
+    // Construct tests for invariant expressions
+    //
+    if (invariantNodes && !invariantNodes->isEmpty()) {
+        buildLoopInvariantTree(invariantNodes);
+        invariantNodes->deleteAll();
+    }
+
+    // Construct the tests for invariant expressions that need
+    // to be null checked.
+
+    // default hotness threshold
+    TR_Hotness hotnessThreshold = hot;
+
+    // If aggressive loop versioning is requested, don't call buildNullCheckComparisonsTree based on hotness
+    if (comp()->getOption(TR_EnableAggressiveLoopVersioning)) {
+        logprints(trace(), log,
+            "aggressiveLoopVersioning: raising hotnessThreshold for buildNullCheckComparisonsTree\n");
+        hotnessThreshold = maxHotness; // threshold which can't be matched by the > operator
+    }
+
+    if (comp()->cg()->performsChecksExplicitly() || (comp()->getMethodHotness() > hotnessThreshold)) {
+        if (!nullCheckTrees->isEmpty() && !shouldOnlySpecializeLoops()) {
+            buildNullCheckComparisonsTree(nullCheckedReferences, nullCheckTrees);
+        }
+    } else {
+        // Find null checks for which some other prep has already created a
+        // versioning test as a dependency. If the versioning test can be
+        // emitted, we might as well remove the null check.
+        ListElement<TR::TreeTop> *head = nullCheckTrees->getListHead();
+        for (ListElement<TR::TreeTop> *elt = head; elt != NULL; elt = elt->getNextElement()) {
+            TR::Node *check = elt->getData()->getNode();
+
+            // A NULLCHK might have been specialized away, but will still appear in nullCheckTrees
+            // Skip such trees
+            if (!check->getOpCode().isNullCheck()) {
+                TR_ASSERT_FATAL(check->getOpCodeValue() == TR::treetop, "Unexpected opcode for n%dn [%p]\n",
+                    check->getGlobalIndex(), check);
+                continue;
+            }
+
+            TR::Node *refNode = check->getNullCheckReference();
+            const Expr *refExpr = findCanonicalExpr(refNode);
+            if (refExpr == NULL)
+                continue;
+
+            auto nullTestEntry = _curLoop->_nullTestPreps.find(refExpr);
+            if (nullTestEntry == _curLoop->_nullTestPreps.end())
+                continue;
+
+            LoopEntryPrep *prep = nullTestEntry->second;
+            if (!performTransformation(comp(),
+                    "%sOpportunistically attempting to eliminate null check n%un [%p] using existing prep %p\n",
+                    optDetailString(), check->getGlobalIndex(), check, prep)) {
+                continue;
+            }
+
+            nodeWillBeRemovedIfPossible(check, prep);
+            _curLoop->_loopImprovements.push_back(new (_curLoop->_memRegion) RemoveNullCheck(this, prep, check));
+        }
+    }
+
+    TR_ASSERT_FATAL(_curLoop->_optimisticallyRemovableNodes.contains(_curLoop->_definitelyRemovableNodes),
+        "loop %d: privatization should only allow more versioning", loopNum);
+
+    TR_ASSERT_FATAL(_curLoop->_guardsRemovableWithPrivAndHCR.contains(_curLoop->_guardsRemovableWithHCR),
+        "loop %d: privatization should only allow more merged HCR guard versioning", loopNum);
+
+    TR_ASSERT_FATAL(_curLoop->_guardsRemovableWithPrivAndOSR.contains(_curLoop->_guardsRemovableWithOSR),
+        "loop %d: privatization should only allow more merged OSR guard versioning", loopNum);
+
+    // Detect the presence of HCR and/or OSR guards in the loop.
+    TR_ScratchList<TR::TreeTop> hcrGuards(trMemory());
+    TR_ScratchList<TR::TreeTop> osrGuards(trMemory());
+    TR::NodeChecklist hcrGuardsSet(comp());
+    TR::NodeChecklist osrGuardsSet(comp());
+    // Search scope
+    {
+        TR::NodeChecklist noNodesRemoved(comp()); // search the loop as-is
+        LoopBodySearch search(comp(), _curLoop->_memRegion, whileLoop, &noNodesRemoved, &_curLoop->_takenBranches);
+
+        for (; search.hasTreeTop(); search.advance()) {
+            TR::TreeTop *tt = search.currentTreeTop();
+            TR::Node *ttNode = tt->getNode();
+            if (ttNode->isHCRGuard()) {
+                hcrGuards.add(tt);
+                hcrGuardsSet.add(ttNode);
+            } else if (ttNode->isOSRGuard()) {
+                osrGuards.add(tt);
+                osrGuardsSet.add(ttNode);
+            }
+        }
+    }
+
+    // Do a fixed-point computation to find the maximal set of versioning
+    // operations that can be safely performed. Initially, we'll consider
+    // allowing all versioning operations. Then until the analysis converges, we
+    // will tentatively assume that the types of versioning currently under
+    // consideration are safe and look at the operations that would still remain
+    // in the hot loop, some of which may prevent some versioning operations
+    // that we hoped would be possible.
+
+    // TODO: Handle breakpoint and method enter/exit hook guards?
+
+    static const bool disableLoopHCR = feGetEnv("TR_DisableHCRGuardLoopVersioner") != NULL;
+    static const bool disableLoopOSR = feGetEnv("TR_DisableOSRGuardLoopVersioner") != NULL;
+    static const bool disableWrtbarVersion = feGetEnv("TR_disableWrtbarVersion") != NULL;
+
+    _curLoop->_privatizationOK = _curLoop->_privatizationsRequested;
+
+    _curLoop->_hcrGuardVersioningOK
+        = (!hcrGuards.isEmpty() || !_curLoop->_guardsRemovableWithPrivAndHCR.isEmpty()) && !disableLoopHCR;
+
+    _curLoop->_osrGuardVersioningOK
+        = (!osrGuards.isEmpty() || !_curLoop->_guardsRemovableWithPrivAndOSR.isEmpty()) && !disableLoopOSR;
+
+    bool awrtbariVersioningOK = !awrtbariTrees->isEmpty() && !disableWrtbarVersion && !shouldOnlySpecializeLoops()
+        && !refineAliases() && !_curLoop->_foldConditionalInDuplicatedLoop;
+
+    bool alreadyAskedPermission = false; // permission to transform
+
+    while (_curLoop->_privatizationOK || _curLoop->_hcrGuardVersioningOK || _curLoop->_osrGuardVersioningOK
+        || awrtbariVersioningOK) {
+        // Search the part of the loop body that would remain *after removing
+        // everything allowed by the current tentative assumptions*.
+        TR::NodeChecklist removedNodes(comp());
+
+        if (_curLoop->_privatizationOK)
+            removedNodes.add(_curLoop->_optimisticallyRemovableNodes);
+        else
+            removedNodes.add(_curLoop->_definitelyRemovableNodes);
+
+        if (_curLoop->_hcrGuardVersioningOK) {
+            removedNodes.add(hcrGuardsSet);
+            if (_curLoop->_privatizationOK)
+                removedNodes.add(_curLoop->_guardsRemovableWithPrivAndHCR);
+            else
+                removedNodes.add(_curLoop->_guardsRemovableWithHCR);
+        }
+
+        if (_curLoop->_osrGuardVersioningOK) {
+            removedNodes.add(osrGuardsSet);
+            if (_curLoop->_privatizationOK)
+                removedNodes.add(_curLoop->_guardsRemovableWithPrivAndOSR);
+            else
+                removedNodes.add(_curLoop->_guardsRemovableWithOSR);
+        }
+
+        dumpOptDetails(comp(), "Trial versioning with:%s%s%s%s\n", _curLoop->_privatizationOK ? " privatization" : "",
+            _curLoop->_hcrGuardVersioningOK ? " hcrGuards" : "", _curLoop->_osrGuardVersioningOK ? " osrGuards" : "",
+            awrtbariVersioningOK ? " (awrtbari)" : "");
+
+        bool newPrivatizationOK = _curLoop->_privatizationOK;
+        bool newHCRGuardVersioningOK = _curLoop->_hcrGuardVersioningOK;
+        bool newOSRGuardVersioningOK = _curLoop->_osrGuardVersioningOK;
+        bool newAwrtbariVersioningOK = awrtbariVersioningOK;
+
+        LoopBodySearch search(comp(), _curLoop->_memRegion, whileLoop, &removedNodes, &_curLoop->_takenBranches);
+
+        for (; search.hasTreeTop(); search.advance()) {
+            TR::TreeTop *tt = search.currentTreeTop();
+            TR::Node *ttNode = tt->getNode();
+            if (removedNodes.contains(ttNode))
+                continue;
+
+            if (ttNode->getOpCodeValue() == TR::treetop || ttNode->getOpCode().isNullCheck()
+                || ttNode->getOpCode().isResolveCheck()) {
+                TR::Node *child = ttNode->getChild(0);
+                if (child->getOpCode().isFunctionCall()) {
+                    newPrivatizationOK = false;
+                    if (_curLoop->_privatizationOK)
+                        traceCannot("privatize", child, comp());
+                }
+            }
+
+            // If the VM is configured to allow for OSR-HCR, then HCR invalidation
+            // can only happen at a subset of GC points even in compilations using
+            // traditional HCR. We could try to take advantage of that here, but
+            // so far no attempt is made to do so.
+
+            if (comp()->getHCRMode() == TR::osr && comp()->isPotentialOSRPoint(ttNode, NULL, true)) {
+                newHCRGuardVersioningOK = false;
+                newOSRGuardVersioningOK = false;
+                if (_curLoop->_hcrGuardVersioningOK)
+                    traceCannot("version HCR guards", ttNode, comp());
+                if (_curLoop->_osrGuardVersioningOK)
+                    traceCannot("version OSR guards", ttNode, comp());
+            }
+
+            bool canGcAndStayInLoop = ttNode->canGCandReturn();
+            if (!canGcAndStayInLoop && ttNode->canGCandExcept()) {
+                TR::Block *block = search.currentBlock();
+                TR::CFGEdgeList &excSuccs = block->getExceptionSuccessors();
+                for (auto it = excSuccs.begin(); it != excSuccs.end(); ++it) {
+                    TR::Block *handler = (*it)->getTo()->asBlock();
+                    if (whileLoop->contains(handler->getStructureOf())) {
+                        canGcAndStayInLoop = true;
+                        break;
+                    }
+                }
+            }
+
+            if (canGcAndStayInLoop) {
+                if (comp()->getHCRMode() == TR::traditional) {
+                    newHCRGuardVersioningOK = false;
+                    if (_curLoop->_hcrGuardVersioningOK)
+                        traceCannot("version HCR guards", ttNode, comp());
+                }
+
+                newAwrtbariVersioningOK = false;
+                if (awrtbariVersioningOK)
+                    traceCannot("version awrtbari", ttNode, comp());
+            }
+        }
+
+        // Update awrtbariVersioningOK unconditionally here, since it is purely
+        // an output, not an input, of the analysis, so changes to it are not
+        // relevant to convergence.
+        if (awrtbariVersioningOK && !newAwrtbariVersioningOK)
+            dumpOptDetails(comp(), "No awrtbari versioning in loop %d\n", loopNum);
+
+        awrtbariVersioningOK = newAwrtbariVersioningOK;
+
+        // If nothing has changed, then the analysis has converged! It's possible
+        // to version with the current settings, and nothing remaining in the hot
+        // loop will interfere with that versioning.
+        if (newPrivatizationOK == _curLoop->_privatizationOK
+            && newHCRGuardVersioningOK == _curLoop->_hcrGuardVersioningOK
+            && newOSRGuardVersioningOK == _curLoop->_osrGuardVersioningOK) {
+            // By checking performTransformation() here, we avoid asking about
+            // transformations that wouldn't have been possible anyway.
+            //
+            // Don't performTransformation() for privatization. Privatizations are
+            // part of transformations that were already optional earlier on.
+            //
+            // Don't performTransformation() for write barrier versioning here.
+            // That can be done separately for each barrier.
+            //
+            if (alreadyAskedPermission)
+                break;
+
+            // Permission to version HCR/OSR guards applies to all HCR/OSR guards
+            // (resp.), since whenever this analysis determines that they are safe
+            // to version, it does so under the assumption that all of them will
+            // be versioned.
+            alreadyAskedPermission = true;
+
+            if (newHCRGuardVersioningOK) {
+                newHCRGuardVersioningOK
+                    = performTransformation(comp(), "%sVersioning HCR guards\n", OPT_DETAILS_LOOP_VERSIONER);
+            }
+
+            if (newOSRGuardVersioningOK) {
+                newOSRGuardVersioningOK
+                    = performTransformation(comp(), "%sVersioning OSR guards\n", OPT_DETAILS_LOOP_VERSIONER);
+            }
+
+            if (newHCRGuardVersioningOK == _curLoop->_hcrGuardVersioningOK
+                && newOSRGuardVersioningOK == _curLoop->_osrGuardVersioningOK)
+                break;
+        }
+
+        // Discovered that we cannot do at least one of privatization, HCR guard
+        // versioning, and OSR guard versioning. Relax the tentative assumptions
+        // and re-analyze.
+        if (_curLoop->_privatizationOK && !newPrivatizationOK)
+            dumpOptDetails(comp(), "No privatization in loop %d\n", loopNum);
+        if (_curLoop->_hcrGuardVersioningOK && !newHCRGuardVersioningOK)
+            dumpOptDetails(comp(), "No HCR guard versioning in loop %d\n", loopNum);
+        if (_curLoop->_osrGuardVersioningOK && !newOSRGuardVersioningOK)
+            dumpOptDetails(comp(), "No OSR guard versioning in loop %d\n", loopNum);
+
+        _curLoop->_privatizationOK = newPrivatizationOK;
+        _curLoop->_hcrGuardVersioningOK = newHCRGuardVersioningOK;
+        _curLoop->_osrGuardVersioningOK = newOSRGuardVersioningOK;
+    }
+
+    // At this point, all of the transformations allowed by _privatizationOK,
+    // etc. are MANDATORY, since they have been determined to be safe under the
+    // assumption that all of them will be done.
+    //
+    // However, write barrier versioning is (exceptionally) still optional
+    // because no other transformations depend on it.
+
+    if (_curLoop->_hcrGuardVersioningOK) {
+        ListIterator<TR::TreeTop> guardIt(&hcrGuards);
+        for (TR::TreeTop *tt = guardIt.getCurrent(); tt; tt = guardIt.getNext()) {
+            dumpOptDetails(comp(), "Creating versioned HCRGuard for guard n%dn\n", tt->getNode()->getGlobalIndex());
+
+            TR::Node *guard = tt->getNode()->duplicateTree();
+            guard->setBranchDestination(clonedLoopInvariantBlock->getEntry());
+            comparisonTrees.add(guard);
+
+            bool reverseBranch = false, origLoop = true;
+            FoldConditional fold(this, NULL, tt->getNode(), reverseBranch, origLoop);
+            fold.improveLoop();
+        }
+    }
+
+    if (_curLoop->_osrGuardVersioningOK) {
+        // All OSR guards will be patched by the same runtime assumptions, so only
+        // one OSR guard is added to branch to the slow loop. This is only needed
+        // if there are no virtual guards with merged OSR guards to be versioned,
+        // but it's more straightforward (and harmless) to generate it whenever
+        // there was originally a standalone OSR guard in the loop.
+        if (!osrGuards.isEmpty()) {
+            TR::Node *osrGuard = osrGuards.getListHead()->getData()->getNode();
+            TR::Node *guard = osrGuard->duplicateTree();
+            logprintf(trace(), log, "OSRGuard n%dn has been created to guard against method invalidation\n",
+                guard->getGlobalIndex());
+
+            guard->setBranchDestination(clonedLoopInvariantBlock->getEntry());
+            comparisonTrees.add(guard);
+        }
+
+        ListIterator<TR::TreeTop> guardIt(&osrGuards);
+        for (TR::TreeTop *tt = guardIt.getCurrent(); tt; tt = guardIt.getNext()) {
+            bool reverseBranch = false, origLoop = true;
+            FoldConditional fold(this, NULL, tt->getNode(), reverseBranch, origLoop);
+            fold.improveLoop();
+        }
+    }
+
+    if (awrtbariVersioningOK)
+        buildAwrtbariComparisonsTree(awrtbariTrees);
+
+    // For each loop improvement that is still possible, emit its loop entry
+    // prep and transform the loop. NB. These improvements are mandatory now.
+    auto improvementsBegin = _curLoop->_loopImprovements.begin();
+    auto improvementsEnd = _curLoop->_loopImprovements.end();
+    for (auto it = improvementsBegin; it != improvementsEnd; ++it) {
+        LoopImprovement *improvement = *it;
+        LoopEntryPrep *prep = improvement->_prep;
+        if ((!prep->_requiresPrivatization || _curLoop->_privatizationOK)
+            && (!prep->_expr->mergedWithHCRGuard() || _curLoop->_hcrGuardVersioningOK)
+            && (!prep->_expr->mergedWithOSRGuard() || _curLoop->_osrGuardVersioningOK)) {
+            emitPrep(prep, &comparisonTrees);
+            improvement->improveLoop();
+        }
+    }
+
+    // Substitute in loads of temps for expressions that have been privatized
+    // throughout the loop.
+    if (_curLoop->_privatizationsRequested && !_curLoop->_privTemps.empty()) {
+        // Since checks and conditionals have already been modified, both
+        // removedNodes and takenBranches can be empty.
+        TR::NodeChecklist empty(comp());
+        TR::NodeChecklist *removedNodes = &empty;
+        TR::NodeChecklist *takenBranches = &empty;
+        LoopBodySearch search(comp(), _curLoop->_memRegion, whileLoop, removedNodes, takenBranches);
+
+        TR::NodeChecklist visited(comp());
+        for (; search.hasTreeTop(); search.advance()) {
+            TR::TreeTop *tt = search.currentTreeTop();
             TR::Node *node = tt->getNode();
+            substitutePrivTemps(tt, node, &visited);
+
             TR::ILOpCode op = node->getOpCode();
             if (op.isNullCheck() || op.getOpCodeValue() == TR::DIVCHK) {
-                TR::ILOpCodes childOp = node->getChild(0)->getOpCodeValue();
-                if (childOp == TR::iconst || childOp == TR::iu2l) {
-                    dumpOptDetails(comp(), "Removing check n%un [%p] because child has been specialized\n",
+                TR::Node *child = node->getChild(0);
+                if (child->getOpCode().isLoadDirect()) {
+                    dumpOptDetails(comp(), "Removing check n%un [%p] because child has been privatized\n",
                         node->getGlobalIndex(), node);
 
                     TR::Node::recreate(node, TR::treetop);
@@ -3641,877 +4033,491 @@ if (!specializedNodes->isEmpty()) {
             }
         }
     }
-}
 
-// Construct trees for refined alias version
-if (refineAliases())
-    buildAliasRefinementComparisonTrees(nullCheckTrees, divCheckTrees, checkCastTrees, arrayStoreCheckTrees,
-        &comparisonTrees, clonedLoopInvariantBlock);
+    // Due to RAS changes to make each loop version test a transformation, disableOptTransformations or
+    // lastOptTransformationIndex can now potentially remove all the tests above the 2 versioned loops.  When there are
+    // two versions of the loop, it is necessary that there be at least one test at the top.  Therefore, the following
+    // is required to ensure that a test is created.
+    size_t comparisonTreesCount = comparisonTrees.getSize();
+    size_t privatizationCount = _curLoop->_privTemps.size();
+    TR_ASSERT_FATAL(privatizationCount <= comparisonTreesCount,
+        "more privatizations (%d) than entries in comparisonTrees (%d)", privatizationCount, comparisonTreesCount);
 
-// Construct the tests for invariant conditionals.
-//
-if (!conditionalTrees->isEmpty())
-    buildConditionalTree(conditionalTrees, reverseBranchInLoops);
-
-// Construct the tests for invariant expressions that need
-// to be cast.
-//
-if (!checkCastTrees->isEmpty())
-    buildCheckCastComparisonsTree(checkCastTrees);
-
-if (!arrayStoreCheckTrees->isEmpty())
-    buildArrayStoreCheckComparisonsTree(arrayStoreCheckTrees);
-
-// Construct tests for invariant expressions
-//
-if (invariantNodes && !invariantNodes->isEmpty()) {
-    buildLoopInvariantTree(invariantNodes);
-    invariantNodes->deleteAll();
-}
-
-// Construct the tests for invariant expressions that need
-// to be null checked.
-
-// default hotness threshold
-TR_Hotness hotnessThreshold = hot;
-
-// If aggressive loop versioning is requested, don't call buildNullCheckComparisonsTree based on hotness
-if (comp()->getOption(TR_EnableAggressiveLoopVersioning)) {
-    logprints(trace(), log, "aggressiveLoopVersioning: raising hotnessThreshold for buildNullCheckComparisonsTree\n");
-    hotnessThreshold = maxHotness; // threshold which can't be matched by the > operator
-}
-
-if (comp()->cg()->performsChecksExplicitly() || (comp()->getMethodHotness() > hotnessThreshold)) {
-    if (!nullCheckTrees->isEmpty() && !shouldOnlySpecializeLoops()) {
-        buildNullCheckComparisonsTree(nullCheckedReferences, nullCheckTrees);
-    }
-} else {
-    // Find null checks for which some other prep has already created a
-    // versioning test as a dependency. If the versioning test can be
-    // emitted, we might as well remove the null check.
-    ListElement<TR::TreeTop> *head = nullCheckTrees->getListHead();
-    for (ListElement<TR::TreeTop> *elt = head; elt != NULL; elt = elt->getNextElement()) {
-        TR::Node *check = elt->getData()->getNode();
-
-        // A NULLCHK might have been specialized away, but will still appear in nullCheckTrees
-        // Skip such trees
-        if (!check->getOpCode().isNullCheck()) {
-            TR_ASSERT_FATAL(check->getOpCodeValue() == TR::treetop, "Unexpected opcode for n%dn [%p]\n",
-                check->getGlobalIndex(), check);
-            continue;
-        }
-
-        TR::Node *refNode = check->getNullCheckReference();
-        const Expr *refExpr = findCanonicalExpr(refNode);
-        if (refExpr == NULL)
-            continue;
-
-        auto nullTestEntry = _curLoop->_nullTestPreps.find(refExpr);
-        if (nullTestEntry == _curLoop->_nullTestPreps.end())
-            continue;
-
-        LoopEntryPrep *prep = nullTestEntry->second;
-        if (!performTransformation(comp(),
-                "%sOpportunistically attempting to eliminate null check n%un [%p] using existing prep %p\n",
-                optDetailString(), check->getGlobalIndex(), check, prep)) {
-            continue;
-        }
-
-        nodeWillBeRemovedIfPossible(check, prep);
-        _curLoop->_loopImprovements.push_back(new (_curLoop->_memRegion) RemoveNullCheck(this, prep, check));
-    }
-}
-
-TR_ASSERT_FATAL(_curLoop->_optimisticallyRemovableNodes.contains(_curLoop->_definitelyRemovableNodes),
-    "loop %d: privatization should only allow more versioning", loopNum);
-
-TR_ASSERT_FATAL(_curLoop->_guardsRemovableWithPrivAndHCR.contains(_curLoop->_guardsRemovableWithHCR),
-    "loop %d: privatization should only allow more merged HCR guard versioning", loopNum);
-
-TR_ASSERT_FATAL(_curLoop->_guardsRemovableWithPrivAndOSR.contains(_curLoop->_guardsRemovableWithOSR),
-    "loop %d: privatization should only allow more merged OSR guard versioning", loopNum);
-
-// Detect the presence of HCR and/or OSR guards in the loop.
-TR_ScratchList<TR::TreeTop> hcrGuards(trMemory());
-TR_ScratchList<TR::TreeTop> osrGuards(trMemory());
-TR::NodeChecklist hcrGuardsSet(comp());
-TR::NodeChecklist osrGuardsSet(comp());
-// Search scope
-{
-    TR::NodeChecklist noNodesRemoved(comp()); // search the loop as-is
-    LoopBodySearch search(comp(), _curLoop->_memRegion, whileLoop, &noNodesRemoved, &_curLoop->_takenBranches);
-
-    for (; search.hasTreeTop(); search.advance()) {
-        TR::TreeTop *tt = search.currentTreeTop();
-        TR::Node *ttNode = tt->getNode();
-        if (ttNode->isHCRGuard()) {
-            hcrGuards.add(tt);
-            hcrGuardsSet.add(ttNode);
-        } else if (ttNode->isOSRGuard()) {
-            osrGuards.add(tt);
-            osrGuardsSet.add(ttNode);
-        }
-    }
-}
-
-// Do a fixed-point computation to find the maximal set of versioning
-// operations that can be safely performed. Initially, we'll consider
-// allowing all versioning operations. Then until the analysis converges, we
-// will tentatively assume that the types of versioning currently under
-// consideration are safe and look at the operations that would still remain
-// in the hot loop, some of which may prevent some versioning operations
-// that we hoped would be possible.
-
-// TODO: Handle breakpoint and method enter/exit hook guards?
-
-static const bool disableLoopHCR = feGetEnv("TR_DisableHCRGuardLoopVersioner") != NULL;
-static const bool disableLoopOSR = feGetEnv("TR_DisableOSRGuardLoopVersioner") != NULL;
-static const bool disableWrtbarVersion = feGetEnv("TR_disableWrtbarVersion") != NULL;
-
-_curLoop->_privatizationOK = _curLoop->_privatizationsRequested;
-
-_curLoop->_hcrGuardVersioningOK
-    = (!hcrGuards.isEmpty() || !_curLoop->_guardsRemovableWithPrivAndHCR.isEmpty()) && !disableLoopHCR;
-
-_curLoop->_osrGuardVersioningOK
-    = (!osrGuards.isEmpty() || !_curLoop->_guardsRemovableWithPrivAndOSR.isEmpty()) && !disableLoopOSR;
-
-bool awrtbariVersioningOK = !awrtbariTrees->isEmpty() && !disableWrtbarVersion && !shouldOnlySpecializeLoops()
-    && !refineAliases() && !_curLoop->_foldConditionalInDuplicatedLoop;
-
-bool alreadyAskedPermission = false; // permission to transform
-
-while (_curLoop->_privatizationOK || _curLoop->_hcrGuardVersioningOK || _curLoop->_osrGuardVersioningOK
-    || awrtbariVersioningOK) {
-    // Search the part of the loop body that would remain *after removing
-    // everything allowed by the current tentative assumptions*.
-    TR::NodeChecklist removedNodes(comp());
-
-    if (_curLoop->_privatizationOK)
-        removedNodes.add(_curLoop->_optimisticallyRemovableNodes);
-    else
-        removedNodes.add(_curLoop->_definitelyRemovableNodes);
-
-    if (_curLoop->_hcrGuardVersioningOK) {
-        removedNodes.add(hcrGuardsSet);
-        if (_curLoop->_privatizationOK)
-            removedNodes.add(_curLoop->_guardsRemovableWithPrivAndHCR);
-        else
-            removedNodes.add(_curLoop->_guardsRemovableWithHCR);
+    size_t testCount = comparisonTreesCount - privatizationCount;
+    if (testCount == 0) {
+        TR::Node *constNode = TR::Node::create(blockHeadNode, TR::iconst, 0, 0);
+        TR::Node *nextComparisonNode
+            = TR::Node::createif(TR::ificmpne, constNode, constNode, clonedLoopInvariantBlock->getEntry());
+        comparisonTrees.add(nextComparisonNode);
+        dumpOptDetails(comp(),
+            "The comparison tree is empty.  The node %p has been created because a test is required when there are two "
+            "versions of the loop.\n",
+            nextComparisonNode);
     }
 
-    if (_curLoop->_osrGuardVersioningOK) {
-        removedNodes.add(osrGuardsSet);
-        if (_curLoop->_privatizationOK)
-            removedNodes.add(_curLoop->_guardsRemovableWithPrivAndOSR);
-        else
-            removedNodes.add(_curLoop->_guardsRemovableWithOSR);
-    }
+    // if (debugBoundCheck)
+    //    {
+    //    TR::TreeTop *debugBoundCheckTree = TR::TreeTop::create(comp(), debugBoundCheck, NULL, NULL);
+    //    clonedInvariantEntryTree->join(debugBoundCheckTree);
+    //    debugBoundCheckTree->join(gotoTree);
+    //    }
 
-    dumpOptDetails(comp(), "Trial versioning with:%s%s%s%s\n", _curLoop->_privatizationOK ? " privatization" : "",
-        _curLoop->_hcrGuardVersioningOK ? " hcrGuards" : "", _curLoop->_osrGuardVersioningOK ? " osrGuards" : "",
-        awrtbariVersioningOK ? " (awrtbari)" : "");
+    // Add each test accumalated earlier into a block of its own
+    // with a critical edge splitting goto block into the trees and
+    // the CFG.
+    //
+    TR::Block *chooserBlock = NULL;
+    ///////TR::Block *lastComparisonBlock = NULL;
+    ListElement<TR::Node> *comparisonNode = comparisonTrees.getListHead();
+    TR_ScratchList<TR::Block> comparisonBlocks(trMemory()), criticalEdgeBlocks(trMemory());
+    TR::TreeTop *insertionPoint = invariantBlock->getEntry();
+    TR::TreeTop *treeBeforeInsertionPoint = insertionPoint->getPrevTreeTop();
 
-    bool newPrivatizationOK = _curLoop->_privatizationOK;
-    bool newHCRGuardVersioningOK = _curLoop->_hcrGuardVersioningOK;
-    bool newOSRGuardVersioningOK = _curLoop->_osrGuardVersioningOK;
-    bool newAwrtbariVersioningOK = awrtbariVersioningOK;
+    bool firstComparisonNode = true;
+    while (comparisonNode) {
+        TR::Node *actualComparisonNode = comparisonNode->getData();
+        TR::TreeTop *comparisonTree = TR::TreeTop::create(comp(), actualComparisonNode, NULL, NULL);
+        TR::Block *comparisonBlock = TR::Block::createEmptyBlock(invariantBlock->getEntry()->getNode(), comp(),
+            invariantBlock->getFrequency(), invariantBlock);
+        comparisonBlock->setIsSpecialized(invariantBlock->isSpecialized());
 
-    LoopBodySearch search(comp(), _curLoop->_memRegion, whileLoop, &removedNodes, &_curLoop->_takenBranches);
+        if (actualComparisonNode->getOpCode().isStore()) {
+            // No critical edge splitting necessary.
+        } else if (firstComparisonNode) {
+            firstComparisonNode = false;
+            //////TR::Node::recreate(actualComparisonNode,
+            /// actualComparisonNode->getOpCode().getOpCodeForReverseBranch());
+            //////actualComparisonNode->setBranchDestination(invariantBlock->getEntry());
+            //////lastComparisonBlock = comparisonBlock;
+        } else {
+            TR::Block *newGotoBlock
+                = TR::Block::createEmptyBlock(invariantBlock->getEntry()->getNode(), comp(), 0, comparisonBlock);
+            newGotoBlock->setIsSpecialized(comparisonBlock->isSpecialized());
+            _cfg->addNode(newGotoBlock);
 
-    for (; search.hasTreeTop(); search.advance()) {
-        TR::TreeTop *tt = search.currentTreeTop();
-        TR::Node *ttNode = tt->getNode();
-        if (removedNodes.contains(ttNode))
-            continue;
+            logprintf(trace(), log, "Creating new goto block : %d for node %p\n", newGotoBlock->getNumber(),
+                actualComparisonNode);
 
-        if (ttNode->getOpCodeValue() == TR::treetop || ttNode->getOpCode().isNullCheck()
-            || ttNode->getOpCode().isResolveCheck()) {
-            TR::Node *child = ttNode->getChild(0);
-            if (child->getOpCode().isFunctionCall()) {
-                newPrivatizationOK = false;
-                if (_curLoop->_privatizationOK)
-                    traceCannot("privatize", child, comp());
-            }
-        }
-
-        // If the VM is configured to allow for OSR-HCR, then HCR invalidation
-        // can only happen at a subset of GC points even in compilations using
-        // traditional HCR. We could try to take advantage of that here, but
-        // so far no attempt is made to do so.
-
-        if (comp()->getHCRMode() == TR::osr && comp()->isPotentialOSRPoint(ttNode, NULL, true)) {
-            newHCRGuardVersioningOK = false;
-            newOSRGuardVersioningOK = false;
-            if (_curLoop->_hcrGuardVersioningOK)
-                traceCannot("version HCR guards", ttNode, comp());
-            if (_curLoop->_osrGuardVersioningOK)
-                traceCannot("version OSR guards", ttNode, comp());
-        }
-
-        bool canGcAndStayInLoop = ttNode->canGCandReturn();
-        if (!canGcAndStayInLoop && ttNode->canGCandExcept()) {
-            TR::Block *block = search.currentBlock();
-            TR::CFGEdgeList &excSuccs = block->getExceptionSuccessors();
-            for (auto it = excSuccs.begin(); it != excSuccs.end(); ++it) {
-                TR::Block *handler = (*it)->getTo()->asBlock();
-                if (whileLoop->contains(handler->getStructureOf())) {
-                    canGcAndStayInLoop = true;
-                    break;
+            actualComparisonNode->setBranchDestination(newGotoBlock->getEntry());
+            TR::TreeTop *gotoBlockEntryTree = newGotoBlock->getEntry();
+            TR::TreeTop *gotoBlockExitTree = newGotoBlock->getExit();
+            TR::Node *gotoNode = TR::Node::create(actualComparisonNode, TR::Goto);
+            TR::TreeTop *gotoTree = TR::TreeTop::create(comp(), gotoNode, NULL, NULL);
+            gotoNode->setBranchDestination(clonedLoopInvariantBlock->getEntry());
+            gotoBlockEntryTree->join(gotoTree);
+            gotoTree->join(gotoBlockExitTree);
+            endTree->join(gotoBlockEntryTree);
+            endTree = gotoBlockExitTree;
+            //_cfg->addEdge(TR::CFGEdge::createEdge(comparisonBlock,  newGotoBlock, trMemory()));
+            //_cfg->addEdge(TR::CFGEdge::createEdge(newGotoBlock,  clonedLoopInvariantBlock, trMemory()));
+            TR_BlockStructure *newGotoBlockStructure = new (_cfg->structureMemoryRegion())
+                TR_BlockStructure(comp(), newGotoBlock->getNumber(), newGotoBlock);
+            newGotoBlockStructure->setCreatedByVersioning(true);
+            if (!_neitherLoopCold) {
+                newGotoBlock->setIsCold();
+                newGotoBlock->setFrequency(VERSIONED_COLD_BLOCK_COUNT);
+            } else if (_neitherLoopCold && shouldOnlySpecializeLoops()) {
+                // newGotoBlock->setIsRare();
+                if (comparisonBlock->getFrequency() < 0)
+                    newGotoBlock->setFrequency(comparisonBlock->getFrequency());
+                else {
+                    int32_t specializedBlockFrequency
+                        = TR::Block::getScaledSpecializedFrequency(comparisonBlock->getFrequency());
+                    if (comparisonBlock->isCold())
+                        specializedBlockFrequency = comparisonBlock->getFrequency();
+                    else if (specializedBlockFrequency <= MAX_COLD_BLOCK_COUNT)
+                        specializedBlockFrequency = MAX_COLD_BLOCK_COUNT + 1;
+                    newGotoBlock->setFrequency(specializedBlockFrequency);
                 }
             }
+            criticalEdgeBlocks.add(newGotoBlock);
         }
 
-        if (canGcAndStayInLoop) {
-            if (comp()->getHCRMode() == TR::traditional) {
-                newHCRGuardVersioningOK = false;
-                if (_curLoop->_hcrGuardVersioningOK)
-                    traceCannot("version HCR guards", ttNode, comp());
-            }
+        TR::TreeTop *comparisonEntryTree = comparisonBlock->getEntry();
+        TR::TreeTop *comparisonExitTree = comparisonBlock->getExit();
+        comparisonEntryTree->join(comparisonTree);
+        comparisonTree->join(comparisonExitTree);
 
-            newAwrtbariVersioningOK = false;
-            if (awrtbariVersioningOK)
-                traceCannot("version awrtbari", ttNode, comp());
+        comparisonExitTree->join(insertionPoint);
+
+        if (treeBeforeInsertionPoint)
+            treeBeforeInsertionPoint->join(comparisonEntryTree);
+        else
+            comp()->setStartTree(comparisonEntryTree);
+
+        chooserBlock = comparisonBlock;
+        comparisonBlocks.add(comparisonBlock);
+        insertionPoint = comparisonEntryTree;
+        comparisonNode = comparisonNode->getNextElement();
+    }
+
+    // Adjust the predecessors of the original loop invariant block
+    // so that they now branch to the first block containing the
+    // (first) versioning test.
+    //
+    while (!invariantBlock->getPredecessors().empty()) {
+        TR::CFGEdge * const nextPred = invariantBlock->getPredecessors().front();
+        invariantBlock->getPredecessors().pop_front();
+        nextPred->setTo(chooserBlock);
+        TR::Block * const nextPredBlock = toBlock(nextPred->getFrom());
+        if (nextPredBlock != _cfg->getStart()) {
+            TR::TreeTop *lastTreeInPred = nextPredBlock->getLastRealTreeTop();
+
+            if (lastTreeInPred)
+                lastTreeInPred->adjustBranchOrSwitchTreeTop(comp(), invariantBlock->getEntry(),
+                    chooserBlock->getEntry());
         }
     }
 
-    // Update awrtbariVersioningOK unconditionally here, since it is purely
-    // an output, not an input, of the analysis, so changes to it are not
-    // relevant to convergence.
-    if (awrtbariVersioningOK && !newAwrtbariVersioningOK)
-        dumpOptDetails(comp(), "No awrtbari versioning in loop %d\n", loopNum);
+    //////TR::TreeTop *lastComparisonExit = lastComparisonBlock->getExit();
+    //////TR::TreeTop *nextTreeAfterLastComparisonExit = lastComparisonExit->getNextTreeTop();
+    //////lastComparisonExit->join(clonedInvariantEntryTree);
+    //////clonedInvariantExitTree->join(nextTreeAfterLastComparisonExit);
+    //
+    TR::TreeTop *lastComparisonExit = invariantBlock->getExit();
+    TR::TreeTop *nextTreeAfterLastComparisonExit = lastComparisonExit->getNextTreeTop();
+    lastComparisonExit->join(clonedInvariantEntryTree);
+    clonedInvariantExitTree->join(nextTreeAfterLastComparisonExit);
+    TR::TreeTop *previousTree = lastComparisonExit->getPrevRealTreeTop();
 
-    awrtbariVersioningOK = newAwrtbariVersioningOK;
-
-    // If nothing has changed, then the analysis has converged! It's possible
-    // to version with the current settings, and nothing remaining in the hot
-    // loop will interfere with that versioning.
-    if (newPrivatizationOK == _curLoop->_privatizationOK && newHCRGuardVersioningOK == _curLoop->_hcrGuardVersioningOK
-        && newOSRGuardVersioningOK == _curLoop->_osrGuardVersioningOK) {
-        // By checking performTransformation() here, we avoid asking about
-        // transformations that wouldn't have been possible anyway.
-        //
-        // Don't performTransformation() for privatization. Privatizations are
-        // part of transformations that were already optional earlier on.
-        //
-        // Don't performTransformation() for write barrier versioning here.
-        // That can be done separately for each barrier.
-        //
-        if (alreadyAskedPermission)
-            break;
-
-        // Permission to version HCR/OSR guards applies to all HCR/OSR guards
-        // (resp.), since whenever this analysis determines that they are safe
-        // to version, it does so under the assumption that all of them will
-        // be versioned.
-        alreadyAskedPermission = true;
-
-        if (newHCRGuardVersioningOK) {
-            newHCRGuardVersioningOK
-                = performTransformation(comp(), "%sVersioning HCR guards\n", OPT_DETAILS_LOOP_VERSIONER);
-        }
-
-        if (newOSRGuardVersioningOK) {
-            newOSRGuardVersioningOK
-                = performTransformation(comp(), "%sVersioning OSR guards\n", OPT_DETAILS_LOOP_VERSIONER);
-        }
-
-        if (newHCRGuardVersioningOK == _curLoop->_hcrGuardVersioningOK
-            && newOSRGuardVersioningOK == _curLoop->_osrGuardVersioningOK)
-            break;
-    }
-
-    // Discovered that we cannot do at least one of privatization, HCR guard
-    // versioning, and OSR guard versioning. Relax the tentative assumptions
-    // and re-analyze.
-    if (_curLoop->_privatizationOK && !newPrivatizationOK)
-        dumpOptDetails(comp(), "No privatization in loop %d\n", loopNum);
-    if (_curLoop->_hcrGuardVersioningOK && !newHCRGuardVersioningOK)
-        dumpOptDetails(comp(), "No HCR guard versioning in loop %d\n", loopNum);
-    if (_curLoop->_osrGuardVersioningOK && !newOSRGuardVersioningOK)
-        dumpOptDetails(comp(), "No OSR guard versioning in loop %d\n", loopNum);
-
-    _curLoop->_privatizationOK = newPrivatizationOK;
-    _curLoop->_hcrGuardVersioningOK = newHCRGuardVersioningOK;
-    _curLoop->_osrGuardVersioningOK = newOSRGuardVersioningOK;
-}
-
-// At this point, all of the transformations allowed by _privatizationOK,
-// etc. are MANDATORY, since they have been determined to be safe under the
-// assumption that all of them will be done.
-//
-// However, write barrier versioning is (exceptionally) still optional
-// because no other transformations depend on it.
-
-if (_curLoop->_hcrGuardVersioningOK) {
-    ListIterator<TR::TreeTop> guardIt(&hcrGuards);
-    for (TR::TreeTop *tt = guardIt.getCurrent(); tt; tt = guardIt.getNext()) {
-        dumpOptDetails(comp(), "Creating versioned HCRGuard for guard n%dn\n", tt->getNode()->getGlobalIndex());
-
-        TR::Node *guard = tt->getNode()->duplicateTree();
-        guard->setBranchDestination(clonedLoopInvariantBlock->getEntry());
-        comparisonTrees.add(guard);
-
-        bool reverseBranch = false, origLoop = true;
-        FoldConditional fold(this, NULL, tt->getNode(), reverseBranch, origLoop);
-        fold.improveLoop();
-    }
-}
-
-if (_curLoop->_osrGuardVersioningOK) {
-    // All OSR guards will be patched by the same runtime assumptions, so only
-    // one OSR guard is added to branch to the slow loop. This is only needed
-    // if there are no virtual guards with merged OSR guards to be versioned,
-    // but it's more straightforward (and harmless) to generate it whenever
-    // there was originally a standalone OSR guard in the loop.
-    if (!osrGuards.isEmpty()) {
-        TR::Node *osrGuard = osrGuards.getListHead()->getData()->getNode();
-        TR::Node *guard = osrGuard->duplicateTree();
-        logprintf(trace(), log, "OSRGuard n%dn has been created to guard against method invalidation\n",
-            guard->getGlobalIndex());
-
-        guard->setBranchDestination(clonedLoopInvariantBlock->getEntry());
-        comparisonTrees.add(guard);
-    }
-
-    ListIterator<TR::TreeTop> guardIt(&osrGuards);
-    for (TR::TreeTop *tt = guardIt.getCurrent(); tt; tt = guardIt.getNext()) {
-        bool reverseBranch = false, origLoop = true;
-        FoldConditional fold(this, NULL, tt->getNode(), reverseBranch, origLoop);
-        fold.improveLoop();
-    }
-}
-
-if (awrtbariVersioningOK)
-    buildAwrtbariComparisonsTree(awrtbariTrees);
-
-// For each loop improvement that is still possible, emit its loop entry
-// prep and transform the loop. NB. These improvements are mandatory now.
-auto improvementsBegin = _curLoop->_loopImprovements.begin();
-auto improvementsEnd = _curLoop->_loopImprovements.end();
-for (auto it = improvementsBegin; it != improvementsEnd; ++it) {
-    LoopImprovement *improvement = *it;
-    LoopEntryPrep *prep = improvement->_prep;
-    if ((!prep->_requiresPrivatization || _curLoop->_privatizationOK)
-        && (!prep->_expr->mergedWithHCRGuard() || _curLoop->_hcrGuardVersioningOK)
-        && (!prep->_expr->mergedWithOSRGuard() || _curLoop->_osrGuardVersioningOK)) {
-        emitPrep(prep, &comparisonTrees);
-        improvement->improveLoop();
-    }
-}
-
-// Substitute in loads of temps for expressions that have been privatized
-// throughout the loop.
-if (_curLoop->_privatizationsRequested && !_curLoop->_privTemps.empty()) {
-    // Since checks and conditionals have already been modified, both
-    // removedNodes and takenBranches can be empty.
-    TR::NodeChecklist empty(comp());
-    TR::NodeChecklist *removedNodes = &empty;
-    TR::NodeChecklist *takenBranches = &empty;
-    LoopBodySearch search(comp(), _curLoop->_memRegion, whileLoop, removedNodes, takenBranches);
-
-    TR::NodeChecklist visited(comp());
-    for (; search.hasTreeTop(); search.advance()) {
-        TR::TreeTop *tt = search.currentTreeTop();
-        TR::Node *node = tt->getNode();
-        substitutePrivTemps(tt, node, &visited);
-
-        TR::ILOpCode op = node->getOpCode();
-        if (op.isNullCheck() || op.getOpCodeValue() == TR::DIVCHK) {
-            TR::Node *child = node->getChild(0);
-            if (child->getOpCode().isLoadDirect()) {
-                dumpOptDetails(comp(), "Removing check n%un [%p] because child has been privatized\n",
-                    node->getGlobalIndex(), node);
-
-                TR::Node::recreate(node, TR::treetop);
-            }
-        }
-    }
-}
-
-// Due to RAS changes to make each loop version test a transformation, disableOptTransformations or
-// lastOptTransformationIndex can now potentially remove all the tests above the 2 versioned loops.  When there are
-// two versions of the loop, it is necessary that there be at least one test at the top.  Therefore, the following
-// is required to ensure that a test is created.
-size_t comparisonTreesCount = comparisonTrees.getSize();
-size_t privatizationCount = _curLoop->_privTemps.size();
-TR_ASSERT_FATAL(privatizationCount <= comparisonTreesCount,
-    "more privatizations (%d) than entries in comparisonTrees (%d)", privatizationCount, comparisonTreesCount);
-
-size_t testCount = comparisonTreesCount - privatizationCount;
-if (testCount == 0) {
-    TR::Node *constNode = TR::Node::create(blockHeadNode, TR::iconst, 0, 0);
-    TR::Node *nextComparisonNode
-        = TR::Node::createif(TR::ificmpne, constNode, constNode, clonedLoopInvariantBlock->getEntry());
-    comparisonTrees.add(nextComparisonNode);
-    dumpOptDetails(comp(),
-        "The comparison tree is empty.  The node %p has been created because a test is required when there are two "
-        "versions of the loop.\n",
-        nextComparisonNode);
-}
-
-// if (debugBoundCheck)
-//    {
-//    TR::TreeTop *debugBoundCheckTree = TR::TreeTop::create(comp(), debugBoundCheck, NULL, NULL);
-//    clonedInvariantEntryTree->join(debugBoundCheckTree);
-//    debugBoundCheckTree->join(gotoTree);
-//    }
-
-// Add each test accumalated earlier into a block of its own
-// with a critical edge splitting goto block into the trees and
-// the CFG.
-//
-TR::Block *chooserBlock = NULL;
-///////TR::Block *lastComparisonBlock = NULL;
-ListElement<TR::Node> *comparisonNode = comparisonTrees.getListHead();
-TR_ScratchList<TR::Block> comparisonBlocks(trMemory()), criticalEdgeBlocks(trMemory());
-TR::TreeTop *insertionPoint = invariantBlock->getEntry();
-TR::TreeTop *treeBeforeInsertionPoint = insertionPoint->getPrevTreeTop();
-
-bool firstComparisonNode = true;
-while (comparisonNode) {
-    TR::Node *actualComparisonNode = comparisonNode->getData();
-    TR::TreeTop *comparisonTree = TR::TreeTop::create(comp(), actualComparisonNode, NULL, NULL);
-    TR::Block *comparisonBlock = TR::Block::createEmptyBlock(invariantBlock->getEntry()->getNode(), comp(),
-        invariantBlock->getFrequency(), invariantBlock);
-    comparisonBlock->setIsSpecialized(invariantBlock->isSpecialized());
-
-    if (actualComparisonNode->getOpCode().isStore()) {
-        // No critical edge splitting necessary.
-    } else if (firstComparisonNode) {
-        firstComparisonNode = false;
-        //////TR::Node::recreate(actualComparisonNode,
-        /// actualComparisonNode->getOpCode().getOpCodeForReverseBranch());
-        //////actualComparisonNode->setBranchDestination(invariantBlock->getEntry());
-        //////lastComparisonBlock = comparisonBlock;
-    } else {
-        TR::Block *newGotoBlock
-            = TR::Block::createEmptyBlock(invariantBlock->getEntry()->getNode(), comp(), 0, comparisonBlock);
-        newGotoBlock->setIsSpecialized(comparisonBlock->isSpecialized());
-        _cfg->addNode(newGotoBlock);
-
-        logprintf(trace(), log, "Creating new goto block : %d for node %p\n", newGotoBlock->getNumber(),
-            actualComparisonNode);
-
-        actualComparisonNode->setBranchDestination(newGotoBlock->getEntry());
-        TR::TreeTop *gotoBlockEntryTree = newGotoBlock->getEntry();
-        TR::TreeTop *gotoBlockExitTree = newGotoBlock->getExit();
-        TR::Node *gotoNode = TR::Node::create(actualComparisonNode, TR::Goto);
+    if (previousTree->getNode()->getOpCodeValue() != TR::Goto) {
+        TR::Node *gotoNode = TR::Node::create(previousTree->getNode(), TR::Goto);
         TR::TreeTop *gotoTree = TR::TreeTop::create(comp(), gotoNode, NULL, NULL);
-        gotoNode->setBranchDestination(clonedLoopInvariantBlock->getEntry());
-        gotoBlockEntryTree->join(gotoTree);
-        gotoTree->join(gotoBlockExitTree);
-        endTree->join(gotoBlockEntryTree);
-        endTree = gotoBlockExitTree;
-        //_cfg->addEdge(TR::CFGEdge::createEdge(comparisonBlock,  newGotoBlock, trMemory()));
-        //_cfg->addEdge(TR::CFGEdge::createEdge(newGotoBlock,  clonedLoopInvariantBlock, trMemory()));
-        TR_BlockStructure *newGotoBlockStructure
-            = new (_cfg->structureMemoryRegion()) TR_BlockStructure(comp(), newGotoBlock->getNumber(), newGotoBlock);
-        newGotoBlockStructure->setCreatedByVersioning(true);
-        if (!_neitherLoopCold) {
-            newGotoBlock->setIsCold();
-            newGotoBlock->setFrequency(VERSIONED_COLD_BLOCK_COUNT);
-        } else if (_neitherLoopCold && shouldOnlySpecializeLoops()) {
-            // newGotoBlock->setIsRare();
-            if (comparisonBlock->getFrequency() < 0)
-                newGotoBlock->setFrequency(comparisonBlock->getFrequency());
-            else {
-                int32_t specializedBlockFrequency
-                    = TR::Block::getScaledSpecializedFrequency(comparisonBlock->getFrequency());
-                if (comparisonBlock->isCold())
-                    specializedBlockFrequency = comparisonBlock->getFrequency();
-                else if (specializedBlockFrequency <= MAX_COLD_BLOCK_COUNT)
-                    specializedBlockFrequency = MAX_COLD_BLOCK_COUNT + 1;
-                newGotoBlock->setFrequency(specializedBlockFrequency);
-            }
+        gotoNode->setBranchDestination(toBlock(invariantBlock->getSuccessors().front()->getTo())->getEntry());
+        previousTree->join(gotoTree);
+        gotoTree->join(lastComparisonExit);
+    }
+
+    if (!_neitherLoopCold || invariantBlock->isCold()) {
+        clonedLoopInvariantBlock->setIsCold();
+        if (invariantBlock->isSuperCold())
+            clonedLoopInvariantBlock->setIsSuperCold();
+        int32_t frequency = VERSIONED_COLD_BLOCK_COUNT;
+        if (clonedLoopInvariantBlock->isCold()) {
+            int32_t blockFreq = invariantBlock->getFrequency();
+            if (frequency > blockFreq)
+                frequency = blockFreq;
         }
-        criticalEdgeBlocks.add(newGotoBlock);
+        clonedLoopInvariantBlock->setFrequency(frequency);
+    } else if (_neitherLoopCold && shouldOnlySpecializeLoops()) {
+        // clonedLoopInvariantBlock->setIsRare();
+        if (invariantBlock->getFrequency() < 0)
+            clonedLoopInvariantBlock->setFrequency(invariantBlock->getFrequency());
+        else
+            clonedLoopInvariantBlock->setFrequency(
+                TR::Block::getScaledSpecializedFrequency(invariantBlock->getFrequency()));
     }
 
-    TR::TreeTop *comparisonEntryTree = comparisonBlock->getEntry();
-    TR::TreeTop *comparisonExitTree = comparisonBlock->getExit();
-    comparisonEntryTree->join(comparisonTree);
-    comparisonTree->join(comparisonExitTree);
+    TR_ByteCodeInfo &bcInfo = clonedLoopInvariantBlock->getEntry()->getNode()->getByteCodeInfo();
+    TR::DebugCounter::prependDebugCounter(comp(),
+        TR::DebugCounter::debugCounterName(comp(), "loopVersioner.coldLoop/%d/(%s)/%s/bcinfo=%d.%d",
+            blockAtHeadOfLoop->getFrequency(), comp()->signature(), comp()->getHotnessName(comp()->getMethodHotness()),
+            bcInfo.getCallerIndex(), bcInfo.getByteCodeIndex()),
+        clonedLoopInvariantBlock->getEntry()->getNextTreeTop(), 1, TR::DebugCounter::Free);
 
-    comparisonExitTree->join(insertionPoint);
+    // Add CFG edges correct for the newly created comparison test
+    // blocks and the corresponding critical edge splitting blocks.
+    //
+    ListElement<TR::Block> *currComparisonBlock = comparisonBlocks.getListHead();
+    ListElement<TR::Block> *currCriticalEdgeBlock = criticalEdgeBlocks.getListHead();
 
-    if (treeBeforeInsertionPoint)
-        treeBeforeInsertionPoint->join(comparisonEntryTree);
-    else
-        comp()->setStartTree(comparisonEntryTree);
+    while (currComparisonBlock) {
+        TR::Block *currentBlock = currComparisonBlock->getData();
+        _cfg->addNode(currentBlock);
+        ListElement<TR::Block> *nextComparisonBlock = currComparisonBlock->getNextElement();
+        bool isTest = !currentBlock->getLastRealTreeTop()->getNode()->getOpCode().isStore();
+        const char *debugCounter = NULL;
+        if (isTest)
+            debugCounter = TR::DebugCounter::debugCounterName(comp(), "loopVersioner.fail/(%s)/%s/origin=block_%d",
+                comp()->signature(), comp()->getHotnessName(comp()->getMethodHotness()), currentBlock->getNumber());
 
-    chooserBlock = comparisonBlock;
-    comparisonBlocks.add(comparisonBlock);
-    insertionPoint = comparisonEntryTree;
-    comparisonNode = comparisonNode->getNextElement();
-}
+        if (nextComparisonBlock)
+            _cfg->addEdge(TR::CFGEdge::createEdge(currentBlock, nextComparisonBlock->getData(), trMemory()));
+        else
+            _cfg->addEdge(TR::CFGEdge::createEdge(currentBlock, invariantBlock, trMemory()));
 
-// Adjust the predecessors of the original loop invariant block
-// so that they now branch to the first block containing the
-// (first) versioning test.
-//
-while (!invariantBlock->getPredecessors().empty()) {
-    TR::CFGEdge * const nextPred = invariantBlock->getPredecessors().front();
-    invariantBlock->getPredecessors().pop_front();
-    nextPred->setTo(chooserBlock);
-    TR::Block * const nextPredBlock = toBlock(nextPred->getFrom());
-    if (nextPredBlock != _cfg->getStart()) {
-        TR::TreeTop *lastTreeInPred = nextPredBlock->getLastRealTreeTop();
-
-        if (lastTreeInPred)
-            lastTreeInPred->adjustBranchOrSwitchTreeTop(comp(), invariantBlock->getEntry(), chooserBlock->getEntry());
-    }
-}
-
-//////TR::TreeTop *lastComparisonExit = lastComparisonBlock->getExit();
-//////TR::TreeTop *nextTreeAfterLastComparisonExit = lastComparisonExit->getNextTreeTop();
-//////lastComparisonExit->join(clonedInvariantEntryTree);
-//////clonedInvariantExitTree->join(nextTreeAfterLastComparisonExit);
-//
-TR::TreeTop *lastComparisonExit = invariantBlock->getExit();
-TR::TreeTop *nextTreeAfterLastComparisonExit = lastComparisonExit->getNextTreeTop();
-lastComparisonExit->join(clonedInvariantEntryTree);
-clonedInvariantExitTree->join(nextTreeAfterLastComparisonExit);
-TR::TreeTop *previousTree = lastComparisonExit->getPrevRealTreeTop();
-
-if (previousTree->getNode()->getOpCodeValue() != TR::Goto) {
-    TR::Node *gotoNode = TR::Node::create(previousTree->getNode(), TR::Goto);
-    TR::TreeTop *gotoTree = TR::TreeTop::create(comp(), gotoNode, NULL, NULL);
-    gotoNode->setBranchDestination(toBlock(invariantBlock->getSuccessors().front()->getTo())->getEntry());
-    previousTree->join(gotoTree);
-    gotoTree->join(lastComparisonExit);
-}
-
-if (!_neitherLoopCold || invariantBlock->isCold()) {
-    clonedLoopInvariantBlock->setIsCold();
-    if (invariantBlock->isSuperCold())
-        clonedLoopInvariantBlock->setIsSuperCold();
-    int32_t frequency = VERSIONED_COLD_BLOCK_COUNT;
-    if (clonedLoopInvariantBlock->isCold()) {
-        int32_t blockFreq = invariantBlock->getFrequency();
-        if (frequency > blockFreq)
-            frequency = blockFreq;
-    }
-    clonedLoopInvariantBlock->setFrequency(frequency);
-} else if (_neitherLoopCold && shouldOnlySpecializeLoops()) {
-    // clonedLoopInvariantBlock->setIsRare();
-    if (invariantBlock->getFrequency() < 0)
-        clonedLoopInvariantBlock->setFrequency(invariantBlock->getFrequency());
-    else
-        clonedLoopInvariantBlock->setFrequency(
-            TR::Block::getScaledSpecializedFrequency(invariantBlock->getFrequency()));
-}
-
-TR_ByteCodeInfo &bcInfo = clonedLoopInvariantBlock->getEntry()->getNode()->getByteCodeInfo();
-TR::DebugCounter::prependDebugCounter(comp(),
-    TR::DebugCounter::debugCounterName(comp(), "loopVersioner.coldLoop/%d/(%s)/%s/bcinfo=%d.%d",
-        blockAtHeadOfLoop->getFrequency(), comp()->signature(), comp()->getHotnessName(comp()->getMethodHotness()),
-        bcInfo.getCallerIndex(), bcInfo.getByteCodeIndex()),
-    clonedLoopInvariantBlock->getEntry()->getNextTreeTop(), 1, TR::DebugCounter::Free);
-
-// Add CFG edges correct for the newly created comparison test
-// blocks and the corresponding critical edge splitting blocks.
-//
-ListElement<TR::Block> *currComparisonBlock = comparisonBlocks.getListHead();
-ListElement<TR::Block> *currCriticalEdgeBlock = criticalEdgeBlocks.getListHead();
-
-while (currComparisonBlock) {
-    TR::Block *currentBlock = currComparisonBlock->getData();
-    _cfg->addNode(currentBlock);
-    ListElement<TR::Block> *nextComparisonBlock = currComparisonBlock->getNextElement();
-    bool isTest = !currentBlock->getLastRealTreeTop()->getNode()->getOpCode().isStore();
-    const char *debugCounter = NULL;
-    if (isTest)
-        debugCounter = TR::DebugCounter::debugCounterName(comp(), "loopVersioner.fail/(%s)/%s/origin=block_%d",
-            comp()->signature(), comp()->getHotnessName(comp()->getMethodHotness()), currentBlock->getNumber());
-
-    if (nextComparisonBlock)
-        _cfg->addEdge(TR::CFGEdge::createEdge(currentBlock, nextComparisonBlock->getData(), trMemory()));
-    else
-        _cfg->addEdge(TR::CFGEdge::createEdge(currentBlock, invariantBlock, trMemory()));
-
-    if (isTest) {
-        if (currCriticalEdgeBlock == NULL) {
-            _cfg->addEdge(TR::CFGEdge::createEdge(currentBlock, clonedLoopInvariantBlock, trMemory()));
-        } else {
-            _cfg->addEdge(TR::CFGEdge::createEdge(currentBlock, currCriticalEdgeBlock->getData(), trMemory()));
-            _cfg->addEdge(
-                TR::CFGEdge::createEdge(currCriticalEdgeBlock->getData(), clonedLoopInvariantBlock, trMemory()));
-            TR::DebugCounter::prependDebugCounter(comp(), debugCounter,
-                currCriticalEdgeBlock->getData()->getEntry()->getNextTreeTop());
-            currCriticalEdgeBlock = currCriticalEdgeBlock->getNextElement();
-        }
-    }
-
-    currComparisonBlock = nextComparisonBlock;
-}
-
-_cfg->addEdge(TR::CFGEdge::createEdge(clonedLoopInvariantBlock, blockAtHeadOfClonedLoop, trMemory()));
-_cfg->setStructure(_rootStructure);
-
-// Done with trees and CFG changes
-//
-// Now modify the structure appropriately
-//
-// We will essentially create an acyclic region to replace the original loop
-// invariant block structure and natural loop structure. This acyclic region
-// will contain all the versioning test blocks, critical edge splitting blocks,
-// and other goto blocks created earlier as simple block structures. We will
-// clone the original natural loop structure and make these natural loop
-// structures successors of some of the block structures mentioned above
-// as appropriate.
-//
-TR_StructureSubGraphNode **correspondingSubNodes
-    = (TR_StructureSubGraphNode **)trMemory()->allocateStackMemory(numNodes * sizeof(TR_StructureSubGraphNode *));
-memset(correspondingSubNodes, 0, numNodes * sizeof(TR_StructureSubGraphNode *));
-
-TR_RegionStructure *clonedWhileLoop
-    = whileLoop->cloneStructure(correspondingBlocks, correspondingSubNodes, innerWhileLoops, clonedInnerWhileLoops)
-          ->asRegion();
-clonedWhileLoop->cloneStructureEdges(correspondingBlocks);
-clonedWhileLoop->setVersionedLoop(whileLoop);
-whileLoop->setVersionedLoop(clonedWhileLoop);
-
-TR_BlockStructure *invariantBlockStructure = invariantBlock->getStructureOf();
-TR_BlockStructure *clonedInvariantBlockStructure = new (_cfg->structureMemoryRegion())
-    TR_BlockStructure(comp(), clonedLoopInvariantBlock->getNumber(), clonedLoopInvariantBlock);
-clonedInvariantBlockStructure->setCreatedByVersioning(true);
-
-if (!_neitherLoopCold)
-    clonedInnerWhileLoops->deleteAll();
-clonedInvariantBlockStructure->setAsLoopInvariantBlock(true);
-TR_RegionStructure *parentStructure = whileLoop->getParent()->asRegion();
-TR_RegionStructure *properRegion
-    = new (_cfg->structureMemoryRegion()) TR_RegionStructure(comp(), chooserBlock->getNumber());
-parentStructure->replacePart(invariantBlockStructure, properRegion);
-
-TR_StructureSubGraphNode *clonedWhileNode
-    = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(clonedWhileLoop);
-TR_StructureSubGraphNode *whileNode = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(whileLoop);
-TR_StructureSubGraphNode *invariantNode
-    = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(invariantBlockStructure);
-TR_StructureSubGraphNode *clonedInvariantNode
-    = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(clonedInvariantBlockStructure);
-
-properRegion->addSubNode(whileNode);
-properRegion->addSubNode(clonedWhileNode);
-properRegion->addSubNode(invariantNode);
-properRegion->addSubNode(clonedInvariantNode);
-
-TR_StructureSubGraphNode *prevComparisonNode = NULL;
-TR_StructureSubGraphNode *regionEntryNode = NULL;
-currComparisonBlock = comparisonBlocks.getListHead();
-currCriticalEdgeBlock = criticalEdgeBlocks.getListHead();
-
-// Create block structures for the comparison test blocks and
-// add them to the new acyclic region. Each one will have
-// a corresponding critical edge splitting block and we will
-// also create/add these block structures simultaneously.
-//
-while (currComparisonBlock) {
-    TR::Block *actualComparisonBlock = currComparisonBlock->getData();
-    bool isTest = !actualComparisonBlock->getLastRealTreeTop()->getNode()->getOpCode().isStore();
-
-    TR_BlockStructure *comparisonBlockStructure = new (_cfg->structureMemoryRegion())
-        TR_BlockStructure(comp(), actualComparisonBlock->getNumber(), actualComparisonBlock);
-    comparisonBlockStructure->setCreatedByVersioning(true);
-    TR_StructureSubGraphNode *comparisonNode
-        = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(comparisonBlockStructure);
-    properRegion->addSubNode(comparisonNode);
-
-    if (prevComparisonNode)
-        TR::CFGEdge::createEdge(prevComparisonNode, comparisonNode, trMemory());
-    else {
-        regionEntryNode = comparisonNode;
-        properRegion->setEntry(regionEntryNode);
-    }
-
-    // TR::CFGEdge::createEdge(comparisonNode,  clonedInvariantNode, trMemory());
-    prevComparisonNode = comparisonNode;
-    currComparisonBlock = currComparisonBlock->getNextElement();
-
-    if (isTest) {
-        if (currCriticalEdgeBlock != NULL) {
-            TR_StructureSubGraphNode *criticalEdgeNode = new (_cfg->structureMemoryRegion())
-                TR_StructureSubGraphNode(currCriticalEdgeBlock->getData()->getStructureOf());
-            properRegion->addSubNode(criticalEdgeNode);
-            TR::CFGEdge::createEdge(prevComparisonNode, criticalEdgeNode, trMemory());
-            TR::CFGEdge::createEdge(criticalEdgeNode, clonedInvariantNode, trMemory());
-            currCriticalEdgeBlock = currCriticalEdgeBlock->getNextElement();
-        } else
-            TR::CFGEdge::createEdge(prevComparisonNode, clonedInvariantNode, trMemory());
-    }
-}
-
-TR::CFGEdge::createEdge(prevComparisonNode, invariantNode, trMemory());
-TR::CFGEdge::createEdge(invariantNode, whileNode, trMemory());
-TR::CFGEdge::createEdge(clonedInvariantNode, clonedWhileNode, trMemory());
-
-// Since the new proper region replaced the original loop invariant
-// block in the parent structure, the successor of the loop
-// invariant block structure (the natural loop originally) must now be removed
-// from the parent structure as the natural loop would be moved into the proper
-// region.
-//
-TR_StructureSubGraphNode *properNode = NULL;
-TR_StructureSubGraphNode *subNode;
-TR_Structure *subStruct = NULL;
-TR_RegionStructure::Cursor si(*parentStructure);
-for (subNode = si.getCurrent(); subNode != NULL; subNode = si.getNext()) {
-    subStruct = subNode->getStructure();
-    if (subStruct == properRegion) {
-        properNode = subNode;
-        TR::CFGEdge *succEdge = subNode->getSuccessors().front();
-        TR_StructureSubGraphNode *succNode = toStructureSubGraphNode(succEdge->getTo());
-        succNode->removePredecessor(succEdge);
-        subNode->removeSuccessor(succEdge);
-
-        for (auto changedSuccEdge = succNode->getSuccessors().begin();
-             changedSuccEdge != succNode->getSuccessors().end(); ++changedSuccEdge) {
-            //
-            // Watch for any edge from the original loop to the invariant
-            // block - it will now refer to the proper region node, and
-            // must be discarded from the list of predecessors of the
-            // proper region node in the context of the parent structure, as a
-            // subgraph node must not have an edge to itself
-            if ((*changedSuccEdge)->getTo() != properNode) {
-                (*changedSuccEdge)->setFrom(properNode);
+        if (isTest) {
+            if (currCriticalEdgeBlock == NULL) {
+                _cfg->addEdge(TR::CFGEdge::createEdge(currentBlock, clonedLoopInvariantBlock, trMemory()));
             } else {
-                properNode->removePredecessor(*changedSuccEdge);
+                _cfg->addEdge(TR::CFGEdge::createEdge(currentBlock, currCriticalEdgeBlock->getData(), trMemory()));
+                _cfg->addEdge(
+                    TR::CFGEdge::createEdge(currCriticalEdgeBlock->getData(), clonedLoopInvariantBlock, trMemory()));
+                TR::DebugCounter::prependDebugCounter(comp(), debugCounter,
+                    currCriticalEdgeBlock->getData()->getEntry()->getNextTreeTop());
+                currCriticalEdgeBlock = currCriticalEdgeBlock->getNextElement();
             }
         }
 
-        for (auto changedSuccEdge = succNode->getExceptionSuccessors().begin();
-             changedSuccEdge != succNode->getExceptionSuccessors().end(); ++changedSuccEdge)
-            (*changedSuccEdge)->setExceptionFrom(properNode);
-
-        parentStructure->removeSubNode(succNode);
-        succNode->getStructure()->setParent(properRegion);
-        break;
+        currComparisonBlock = nextComparisonBlock;
     }
-}
 
-// Set the edges correctly in the parent structure now; the
-// exit edges must have the proper node as the from node
-// now instead of the natural loop node.
-//
-ListIterator<TR::CFGEdge> ei(&parentStructure->getExitEdges());
-TR::CFGEdge *exitEdge;
-for (exitEdge = ei.getCurrent(); exitEdge != NULL; exitEdge = ei.getNext()) {
-    TR_StructureSubGraphNode *fromNode = toStructureSubGraphNode(exitEdge->getFrom());
-    TR_Structure *fromStruct = fromNode->getStructure();
-    int32_t toNum = exitEdge->getTo()->getNumber();
+    _cfg->addEdge(TR::CFGEdge::createEdge(clonedLoopInvariantBlock, blockAtHeadOfClonedLoop, trMemory()));
+    _cfg->setStructure(_rootStructure);
 
-    if (fromStruct == whileLoop) {
-        // See if it is a regular edge or an exception edge.
-        //
-        auto succEdge = fromNode->getExceptionSuccessors().begin();
-        for (; succEdge != fromNode->getExceptionSuccessors().end(); ++succEdge) {
-            if ((*succEdge)->getTo()->getNumber() == toNum)
-                break;
+    // Done with trees and CFG changes
+    //
+    // Now modify the structure appropriately
+    //
+    // We will essentially create an acyclic region to replace the original loop
+    // invariant block structure and natural loop structure. This acyclic region
+    // will contain all the versioning test blocks, critical edge splitting blocks,
+    // and other goto blocks created earlier as simple block structures. We will
+    // clone the original natural loop structure and make these natural loop
+    // structures successors of some of the block structures mentioned above
+    // as appropriate.
+    //
+    TR_StructureSubGraphNode **correspondingSubNodes
+        = (TR_StructureSubGraphNode **)trMemory()->allocateStackMemory(numNodes * sizeof(TR_StructureSubGraphNode *));
+    memset(correspondingSubNodes, 0, numNodes * sizeof(TR_StructureSubGraphNode *));
+
+    TR_RegionStructure *clonedWhileLoop
+        = whileLoop->cloneStructure(correspondingBlocks, correspondingSubNodes, innerWhileLoops, clonedInnerWhileLoops)
+              ->asRegion();
+    clonedWhileLoop->cloneStructureEdges(correspondingBlocks);
+    clonedWhileLoop->setVersionedLoop(whileLoop);
+    whileLoop->setVersionedLoop(clonedWhileLoop);
+
+    TR_BlockStructure *invariantBlockStructure = invariantBlock->getStructureOf();
+    TR_BlockStructure *clonedInvariantBlockStructure = new (_cfg->structureMemoryRegion())
+        TR_BlockStructure(comp(), clonedLoopInvariantBlock->getNumber(), clonedLoopInvariantBlock);
+    clonedInvariantBlockStructure->setCreatedByVersioning(true);
+
+    if (!_neitherLoopCold)
+        clonedInnerWhileLoops->deleteAll();
+    clonedInvariantBlockStructure->setAsLoopInvariantBlock(true);
+    TR_RegionStructure *parentStructure = whileLoop->getParent()->asRegion();
+    TR_RegionStructure *properRegion
+        = new (_cfg->structureMemoryRegion()) TR_RegionStructure(comp(), chooserBlock->getNumber());
+    parentStructure->replacePart(invariantBlockStructure, properRegion);
+
+    TR_StructureSubGraphNode *clonedWhileNode
+        = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(clonedWhileLoop);
+    TR_StructureSubGraphNode *whileNode = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(whileLoop);
+    TR_StructureSubGraphNode *invariantNode
+        = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(invariantBlockStructure);
+    TR_StructureSubGraphNode *clonedInvariantNode
+        = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(clonedInvariantBlockStructure);
+
+    properRegion->addSubNode(whileNode);
+    properRegion->addSubNode(clonedWhileNode);
+    properRegion->addSubNode(invariantNode);
+    properRegion->addSubNode(clonedInvariantNode);
+
+    TR_StructureSubGraphNode *prevComparisonNode = NULL;
+    TR_StructureSubGraphNode *regionEntryNode = NULL;
+    currComparisonBlock = comparisonBlocks.getListHead();
+    currCriticalEdgeBlock = criticalEdgeBlocks.getListHead();
+
+    // Create block structures for the comparison test blocks and
+    // add them to the new acyclic region. Each one will have
+    // a corresponding critical edge splitting block and we will
+    // also create/add these block structures simultaneously.
+    //
+    while (currComparisonBlock) {
+        TR::Block *actualComparisonBlock = currComparisonBlock->getData();
+        bool isTest = !actualComparisonBlock->getLastRealTreeTop()->getNode()->getOpCode().isStore();
+
+        TR_BlockStructure *comparisonBlockStructure = new (_cfg->structureMemoryRegion())
+            TR_BlockStructure(comp(), actualComparisonBlock->getNumber(), actualComparisonBlock);
+        comparisonBlockStructure->setCreatedByVersioning(true);
+        TR_StructureSubGraphNode *comparisonNode
+            = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(comparisonBlockStructure);
+        properRegion->addSubNode(comparisonNode);
+
+        if (prevComparisonNode)
+            TR::CFGEdge::createEdge(prevComparisonNode, comparisonNode, trMemory());
+        else {
+            regionEntryNode = comparisonNode;
+            properRegion->setEntry(regionEntryNode);
         }
 
-        // toStructureSubGraphNode(exitEdge->getFrom())->setStructure(properRegion);
-        if (succEdge != fromNode->getExceptionSuccessors().end()) {
-            exitEdge->setExceptionFrom(properNode);
-            // properNode->addExceptionSuccessor(exitEdge);
-        } else {
-            exitEdge->setFrom(properNode);
-            // properNode->addSuccessor(exitEdge);
+        // TR::CFGEdge::createEdge(comparisonNode,  clonedInvariantNode, trMemory());
+        prevComparisonNode = comparisonNode;
+        currComparisonBlock = currComparisonBlock->getNextElement();
+
+        if (isTest) {
+            if (currCriticalEdgeBlock != NULL) {
+                TR_StructureSubGraphNode *criticalEdgeNode = new (_cfg->structureMemoryRegion())
+                    TR_StructureSubGraphNode(currCriticalEdgeBlock->getData()->getStructureOf());
+                properRegion->addSubNode(criticalEdgeNode);
+                TR::CFGEdge::createEdge(prevComparisonNode, criticalEdgeNode, trMemory());
+                TR::CFGEdge::createEdge(criticalEdgeNode, clonedInvariantNode, trMemory());
+                currCriticalEdgeBlock = currCriticalEdgeBlock->getNextElement();
+            } else
+                TR::CFGEdge::createEdge(prevComparisonNode, clonedInvariantNode, trMemory());
         }
     }
-}
 
-// Add these goto block structures required for fixing up the
-// fall throughs properly.
-//
-ListIterator<TR_BlockStructure> newGotoBlockStructuresIt(&newGotoBlockStructures);
-TR_BlockStructure *newGotoBlockStructure;
-for (newGotoBlockStructure = newGotoBlockStructuresIt.getCurrent(); newGotoBlockStructure;
-     newGotoBlockStructure = newGotoBlockStructuresIt.getNext()) {
-    TR_StructureSubGraphNode *newGotoBlockNode
-        = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(newGotoBlockStructure);
-    properRegion->addSubNode(newGotoBlockNode);
-    TR::CFGEdge::createEdge(clonedWhileNode, newGotoBlockNode, trMemory());
-}
+    TR::CFGEdge::createEdge(prevComparisonNode, invariantNode, trMemory());
+    TR::CFGEdge::createEdge(invariantNode, whileNode, trMemory());
+    TR::CFGEdge::createEdge(clonedInvariantNode, clonedWhileNode, trMemory());
 
-// Add appropriate exit edges into the new proper region based
-// on the original loop's exit edges.
-//
-TR_BitVector seenExitNodes(numNodes, trMemory());
-ei.set(&whileLoop->getExitEdges());
-for (exitEdge = ei.getCurrent(); exitEdge; exitEdge = ei.getNext()) {
-    TR_StructureSubGraphNode *node = toStructureSubGraphNode(exitEdge->getTo());
-    if (!seenExitNodes.get(node->getNumber())) {
-        bool isExceptionEdge = false;
-        if (exitEdge->getFrom()->hasExceptionSuccessor(node))
-            isExceptionEdge = true;
+    // Since the new proper region replaced the original loop invariant
+    // block in the parent structure, the successor of the loop
+    // invariant block structure (the natural loop originally) must now be removed
+    // from the parent structure as the natural loop would be moved into the proper
+    // region.
+    //
+    TR_StructureSubGraphNode *properNode = NULL;
+    TR_StructureSubGraphNode *subNode;
+    TR_Structure *subStruct = NULL;
+    TR_RegionStructure::Cursor si(*parentStructure);
+    for (subNode = si.getCurrent(); subNode != NULL; subNode = si.getNext()) {
+        subStruct = subNode->getStructure();
+        if (subStruct == properRegion) {
+            properNode = subNode;
+            TR::CFGEdge *succEdge = subNode->getSuccessors().front();
+            TR_StructureSubGraphNode *succNode = toStructureSubGraphNode(succEdge->getTo());
+            succNode->removePredecessor(succEdge);
+            subNode->removeSuccessor(succEdge);
 
-        // Check whether this exit is from the while loop to the new region
-        // If it is, it should not be added as an exit from the region itself,
-        // but rather as an edge from the while loop to the start of the new
-        // region
-        if (node->getNumber() == regionEntryNode->getNumber()) {
-            TR::CFGEdge::createEdge(whileNode, regionEntryNode, trMemory());
-        } else {
-            properRegion->addExitEdge(whileNode, node->getNumber(), isExceptionEdge);
+            for (auto changedSuccEdge = succNode->getSuccessors().begin();
+                 changedSuccEdge != succNode->getSuccessors().end(); ++changedSuccEdge) {
+                //
+                // Watch for any edge from the original loop to the invariant
+                // block - it will now refer to the proper region node, and
+                // must be discarded from the list of predecessors of the
+                // proper region node in the context of the parent structure, as a
+                // subgraph node must not have an edge to itself
+                if ((*changedSuccEdge)->getTo() != properNode) {
+                    (*changedSuccEdge)->setFrom(properNode);
+                } else {
+                    properNode->removePredecessor(*changedSuccEdge);
+                }
+            }
+
+            for (auto changedSuccEdge = succNode->getExceptionSuccessors().begin();
+                 changedSuccEdge != succNode->getExceptionSuccessors().end(); ++changedSuccEdge)
+                (*changedSuccEdge)->setExceptionFrom(properNode);
+
+            parentStructure->removeSubNode(succNode);
+            succNode->getStructure()->setParent(properRegion);
+            break;
         }
-        seenExitNodes.set(node->getNumber());
     }
-}
 
-// If the original while loop exited to the loop invariant block, ensure the
-// structure of the cloned version of the loop exits to the new proper region
-ei.set(&clonedWhileLoop->getExitEdges());
-for (exitEdge = ei.getCurrent(); exitEdge; exitEdge = ei.getNext()) {
-    if (exitEdge->getTo()->getNumber() == invariantBlockStructure->getNumber()) {
-        clonedWhileLoop->replaceExitPart(invariantBlockStructure->getNumber(), properRegion->getNumber());
-        break;
-    }
-}
+    // Set the edges correctly in the parent structure now; the
+    // exit edges must have the proper node as the from node
+    // now instead of the natural loop node.
+    //
+    ListIterator<TR::CFGEdge> ei(&parentStructure->getExitEdges());
+    TR::CFGEdge *exitEdge;
+    for (exitEdge = ei.getCurrent(); exitEdge != NULL; exitEdge = ei.getNext()) {
+        TR_StructureSubGraphNode *fromNode = toStructureSubGraphNode(exitEdge->getFrom());
+        TR_Structure *fromStruct = fromNode->getStructure();
+        int32_t toNum = exitEdge->getTo()->getNumber();
 
-// Patch up the cloned while loop edges properly
-//
-seenExitNodes.empty();
-ei.reset();
-for (exitEdge = ei.getCurrent(); exitEdge; exitEdge = ei.getNext()) {
-    TR_StructureSubGraphNode *node = toStructureSubGraphNode(exitEdge->getTo());
-    if (!seenExitNodes.get(node->getNumber())) {
-        bool isExceptionEdge = false;
-        if (exitEdge->getFrom()->hasExceptionSuccessor(node))
-            isExceptionEdge = true;
+        if (fromStruct == whileLoop) {
+            // See if it is a regular edge or an exception edge.
+            //
+            auto succEdge = fromNode->getExceptionSuccessors().begin();
+            for (; succEdge != fromNode->getExceptionSuccessors().end(); ++succEdge) {
+                if ((*succEdge)->getTo()->getNumber() == toNum)
+                    break;
+            }
 
-        // Check whether this exit is from the while loop to the new region
-        // If it is, it should not be added as an exit from the region itself,
-        // but rather as an edge from the while loop to the start of the new
-        // region
-        if (node->getNumber() == regionEntryNode->getNumber()) {
-            TR::CFGEdge::createEdge(clonedWhileNode, regionEntryNode, trMemory());
-        } else {
-            properRegion->addExitEdge(clonedWhileNode, node->getNumber(), isExceptionEdge);
+            // toStructureSubGraphNode(exitEdge->getFrom())->setStructure(properRegion);
+            if (succEdge != fromNode->getExceptionSuccessors().end()) {
+                exitEdge->setExceptionFrom(properNode);
+                // properNode->addExceptionSuccessor(exitEdge);
+            } else {
+                exitEdge->setFrom(properNode);
+                // properNode->addSuccessor(exitEdge);
+            }
         }
-        seenExitNodes.set(node->getNumber());
     }
-}
 
-newGotoBlockStructuresIt.reset();
-for (newGotoBlockStructure = newGotoBlockStructuresIt.getCurrent(); newGotoBlockStructure;
-     newGotoBlockStructure = newGotoBlockStructuresIt.getNext()) {
-    TR::Block *predBlock = toBlock(newGotoBlockStructure->getBlock()->getPredecessors().front()->getFrom());
-    clonedWhileLoop->addExternalEdge(predBlock->getStructureOf(), newGotoBlockStructure->getNumber(), false);
-}
+    // Add these goto block structures required for fixing up the
+    // fall throughs properly.
+    //
+    ListIterator<TR_BlockStructure> newGotoBlockStructuresIt(&newGotoBlockStructures);
+    TR_BlockStructure *newGotoBlockStructure;
+    for (newGotoBlockStructure = newGotoBlockStructuresIt.getCurrent(); newGotoBlockStructure;
+         newGotoBlockStructure = newGotoBlockStructuresIt.getNext()) {
+        TR_StructureSubGraphNode *newGotoBlockNode
+            = new (_cfg->structureMemoryRegion()) TR_StructureSubGraphNode(newGotoBlockStructure);
+        properRegion->addSubNode(newGotoBlockNode);
+        TR::CFGEdge::createEdge(clonedWhileNode, newGotoBlockNode, trMemory());
+    }
 
-newGotoBlockStructuresIt.reset();
-for (newGotoBlockStructure = newGotoBlockStructuresIt.getCurrent(); newGotoBlockStructure;
-     newGotoBlockStructure = newGotoBlockStructuresIt.getNext()) {
-    TR::Block *predBlock = toBlock(newGotoBlockStructure->getBlock()->getPredecessors().front()->getFrom());
-    TR::Block *succBlock = toBlock(newGotoBlockStructure->getBlock()->getSuccessors().front()->getTo());
-    properRegion->addExternalEdge(newGotoBlockStructure, succBlock->getStructureOf()->getNumber(), false);
-    properRegion->removeExternalEdgeTo(predBlock->getStructureOf(), succBlock->getStructureOf()->getNumber());
-}
+    // Add appropriate exit edges into the new proper region based
+    // on the original loop's exit edges.
+    //
+    TR_BitVector seenExitNodes(numNodes, trMemory());
+    ei.set(&whileLoop->getExitEdges());
+    for (exitEdge = ei.getCurrent(); exitEdge; exitEdge = ei.getNext()) {
+        TR_StructureSubGraphNode *node = toStructureSubGraphNode(exitEdge->getTo());
+        if (!seenExitNodes.get(node->getNumber())) {
+            bool isExceptionEdge = false;
+            if (exitEdge->getFrom()->hasExceptionSuccessor(node))
+                isExceptionEdge = true;
 
-if (trace())
-    comp()->dumpMethodTrees(log, "Trees after this versioning");
+            // Check whether this exit is from the while loop to the new region
+            // If it is, it should not be added as an exit from the region itself,
+            // but rather as an edge from the while loop to the start of the new
+            // region
+            if (node->getNumber() == regionEntryNode->getNumber()) {
+                TR::CFGEdge::createEdge(whileNode, regionEntryNode, trMemory());
+            } else {
+                properRegion->addExitEdge(whileNode, node->getNumber(), isExceptionEdge);
+            }
+            seenExitNodes.set(node->getNumber());
+        }
+    }
+
+    // If the original while loop exited to the loop invariant block, ensure the
+    // structure of the cloned version of the loop exits to the new proper region
+    ei.set(&clonedWhileLoop->getExitEdges());
+    for (exitEdge = ei.getCurrent(); exitEdge; exitEdge = ei.getNext()) {
+        if (exitEdge->getTo()->getNumber() == invariantBlockStructure->getNumber()) {
+            clonedWhileLoop->replaceExitPart(invariantBlockStructure->getNumber(), properRegion->getNumber());
+            break;
+        }
+    }
+
+    // Patch up the cloned while loop edges properly
+    //
+    seenExitNodes.empty();
+    ei.reset();
+    for (exitEdge = ei.getCurrent(); exitEdge; exitEdge = ei.getNext()) {
+        TR_StructureSubGraphNode *node = toStructureSubGraphNode(exitEdge->getTo());
+        if (!seenExitNodes.get(node->getNumber())) {
+            bool isExceptionEdge = false;
+            if (exitEdge->getFrom()->hasExceptionSuccessor(node))
+                isExceptionEdge = true;
+
+            // Check whether this exit is from the while loop to the new region
+            // If it is, it should not be added as an exit from the region itself,
+            // but rather as an edge from the while loop to the start of the new
+            // region
+            if (node->getNumber() == regionEntryNode->getNumber()) {
+                TR::CFGEdge::createEdge(clonedWhileNode, regionEntryNode, trMemory());
+            } else {
+                properRegion->addExitEdge(clonedWhileNode, node->getNumber(), isExceptionEdge);
+            }
+            seenExitNodes.set(node->getNumber());
+        }
+    }
+
+    newGotoBlockStructuresIt.reset();
+    for (newGotoBlockStructure = newGotoBlockStructuresIt.getCurrent(); newGotoBlockStructure;
+         newGotoBlockStructure = newGotoBlockStructuresIt.getNext()) {
+        TR::Block *predBlock = toBlock(newGotoBlockStructure->getBlock()->getPredecessors().front()->getFrom());
+        clonedWhileLoop->addExternalEdge(predBlock->getStructureOf(), newGotoBlockStructure->getNumber(), false);
+    }
+
+    newGotoBlockStructuresIt.reset();
+    for (newGotoBlockStructure = newGotoBlockStructuresIt.getCurrent(); newGotoBlockStructure;
+         newGotoBlockStructure = newGotoBlockStructuresIt.getNext()) {
+        TR::Block *predBlock = toBlock(newGotoBlockStructure->getBlock()->getPredecessors().front()->getFrom());
+        TR::Block *succBlock = toBlock(newGotoBlockStructure->getBlock()->getSuccessors().front()->getTo());
+        properRegion->addExternalEdge(newGotoBlockStructure, succBlock->getStructureOf()->getNumber(), false);
+        properRegion->removeExternalEdgeTo(predBlock->getStructureOf(), succBlock->getStructureOf()->getNumber());
+    }
+
+    if (trace())
+        comp()->dumpMethodTrees(log, "Trees after this versioning");
 }
 
 void TR_LoopVersioner::RemoveAsyncCheck::improveLoop()
