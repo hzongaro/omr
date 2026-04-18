@@ -3116,6 +3116,12 @@ void TR_LoopVersioner::versionNaturalLoop(TR_RegionStructure *whileLoop, List<TR
                 lastTree->getBranchDestination()->getNode()->getByteCodeInfo().getCallerIndex(),
                 lastTree->getBranchDestination()->getNode()->getByteCodeInfo().getByteCodeIndex(),
                 comp()->getLineNumber(lastTree->getBranchDestination()->getNode()))) {
+            logprintf(trace(), log,
+                "%s Adding loop transfer candidate (VirtualGuardPair) for n%un [%p] bci=[%d,%d,%d]\n",
+                OPT_DETAILS_LOOP_VERSIONER, lastTree->getGlobalIndex(), lastTree,
+                lastTree->getBranchDestination()->getNode()->getByteCodeInfo().getCallerIndex(),
+                lastTree->getBranchDestination()->getNode()->getByteCodeInfo().getByteCodeIndex(),
+                comp()->getLineNumber(lastTree->getBranchDestination()->getNode()));
             dumpOptDetails(comp(), "hotGuardBlock %d coldGuardBlock %d\n", nextBlock->getNumber(),
                 nextClonedBlock->getNumber());
 
