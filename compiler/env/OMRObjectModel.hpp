@@ -68,14 +68,19 @@ public:
     bool areValueTypesEnabled() { return false; }
 
     /**
-     * @brief: Returns true if flattenable value type is enabled
+     * @brief Returns \c true if support for null-restricted types is enabled
      */
-    bool areFlattenableValueTypesEnabled() { return false; }
+    bool areNullRestrictedTypesEnabled() { return false; }
 
     /**
-     * @brief: Returns true if value type array element flattening is enabled
+     * @brief Returns \c true if flattening of null-restricted types is enabled
      */
-    bool isValueTypeArrayFlatteningEnabled() { return false; }
+    bool isNullRestrictedFlatteningEnabled() { return false; }
+
+    /**
+     * @brief Returns \c true if flattening of null-restricted array elements is enabled
+     */
+    bool isNullRestrictedArrayFlatteningEnabled() { return false; }
 
     bool generateCompressedObjectHeaders() { return false; }
 

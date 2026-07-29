@@ -1571,12 +1571,13 @@ TR_YesNoMaybe OMR::ValuePropagation::isCastClassObject(TR::VPClassType *type)
 
 TR_YesNoMaybe OMR::ValuePropagation::isArrayNullRestricted(TR::VPConstraint *arrayConstraint)
 {
-    return TR::Compiler->om.areFlattenableValueTypesEnabled() ? TR_maybe : TR_no;
+    return TR::Compiler->om.areNullRestrictedTypesEnabled() ? TR_maybe : TR_no;
 }
 
 TR_YesNoMaybe OMR::ValuePropagation::isArrayElementFlattened(TR::VPConstraint *arrayConstraint)
 {
-    return (TR::Compiler->om.areFlattenableValueTypesEnabled() && TR::Compiler->om.isValueTypeArrayFlatteningEnabled())
+    return (TR::Compiler->om.areNullRestrictedTypesEnabled() && TR::Compiler->om.isNullRestrictedFlatteningEnabled()
+               && TR::Compiler->om.isNullRestrictedArrayFlatteningEnabled())
         ? TR_maybe
         : TR_no;
 }
@@ -6685,7 +6686,7 @@ void OMR::ValuePropagation::doDelayedTransformations()
         _needMultiLeafArrayCopy.deleteAll();
     }
 
-    if (TR::Compiler->om.areFlattenableValueTypesEnabled()) {
+    if (TR::Compiler->om.areNullRestrictedTypesEnabled()) {
         ListIterator<TR_NeedRuntimeTestNullRestrictedArrayCopy> tt(&_needRuntimeTestNullRestrictedArrayCopy);
         TR_NeedRuntimeTestNullRestrictedArrayCopy *nullRestrictedArrayCopyTree;
 

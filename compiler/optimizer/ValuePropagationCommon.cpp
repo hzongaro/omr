@@ -893,7 +893,7 @@ void OMR::ValuePropagation::transformArrayCopyCall(TR::Node *node)
     bool doRuntimeNullRestrictedTest = false;
     bool needRuntimeTestDstArray = true; // needRuntimeTestDstArray is used only if doRuntimeNullRestrictedTest is true
     bool areBothArraysFlattenedNullRestrictedArray = false;
-    bool isValueTypeArrayFlatteningEnabled = TR::Compiler->om.isValueTypeArrayFlatteningEnabled();
+    bool isNullRestrictedArrayFlatteningEnabled = TR::Compiler->om.isNullRestrictedArrayFlatteningEnabled();
     TR_YesNoMaybe isDstArrayNullRestricted = TR_no;
     TR_YesNoMaybe isSrcArrayNullRestricted = TR_no;
 
@@ -1164,10 +1164,10 @@ void OMR::ValuePropagation::transformArrayCopyCall(TR::Node *node)
                         "primitiveArray2 %d primitiveTransform %d referenceTransform %d\n",
                 __FUNCTION__, node->getGlobalIndex(), node, transformTheCall, referenceArray1, referenceArray2,
                 primitiveArray1, primitiveArray2, primitiveTransform, referenceTransform);
-            log->printf("%s: n%dn %p transformTheCall %d areFlattenableValueTypesEnabled %d srcObjNode n%dn %p "
+            log->printf("%s: n%dn %p transformTheCall %d areNullRestrictedTypesEnabled %d srcObjNode n%dn %p "
                         "dstObjNode n%dn %p srcVN %d dstVN %d\n",
                 __FUNCTION__, node->getGlobalIndex(), node, transformTheCall,
-                TR::Compiler->om.areFlattenableValueTypesEnabled(), srcObjNode->getGlobalIndex(), srcObjNode,
+                TR::Compiler->om.areNullRestrictedTypesEnabled(), srcObjNode->getGlobalIndex(), srcObjNode,
                 dstObjNode->getGlobalIndex(), dstObjNode, srcVN, dstVN);
         }
 
@@ -1177,7 +1177,7 @@ void OMR::ValuePropagation::transformArrayCopyCall(TR::Node *node)
         // in order to throw a NullPointerException if the array is null-restricted and the value to write is null.
         // If it is this case, System.arraycopy cannot be transformed into arraycopy instructions.
         //
-        if (transformTheCall && TR::Compiler->om.areFlattenableValueTypesEnabled()
+        if (transformTheCall && TR::Compiler->om.areNullRestrictedTypesEnabled()
             && // Null restricted value type is enabled
             !disableNullRestrictedArrayCopyXForm && !isStringCompressedArrayCopy && !isStringDecompressedArrayCopy
             && !primitiveArray1 && !primitiveArray2 && (copyLen != _constantZeroConstraint)) // Not zero length copy
@@ -1202,7 +1202,7 @@ void OMR::ValuePropagation::transformArrayCopyCall(TR::Node *node)
                         //        - (3) Either of the arrays might or might be flattened, System.arraycopy
                         //          should not be transformed into arraycopy instructions.
                         //
-                        if (isValueTypeArrayFlatteningEnabled) {
+                        if (isNullRestrictedArrayFlatteningEnabled) {
                             logprintf(trace(), log, "%s: n%dn %p isArrayElementFlattened dst %d src %d\n", __FUNCTION__,
                                 node->getGlobalIndex(), node, isArrayElementFlattened(dstObject),
                                 isArrayElementFlattened(srcObject));
@@ -1237,7 +1237,7 @@ void OMR::ValuePropagation::transformArrayCopyCall(TR::Node *node)
                 }
                 default: // TR_no == isDstArrayNullRestricted
                 {
-                    if (isValueTypeArrayFlatteningEnabled) {
+                    if (isNullRestrictedArrayFlatteningEnabled) {
                         if (isSrcArrayNullRestricted == TR_yes) {
                             if (isArrayElementFlattened(srcObject) == TR_yes) {
                                 logprintf(trace(), log,
@@ -3534,7 +3534,7 @@ void OMR::ValuePropagation::transformNullRestrictedArrayCopy(
         }
     }
 
-    bool needTestSrcArray = TR::Compiler->om.isValueTypeArrayFlatteningEnabled();
+    bool needTestSrcArray = TR::Compiler->om.isNullRestrictedArrayFlatteningEnabled();
     bool needTestDstArray = nullRestrictedArrayCopy->_needRuntimeTestDstArray;
 
     TR_ASSERT_FATAL(needTestSrcArray || needTestDstArray,
