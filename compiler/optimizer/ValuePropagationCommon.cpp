@@ -893,7 +893,8 @@ void OMR::ValuePropagation::transformArrayCopyCall(TR::Node *node)
     bool doRuntimeNullRestrictedTest = false;
     bool needRuntimeTestDstArray = true; // needRuntimeTestDstArray is used only if doRuntimeNullRestrictedTest is true
     bool areBothArraysFlattenedNullRestrictedArray = false;
-    bool isNullRestrictedArrayFlatteningEnabled = TR::Compiler->om.isNullRestrictedArrayFlatteningEnabled();
+    bool isNullRestrictedArrayFlatteningEnabled = TR::Compiler->om.isNullRestrictedFlatteningEnabled()
+        && TR::Compiler->om.isNullRestrictedArrayFlatteningEnabled();
     TR_YesNoMaybe isDstArrayNullRestricted = TR_no;
     TR_YesNoMaybe isSrcArrayNullRestricted = TR_no;
 
@@ -3534,7 +3535,8 @@ void OMR::ValuePropagation::transformNullRestrictedArrayCopy(
         }
     }
 
-    bool needTestSrcArray = TR::Compiler->om.isNullRestrictedArrayFlatteningEnabled();
+    bool needTestSrcArray = TR::Compiler->om.isNullRestrictedFlatteningEnabled()
+        && TR::Compiler->om.isNullRestrictedArrayFlatteningEnabled();
     bool needTestDstArray = nullRestrictedArrayCopy->_needRuntimeTestDstArray;
 
     TR_ASSERT_FATAL(needTestSrcArray || needTestDstArray,
