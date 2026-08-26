@@ -272,14 +272,9 @@ bool OMR::X86::AMD64::MemoryReference::needsAddressLoadInstruction(intptr_t next
         return !IS_32BIT_SIGNED(displacement);
     }
 
-    // At this point, the memory reference is known not to have a base or index register
-    // (a displacement only).
+    // At this point, the memory reference is known not to have a base or index register.
+    // The remaining logic determines how to interpret the displacement.
     //
-    // The displacement holds an address in memory, and the remaining logic determines
-    // whether a 64-bit immediate load instruction is required to materialize the address.
-    // If not, the address is materialized through either a 32-bit RIP-relative form or
-    // a 32-bit absolute form.
-
     if (cg->needClassAndMethodPointerRelocations()) {
         return true;
     }
@@ -301,11 +296,7 @@ bool OMR::X86::AMD64::MemoryReference::needsAddressLoadInstruction(intptr_t next
 
     if (IS_32BIT_SIGNED(displacement)) {
         return false;
-    }
-
-    // At this point, the displacement is known to be 64-bit
-
-    if (cg->comp()->isOutOfProcessCompilation() && sym && sym->isStatic()
+    } else if (cg->comp()->isOutOfProcessCompilation() && sym && sym->isStatic()
         && !sym->isStaticAddressWithinMethodBounds()) {
         return true;
     } else if (IS_32BIT_RIP(displacement, nextInstructionAddress)) {
