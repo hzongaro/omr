@@ -102,13 +102,7 @@ protected:
 
     static const uint8_t _multiplierToStrideMap[HIGHEST_STRIDE_MULTIPLIER + 1];
 
-    /**
-     * @brief Initialize the MemoryReference from fields in the provided TR::SymbolReference
-     *
-     * @param[in] symRef : \c TR::SymbolReference to initialize from
-     * @param[in] cg : \c TR::CodeGenerator object
-     */
-    void initializeFromSymRef(TR::SymbolReference *symRef, TR::CodeGenerator *cg);
+    void initialize(TR::SymbolReference *symRef, TR::CodeGenerator *cg);
 
 public:
     TR_ALLOC(TR_Memory::MemoryReference)
@@ -210,10 +204,9 @@ public:
 
     MemoryReference(TR::SymbolReference *symRef, TR::CodeGenerator *cg);
 
-    MemoryReference(TR::SymbolReference *symRef, intptr_t extraOffset, TR::CodeGenerator *cg);
+    MemoryReference(TR::SymbolReference *symRef, intptr_t displacement, TR::CodeGenerator *cg);
 
-    MemoryReference(TR::MemoryReference &mr, intptr_t extraOffset, TR::CodeGenerator *cg,
-        TR_ScratchRegisterManager *srm = NULL);
+    MemoryReference(TR::MemoryReference &mr, intptr_t n, TR::CodeGenerator *cg, TR_ScratchRegisterManager *srm = NULL);
 
     OMR_FINAL TR::Register *getBaseRegister() { return _baseRegister; }
 
@@ -445,8 +438,8 @@ TR::MemoryReference *MRef_const(TR::X86DataSnippet *cds, TR::CodeGenerator *cg);
 TR::MemoryReference *MRef_label(TR::LabelSymbol *label, TR::CodeGenerator *cg);
 TR::MemoryReference *MRef_node(TR::Node *node, TR::CodeGenerator *cg, bool canRematerializeAddressAdds = true);
 TR::MemoryReference *MRef_sym(TR::SymbolReference *sr, TR::CodeGenerator *cg);
-TR::MemoryReference *MRef_symOff(TR::SymbolReference *sr, intptr_t extraOffset, TR::CodeGenerator *cg);
-TR::MemoryReference *MRef_MRefOff(TR::MemoryReference &mr, intptr_t extraOffset, TR::CodeGenerator *cg);
+TR::MemoryReference *MRef_symOff(TR::SymbolReference *sr, intptr_t offset, TR::CodeGenerator *cg);
+TR::MemoryReference *MRef_MRefOff(TR::MemoryReference &mr, intptr_t offset, TR::CodeGenerator *cg);
 } // namespace TR
 
 #endif
