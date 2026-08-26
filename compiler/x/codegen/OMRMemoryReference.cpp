@@ -1023,6 +1023,7 @@ void OMR::X86::MemoryReference::addMetaDataForCodeAddress(uint32_t addressTypes,
             TR::Symbol *symbol = getSymbolReference().getSymbol();
             if (symbol) {
                 TR::StaticSymbol *staticSym = symbol->getStaticSymbol();
+                TR::MethodSymbol *methodSym = symbol->getMethodSymbol();
 
                 if (staticSym) {
                     if (getUnresolvedDataSnippet() == NULL) {
@@ -1219,6 +1220,9 @@ uint8_t *OMR::X86::MemoryReference::generateBinaryEncoding(uint8_t *modRM, TR::I
             immediateCursor = cursor;
 
             if (symbol) {
+                TR::MethodSymbol *methodSym = symbol->getMethodSymbol();
+                TR_ASSERT_FATAL(methodSym == NULL, "Did not expect method symbol to be used\n");
+                TR_ASSERT_FATAL(!symbol->isRegisterMappedSymbol(), "Did not expect isRegisterMappedSymbol\n");
                 displacement = getDisplacement();
                 TR_ASSERT_FATAL(IS_32BIT_SIGNED(displacement),
                     "MR_disp symbol displacement out of range: %" OMR_PRIxPTR, displacement);
