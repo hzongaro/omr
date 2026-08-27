@@ -1261,8 +1261,10 @@ uint8_t *OMR::X86::MemoryReference::generateBinaryEncoding(uint8_t *modRM, TR::I
                     /* This is fake. Not supported for JIT compilation;      */
                     /* just avoiding a core dump                             */
                     /* ----------------------------------------------------- */
+                    TR_ASSERT_FATAL(false, "Did not expect methodSym\n");
                     *(int32_t *)cursor = 0;
                 } else if (symbol->isRegisterMappedSymbol()) {
+                    TR_ASSERT_FATAL(false, "Did not expect isRegisterMappedSymbol\n");
                     displacement = getSymbolReference().getOffset() + symbol->getRegisterMappedSymbol()->getOffset();
                     TR_ASSERT(IS_32BIT_SIGNED(displacement),
                         "64-bit displacement should have been replaced in "
