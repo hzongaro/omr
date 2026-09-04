@@ -1202,7 +1202,24 @@ bool TR_DumbInliner::analyzeCallSite(TR_CallStack *callStack, TR::TreeTop *callN
     TR_CallSite *callsite = TR_CallSite::create(callNodeTreeTop, parent, callNode, (TR_OpaqueClassBlock *)0, symRef,
         (TR_ResolvedMethod *)0, comp(), trMemory(), stackAlloc);
 
+    bool isCheckPackageSigners = const bool isCheckPackageSigners
+        = &&(memcmp(calleeSymbol->getMethod()->nameChars(), "checkPackageSigners", 19) == 0);
+
+    if (isCheckPackageSigners && comp()->getOptions()->getVerboseOption(TR_VerboseInlining)) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(7) In analyzeCallSite for java/lang/ClassLoader.checkPackageSigners\n");
+    }
+
+    callsite->_vlogTrace = isCheckPackageSigners && comp()->getOptions()->getVerboseOption(TR_VerboseInlining);
+
     getSymbolAndFindInlineTargets(callStack, callsite);
+
+    if (isCheckPackageSigners && comp()->getOptions()->getVerboseOption(TR_VerboseInlining)) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(8) After getSymbolAndFindInlineTargets for java/lang/ClassLoader.checkPackageSigners - numTargets == "
+            "%d\n",
+            callsite->numTargets());
+    }
 
     if (!callsite->numTargets())
         return false;
@@ -1213,12 +1230,26 @@ bool TR_DumbInliner::analyzeCallSite(TR_CallStack *callStack, TR::TreeTop *callN
 
         uint32_t maxBCSize = (uint32_t)callStack->_maxCallSize;
 
+        if (isCheckPackageSigners && comp()->getOptions()->getVerboseOption(TR_VerboseInlining)) {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                "(7) Testing bytecodesize for java/lang/ClassLoader.checkPackageSigners - byteCodeSize == %d; "
+                "maxBCSize == %d\n",
+                byteCodeSize, maxBCSize);
+        }
         if ((byteCodeSize > maxBCSize)) {
             if (tryToInline("overriding getMaxBytecodeIndex check", calltarget)) {
                 logprints(trace, log, "inliner: overriding getMaxBytecodeIndex check\n");
+                if (isCheckPackageSigners && comp()->getOptions()->getVerboseOption(TR_VerboseInlining)) {
+                    TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                        "(7.1) Inline anyway java/lang/ClassLoader.checkPackageSigners\n");
+                }
             } else if (alwaysWorthInlining(calltarget->_calleeSymbol->getResolvedMethod(), callNode)) {
                 logprints(trace, log,
                     "inliner: overriding getMaxBytecodeIndex check because it's always worth inlining\n");
+                if (isCheckPackageSigners && comp()->getOptions()->getVerboseOption(TR_VerboseInlining)) {
+                    TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                        "(7.2) Inline anyway java/lang/ClassLoader.checkPackageSigners\n");
+                }
             } else {
                 logprintf(trace, log, "inliner: failed: getInitialBytecodeSize(%d) > %d for %s\n", byteCodeSize,
                     callStack->_maxCallSize, tracer()->traceSignature(calltarget->_calleeSymbol));
@@ -1228,11 +1259,19 @@ bool TR_DumbInliner::analyzeCallSite(TR_CallStack *callStack, TR::TreeTop *callN
                     tracer()->traceSignature(callStack->_methodSymbol), callNode, comp()->getLineNumber(callNode));
 
                 calltarget->_myCallSite->_visitCount++;
+                if (isCheckPackageSigners && comp()->getOptions()->getVerboseOption(TR_VerboseInlining)) {
+                    TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                        "(7.3) Fail inlining java/lang/ClassLoader.checkPackageSigners\n");
+                }
                 continue;
             }
         }
 
         success |= inlineCallTarget(callStack, calltarget, false);
+        if (isCheckPackageSigners && comp()->getOptions()->getVerboseOption(TR_VerboseInlining)) {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                "(7.4) Successful inlining java/lang/ClassLoader.checkPackageSigners success == %d\n", success);
+        }
     }
     return success;
 }
