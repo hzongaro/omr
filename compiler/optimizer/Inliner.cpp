@@ -3882,7 +3882,7 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
         if (traceIt) {
             TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
                 "(1.5) Leaving with numTargets == %d java/lang/ClassLoader.checkPackageSigners\n",
-                callsite->numTargets);
+                callsite->numTargets());
         }
         return;
     }
