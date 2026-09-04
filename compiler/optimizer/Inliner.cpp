@@ -3591,6 +3591,11 @@ bool TR_IndirectCallSite::tryToRefineReceiverClassBasedOnResolvedTypeArgInfo(TR_
 
 bool TR_IndirectCallSite::findCallTargetUsingArgumentPreexistence(TR_InlinerBase *inliner)
 {
+    if (_vlogTrace) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(1.4.1.2.1) In TR_IndirectCallSite::findCallTargetUsingArgumentPreexistence "
+            "java/lang/ClassLoader.checkPackageSigners\n");
+    }
     TR_OpaqueClassBlock *klass = extractAndLogClassArgument(inliner);
 
     // initialClass might be more specific than the initialMethod or interfaceMethod
@@ -3629,11 +3634,22 @@ bool TR_IndirectCallSite::findCallTargetUsingArgumentPreexistence(TR_InlinerBase
     TR_VirtualGuardSelection *guard
         = new (comp()->trHeapMemory()) TR_VirtualGuardSelection(TR_ProfiledGuard, TR_VftTest, klass);
     addTarget(comp()->trMemory(), inliner, guard, targetMethod, klass, heapAlloc);
+    if (_vlogTrace) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(1.4.1.2.2) Adding target in TR_IndirectCallSite::findCallTargetUsingArgumentPreexistence "
+            "java/lang/ClassLoader.checkPackageSigners - numTargets == %d\n",
+            numTargets());
+    }
     return true;
 }
 
 bool TR_IndirectCallSite::addTargetIfMethodIsNotOverriden(TR_InlinerBase *inliner)
 {
+    if (_vlogTrace) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(1.4.1.1.1) In TR_IndirectCallSite::addTargetIfMethodIsNotOverriden "
+            "java/lang/ClassLoader.checkPackageSigners\n");
+    }
     if (_initialCalleeMethod && !_initialCalleeMethod->virtualMethodIsOverridden()) {
         if (comp()->compileRelocatableCode() && !TR::Options::getCmdLineOptions()->allowRecompilation())
             return false; // CHTable is not used when recompilation is disabled, hence we cannot use assumptions for AOT
@@ -3647,6 +3663,12 @@ bool TR_IndirectCallSite::addTargetIfMethodIsNotOverriden(TR_InlinerBase *inline
         }
 
         addTarget(comp()->trMemory(), inliner, guard, _initialCalleeMethod, _receiverClass, heapAlloc);
+        if (_vlogTrace) {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                "(1.4.1.1.2) Adding target in TR_IndirectCallSite::addTargetIfMethodIsNotOverriden numTargets == %d "
+                "java/lang/ClassLoader.checkPackageSigners\n",
+                numTargets());
+        }
         return true;
     }
 
@@ -3739,6 +3761,10 @@ DirectCallSiteGuardSelection::DirectCallSiteGuardSelection(TR::Compilation *comp
 
 static bool findDirectCallSiteTarget(TR::Compilation *comp, TR_CallSite *site, TR_InlinerBase *inliner)
 {
+    if (site->_vlogTrace) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(1.4.1.2.1) Entering findDirectCallSiteTarget java/lang/ClassLoader.checkPackageSigners\n");
+    }
     if (inliner->getPolicy()->replaceSoftwareCheckWithHardwareCheck(site->_initialCalleeMethod)) {
         return false;
     }
@@ -3746,6 +3772,11 @@ static bool findDirectCallSiteTarget(TR::Compilation *comp, TR_CallSite *site, T
     DirectCallSiteGuardSelection sel(comp, site, inliner);
     debugTrace(inliner->tracer(), "Found a Direct Call.");
     site->addTarget(comp->trMemory(), inliner, sel._guard, site->_initialCalleeMethod, sel._receiverClass, heapAlloc);
+    if (site->_vlogTrace) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(1.4.1.2.2) In findDirectCallSiteTarget java/lang/ClassLoader.checkPackageSigners - adding target %d\n",
+            site->numTargets());
+    }
 
     return true;
 }
@@ -3844,9 +3875,25 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
 
     //////////
 
+    if (traceIt) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(1.4.1) findNewTargets %d  numTargets == %d java/lang/ClassLoader.checkPackageSigners\n", findNewTargets,
+            callsite->numTargets());
+    }
+
     if (findNewTargets) {
         callsite->findCallSiteTarget(callStack, this);
+        if (traceIt) {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                "(1.4.1.1) After findCallSiteTarget numTargets == %d java/lang/ClassLoader.checkPackageSigners\n",
+                callsite->numTargets());
+        }
         applyPolicyToTargets(callStack, callsite);
+        if (traceIt) {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                "(1.4.1.2) After applyPolicyToTargets numTargets == %d java/lang/ClassLoader.checkPackageSigners\n",
+                callsite->numTargets());
+        }
     }
 
     if (tracer()->debugLevel())
@@ -3854,7 +3901,7 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
 
     if (traceIt) {
         TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
-            "(1.4.1) Number of targets %d java/lang/ClassLoader.checkPackageSigners\n", callsite->numTargets());
+            "(1.4.2) Number of targets %d java/lang/ClassLoader.checkPackageSigners\n", callsite->numTargets());
     }
 
     for (int32_t i = 0; i < callsite->numTargets(); i++) {
@@ -3892,7 +3939,7 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
 
             if (traceIt) {
                 TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
-                    "(1.4.2) Removing call target %d java/lang/ClassLoader.checkPackageSigners\n", i + 1);
+                    "(1.4.3) Removing call target %d java/lang/ClassLoader.checkPackageSigners\n", i + 1);
             }
             continue;
         }
@@ -3906,7 +3953,7 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
 
             if (traceIt) {
                 TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
-                    "(1.4.3) Removing call target %d java/lang/ClassLoader.checkPackageSigners\n", i + 1);
+                    "(1.4.4) Removing call target %d java/lang/ClassLoader.checkPackageSigners\n", i + 1);
             }
             continue;
         }
