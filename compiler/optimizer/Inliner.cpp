@@ -1202,7 +1202,8 @@ bool TR_DumbInliner::analyzeCallSite(TR_CallStack *callStack, TR::TreeTop *callN
     TR_CallSite *callsite = TR_CallSite::create(callNodeTreeTop, parent, callNode, (TR_OpaqueClassBlock *)0, symRef,
         (TR_ResolvedMethod *)0, comp(), trMemory(), stackAlloc);
 
-    bool isCheckPackageSigners = (memcmp(calleeSymbol->getMethod()->nameChars(), "checkPackageSigners", 19) == 0);
+    bool isCheckPackageSigners = (calleeSymbol != NULL) && (calleeSymbol->getMethod() != NULL)
+        && (memcmp(calleeSymbol->getMethod()->nameChars(), "checkPackageSigners", 19) == 0);
 
     if (isCheckPackageSigners && comp()->getOptions()->getVerboseOption(TR_VerboseInlining)) {
         TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
