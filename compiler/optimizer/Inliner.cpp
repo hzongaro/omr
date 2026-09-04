@@ -3728,6 +3728,13 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
     TR::SymbolReference *symRef = callNode->getSymbolReference();
     TR_InlinerFailureReason isInlineable = InlineableTarget;
 
+    bool traceIt = callsite->_vlogTrace && comp()->getOptions()->getVerboseOption(TR_VerboseInlining);
+
+    if (traceIt) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(1.1) In getSymbolAndFindInlineTargets for java/lang/ClassLoader.checkPackageSigners\n");
+    }
+
     if (callsite->_initialCalleeSymbol) {
         callsite->assertInitialCalleeConsistency();
         if (getPolicy()->suppressInliningRecognizedInitialCallee(callsite, comp()))
@@ -3737,10 +3744,20 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
             tracer()->insertCounter(isInlineable, callNodeTreeTop);
             callsite->_failureReason = isInlineable;
             callsite->removeAllTargets(tracer(), isInlineable);
+
+            if (traceIt) {
+                TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                    "(1.2) Failure reason %d for java/lang/ClassLoader.checkPackageSigners\n", isInlineable);
+            }
             return;
         }
 
         if (comp()->fe()->isInlineableNativeMethod(comp(), callsite->_initialCalleeSymbol)) {
+            if (traceIt) {
+                TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                    "(1.3) Adding target for inlineableNativeMethod to java/lang/ClassLoader.checkPackageSigners\n");
+            }
+
             TR_VirtualGuardSelection *guard = new (trStackMemory()) TR_VirtualGuardSelection(TR_NoGuard);
             callsite->addTarget(trMemory(), this, guard, callsite->_initialCalleeSymbol->getResolvedMethod(),
                 callsite->_receiverClass);
@@ -3751,6 +3768,11 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
         tracer()->insertCounter(isInlineable, callNodeTreeTop);
         callsite->_failureReason = isInlineable;
         callsite->removeAllTargets(tracer(), isInlineable);
+
+        if (traceIt) {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                "(1.4) Failure reason %d java/lang/ClassLoader.checkPackageSigners\n", isInlineable);
+        }
         return;
     }
 
@@ -3791,6 +3813,11 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
     if (tracer()->debugLevel())
         tracer()->dumpCallSite(callsite, "CallSite after finding call Targets");
 
+    if (traceIt) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(1.4.1) Number of targets %d java/lang/ClassLoader.checkPackageSigners\n", callsite->numTargets());
+    }
+
     for (int32_t i = 0; i < callsite->numTargets(); i++) {
         TR_CallTarget *target = callsite->getTarget(i);
         if (target->_calleeSymbol != NULL) {
@@ -3823,6 +3850,11 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
             tracer()->insertCounter(checkInlineableTarget, callsite->_callNodeTreeTop);
             callsite->removecalltarget(i, tracer(), checkInlineableTarget);
             i--;
+
+            if (traceIt) {
+                TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                    "(1.4.2) Removing call target %d java/lang/ClassLoader.checkPackageSigners\n", i + 1);
+            }
             continue;
         }
 
@@ -3832,6 +3864,11 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
             tracer()->insertCounter(Recognized_Callee, callNodeTreeTop);
             callsite->removecalltarget(i, tracer(), Recognized_Callee);
             i--;
+
+            if (traceIt) {
+                TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                    "(1.4.3) Removing call target %d java/lang/ClassLoader.checkPackageSigners\n", i + 1);
+            }
             continue;
         }
 
@@ -3840,13 +3877,26 @@ void TR_InlinerBase::getSymbolAndFindInlineTargets(TR_CallStack *callStack, TR_C
 
     if (callsite->numTargets()) // if we still have targets at this point we can return true as we would have in the
                                 // loop
+
+    {
+        if (traceIt) {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                "(1.5) Leaving with numTargets == %d java/lang/ClassLoader.checkPackageSigners\n",
+                callsite->numTargets);
+        }
         return;
+    }
 
     if (callsite->numTargets() > 0 && callsite->getTarget(0) && !callsite->getTarget(0)->_calleeMethod
         && comp()->trace(OMR::inlining)) {
         comp()->log()->printf("inliner: method is unresolved: %s into %s\n",
             callsite->_interfaceMethod->signature(trMemory()), tracer()->traceSignature(callStack->_methodSymbol));
         callsite->_failureReason = Unresolved_Callee;
+
+        if (traceIt) {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+                "(1.6) Failure reason %d java/lang/ClassLoader.checkPackageSigners\n", Unresolved_Callee);
+        }
     }
 
     callsite->removeAllTargets(tracer(), Unresolved_Callee);
@@ -5404,6 +5454,7 @@ TR_CallSite::TR_CallSite(TR_ResolvedMethod *callerResolvedMethod, TR::TreeTop *c
     , _refinedMethod(NULL)
     , _retainedMethods(retainedMethods)
     , _needsKeepalive(false)
+    , _vlogTrace(false)
 {
     if (_initialCalleeSymbol != NULL) {
         if (_initialCalleeMethod != NULL) {

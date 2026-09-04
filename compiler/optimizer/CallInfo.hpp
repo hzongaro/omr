@@ -441,6 +441,7 @@ public:
     int32_t getDepth() { return _depth; }
 
     bool _allConsts;
+    bool _vlogTrace;
 
 private:
     int32_t _depth;
