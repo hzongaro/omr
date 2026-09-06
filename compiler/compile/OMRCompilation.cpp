@@ -353,13 +353,12 @@ OMR::Compilation::Compilation(int32_t id, OMR_VMThread *omrVMThread, TR_FrontEnd
 #endif
         );
     _isServerInlining = !options.getOption(TR_NoOptServer);
-    if (options->getVerboseOption(TR_VerboseInlining)))
-        {
-            TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
-                "In OMR::Compilation::Compilation - setting _isServerInlining == %; options.getOption(TR_NoOptServer) "
-                "== %d\n",
-                _isServerInlining, options.getOption(TR_NoOptServer));
-        }
+    if (options->getVerboseOption(TR_VerboseInlining)) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "In OMR::Compilation::Compilation - setting _isServerInlining == %; options.getOption(TR_NoOptServer) "
+            "== %d\n",
+            _isServerInlining, options.getOption(TR_NoOptServer));
+    }
 
     //_methodSymbol must be done after symRefTab, but before codegen
     // _methodSymbol must be initialized here because creating a jitted method symbol

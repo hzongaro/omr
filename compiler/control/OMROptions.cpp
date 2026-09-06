@@ -5979,11 +5979,10 @@ void OMR::Options::setConservativeQuickStart()
 {
     self()->setQuickStart();
     self()->setOption(TR_NoOptServer);
-    if (options->getVerboseOption(TR_VerboseInlining)))
-        {
-            TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
-                "(1) In OMR::Options::setConservativeQuickStart - setting options.getOption(TR_NoOptServer) to true\n");
-        }
+    if (self()->getVerboseOption(TR_VerboseInlining)) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(1) In OMR::Options::setConservativeQuickStart - setting options.getOption(TR_NoOptServer) to true\n");
+    }
     // more conservative hot thresholds (already enabled on big apps)
     _sampleThreshold = 1000; // 3%
 
@@ -6095,12 +6094,11 @@ void OMR::Options::setConservativeDefaultBehavior()
 
     self()->setOption(TR_DisableGuardedCountingRecompilations);
     self()->setOption(TR_NoOptServer);
-    if (options->getVerboseOption(TR_VerboseInlining)))
-        {
-            TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
-                "(1) In OMR::Options::setConservativeDefaultBehaviour - setting options.getOption(TR_NoOptServer) to "
-                "true\n");
-        }
+    if (self()->getVerboseOption(TR_VerboseInlining)) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "(1) In OMR::Options::setConservativeDefaultBehaviour - setting options.getOption(TR_NoOptServer) to "
+            "true\n");
+    }
     self()->setOption(TR_ConservativeCompilation, true);
     // conservative upgrades ?
     _coldUpgradeSampleThreshold = 30; // instead of 3 or even 2
