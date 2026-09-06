@@ -355,7 +355,7 @@ OMR::Compilation::Compilation(int32_t id, OMR_VMThread *omrVMThread, TR_FrontEnd
     _isServerInlining = !options.getOption(TR_NoOptServer);
     if (options.getVerboseOption(TR_VerboseInlining)) {
         TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
-            "In OMR::Compilation::Compilation - setting _isServerInlining == %; options.getOption(TR_NoOptServer) "
+            "In OMR::Compilation::Compilation - setting _isServerInlining == %d; options.getOption(TR_NoOptServer) "
             "== %d\n",
             _isServerInlining, options.getOption(TR_NoOptServer));
     }
