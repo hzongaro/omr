@@ -2706,6 +2706,13 @@ OMR::Options::Options(TR_Memory *trMemory, int32_t index, int32_t lineNum, TR_Re
         mainOptions = _jitCmdLineOptions;
     *this = *mainOptions;
 
+    if (self()->getVerboseOption(TR_VerboseInlining)) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_INL,
+            "OMR::Options::Options - index == %d; optionSet == %p; isAOT == %d; options == %p; "
+            "TR_DisableSelectiveNoOptServer == %d\n",
+            index, optionSet, isAOT, self(), self()->getOption(TR_DisableSelectiveNoOptServer));
+    }
+
     // At this point this object contains the log for compThreadId==0
     // If this is a different compilation thread we need to find the right log
     //
