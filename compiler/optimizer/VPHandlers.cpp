@@ -2349,17 +2349,6 @@ TR::Node *constrainAloadi(OMR::ValuePropagation *vp, TR::Node *node)
         }
     }
 
-    TR::VPConstraint *base = vp->getConstraint(node->getFirstChild(), isGlobal);
-
-    if (base && base->getClass() && !vp->comp()->getOption(TR_DisableMarkingOfHotFields)
-        && node->getFirstChild()->getOpCode().hasSymbolReference()
-        && node->getFirstChild()->getSymbol()->isCollectedReference()
-        && !vp->comp()->fej9()->isHotReferenceFieldRequired()
-        && vp->_curBlock->getGlobalNormalizedFrequency(vp->comp()->getFlowGraph()) >= TR::Options::_hotFieldThreshold) {
-        vp->comp()->fej9()->markHotField(vp->comp(), node->getSymbolReference(), base->getClass(),
-            base->isFixedClass());
-    }
-
     if (node->getSymbolReference()) {
         if (!node->getSymbolReference()->isUnresolved()
             && (node->getSymbolReference()->getSymbol()->getKind() == TR::Symbol::IsShadow)
