@@ -3490,63 +3490,6 @@ TR::Node *constrainCheckcast(OMR::ValuePropagation *vp, TR::Node *node)
         vp->addBlockConstraint(child, TR::VPNonNullObject::create(vp));
     }
 
-    // Mark objects for tenured alignment
-    if (vp->cg()->getSupportsTenuredObjectAlignment() && vp->comp()->getMethodHotness() > hot) {
-        TR_ASSERT(node->getNumChildren() == 2, "checkcast should have only 2 children");
-        TR::Node *valueChild = node->getFirstChild();
-        TR::Node *definitionNode = NULL;
-        if (valueChild->getOpCodeValue() == TR::aload) {
-            TR_UseDefInfo *useDefInfo = vp->_useDefInfo;
-            if (useDefInfo) {
-                uint16_t useIndex = valueChild->getUseDefIndex();
-                if (useDefInfo->isUseIndex(useIndex)) {
-                    TR_UseDefInfo::BitVector defs(vp->comp()->allocator());
-                    if (useDefInfo->getUseDef(defs, useIndex)) {
-                        TR_UseDefInfo::BitVector::Cursor cursor(defs);
-                        for (cursor.SetToFirstOne(); cursor.Valid(); cursor.SetToNextOne()) {
-                            int32_t defIndex = cursor;
-
-                            if (defIndex < useDefInfo->getFirstRealDefIndex())
-                                continue;
-
-                            TR::TreeTop *defTree = useDefInfo->getTreeTop(defIndex);
-                            TR::Node *defNode = defTree->getNode();
-
-                            if (defNode && (defNode->getOpCodeValue() == TR::astore)) {
-                                TR_OpaqueMethodBlock *ownMethod = defNode->getOwningMethod();
-                                char buf[512];
-                                const char *methodSig = vp->fe()->sampleSignature(ownMethod, buf, 512, vp->trMemory());
-                                if (methodSig
-                                    && !strncmp(methodSig,
-                                        "java/util/HashMap.get(Ljava/lang/Object;)Ljava/lang/Object;", 59)) {
-                                    definitionNode = defNode;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-#ifdef J9_PROJECT_SPECIFIC
-        if (definitionNode && node->getSecondChild()->getOpCodeValue() == TR::loadaddr) {
-            TR::SymbolReference *classSymRef = node->getSecondChild()->getSymbolReference();
-            if (!classSymRef->isUnresolved()) {
-                TR::StaticSymbol *classSym = classSymRef->getSymbol()->getStaticSymbol();
-                if (classSym) {
-                    uint32_t size
-                        = TR::Compiler->cls.classInstanceSize((TR_OpaqueClassBlock *)classSym->getStaticAddress());
-                    if (vp->cg()->isObjectOfSizeWorthAligning(size)) {
-                        vp->comp()->fej9()->markClassForTenuredAlignment(vp->comp(),
-                            (TR_OpaqueClassBlock *)classSym->getStaticAddress(), 0);
-                    }
-                }
-            }
-        }
-#endif
-    }
-
     return node;
 }
 
