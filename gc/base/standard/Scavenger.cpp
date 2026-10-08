@@ -109,17 +109,6 @@
 /* If scavenger dynamicBreadthFirstScanOrdering and alwaysDepthCopyFirstOffset is enabled, always copy the first offset of each object after the object itself is copied */
 #define DEFAULT_HOT_FIELD_OFFSET 1
 
-/* VM Design 1774: Ideally we would pull these cache line values from the port library but this will suffice for
- * a quick implementation
- */
-#if defined(AIXPPC) || defined(LINUXPPC)
-#define CACHE_LINE_SIZE 128
-#elif defined(J9ZOS390) || (defined(LINUX) && defined(S390))
-#define CACHE_LINE_SIZE 256
-#else
-#define CACHE_LINE_SIZE 64
-#endif
-
 enum CopyVariant : bool { STW = false, CS = true };
 
 extern "C" {
@@ -279,8 +268,6 @@ MM_Scavenger::initialize(MM_EnvironmentBase *env)
 	if (!_scavengeCacheFreeList.resizeCacheEntries(env, totalActiveCacheCount, incrementCacheCount)) {
 		return false;
 	}
-
-	_cacheLineAlignment = CACHE_LINE_SIZE;
 
 #if defined(OMR_GC_CONCURRENT_SCAVENGER)
 	if (IS_CONCURRENT_ENABLED) {
