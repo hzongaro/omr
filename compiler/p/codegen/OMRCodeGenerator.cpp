@@ -1910,7 +1910,7 @@ void OMR::Power::CodeGenerator::addMetaDataForLoadAddressConstantFixed(TR::Node 
 
         case TR_ConstantPool: {
             relo = new (trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(firstInstruction,
-                (uint8_t *)node->getSymbolReference(), (uint8_t *)seqKind, ConstantPool, self());
+                (uint8_t *)node->getSymbolReference(), (uint8_t *)seqKind, TR_ConstantPool, self());
             break;
         }
     }

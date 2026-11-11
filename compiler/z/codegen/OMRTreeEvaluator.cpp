@@ -8558,16 +8558,16 @@ void OMR::Z::TreeEvaluator::checkAndSetMemRefDataSnippetRelocationType(TR::Node 
         reloType = TR_CallsiteTableEntryAddress;
     } else if (cg->comp()->compileRelocatableCode() && symbol->isMethodTypeTableEntry()) {
         reloType = TR_MethodTypeTableEntryAddress;
-    } else if (cg->comp()->compileRelocatableCode() && symbol->isConstantPoolAddress())
+    } else if (cg->comp()->compileRelocatableCode() && symbol->isConstantPoolAddress()) {
         reloType = TR_ConstantPool;
-}
-
-if (reloType != 0) {
-    if (tempMR->getConstantDataSnippet()) {
-        tempMR->getConstantDataSnippet()->setSymbolReference(tempMR->getSymbolReference());
-        tempMR->getConstantDataSnippet()->setReloType(reloType);
     }
-}
+
+    if (reloType != 0) {
+        if (tempMR->getConstantDataSnippet()) {
+            tempMR->getConstantDataSnippet()->setSymbolReference(tempMR->getSymbolReference());
+            tempMR->getConstantDataSnippet()->setReloType(reloType);
+        }
+    }
 }
 
 TR::Register *OMR::Z::TreeEvaluator::checkAndAllocateReferenceRegister(TR::Node *node, TR::CodeGenerator *cg,
