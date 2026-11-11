@@ -5532,6 +5532,12 @@ static void addMetaDataForLoadAddressConstantFixed(TR::CodeGenerator *cg, TR::No
                 (uint8_t *)node->getSymbolReference(), NULL, TR_MethodTypeTableEntryAddress, cg);
             break;
         }
+
+        case TR_ConstantPool: {
+            relo = new (cg->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(firstInstruction,
+                (uint8_t *)node->getSymbolReference(), NULL, TR_ConstantPool, cg);
+            break;
+        }
     }
 
     if (!relo) {

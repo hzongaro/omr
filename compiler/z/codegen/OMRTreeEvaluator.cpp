@@ -3288,6 +3288,8 @@ static TR_ExternalRelocationTargetKind getRelocationTargetKindFromSymbol(TR::Cod
         reloKind = TR_CallsiteTableEntryAddress;
     else if (cg->comp()->compileRelocatableCode() && sym->isMethodTypeTableEntry())
         reloKind = TR_MethodTypeTableEntryAddress;
+    else if (cg->comp()->compileRelocatableCode() && sym->isConstantPoolAddress())
+        reloKind = TR_ConstantPool;
     return reloKind;
 }
 
@@ -8533,38 +8535,39 @@ void OMR::Z::TreeEvaluator::checkAndSetMemRefDataSnippetRelocationType(TR::Node 
     bool isStatic = symbol->isStatic() && !symRef->isUnresolved();
 
     int32_t reloType = 0;
-    if (cg->comp()->compileRelocatableCode() && node->getSymbol()->isDebugCounter()) {
+    if (cg->comp()->compileRelocatableCode() && symbol->isDebugCounter()) {
         reloType = TR_DebugCounter;
-    } else if (cg->comp()->compileRelocatableCode() && node->getSymbol()->isConst()) {
+    } else if (cg->comp()->compileRelocatableCode() && symbol->isConst()) {
         reloType = TR_ConstantPool;
-    } else if (cg->needClassAndMethodPointerRelocations() && node->getSymbol()->isClassObject()) {
+    } else if (cg->needClassAndMethodPointerRelocations() && symbol->isClassObject()) {
         reloType = TR_ClassAddress;
-    } else if (cg->comp()->compileRelocatableCode() && node->getSymbol()->isMethod()) {
+    } else if (cg->comp()->compileRelocatableCode() && symbol->isMethod()) {
         reloType = TR_MethodObject;
-    } else if (cg->needRelocationsForStatics() && isStatic && !node->getSymbol()->isNotDataAddress()) {
+    } else if (cg->needRelocationsForStatics() && isStatic && !symbol->isNotDataAddress()) {
         reloType = TR_DataAddress;
-    } else if (cg->needRelocationsForPersistentProfileInfoData() && isStatic && node->getSymbol()->isBlockFrequency()) {
+    } else if (cg->needRelocationsForPersistentProfileInfoData() && isStatic && symbol->isBlockFrequency()) {
         reloType = TR_BlockFrequency;
-    } else if (cg->needRelocationsForBodyInfoData() && node->getSymbol()->isCatchBlockCounter()) {
+    } else if (cg->needRelocationsForBodyInfoData() && symbol->isCatchBlockCounter()) {
         reloType = TR_CatchBlockCounter;
-    } else if (cg->needRelocationsForPersistentProfileInfoData() && isStatic
-        && node->getSymbol()->isRecompQueuedFlag()) {
+    } else if (cg->needRelocationsForPersistentProfileInfoData() && isStatic && symbol->isRecompQueuedFlag()) {
         reloType = TR_RecompQueuedFlag;
     } else if (cg->comp()->compileRelocatableCode()
-        && (node->getSymbol()->isEnterEventHookAddress() || node->getSymbol()->isExitEventHookAddress())) {
+        && (symbol->isEnterEventHookAddress() || symbol->isExitEventHookAddress())) {
         reloType = TR_MethodEnterExitHookAddress;
-    } else if (cg->comp()->compileRelocatableCode() && node->getSymbol()->isCallSiteTableEntry()) {
+    } else if (cg->comp()->compileRelocatableCode() && symbol->isCallSiteTableEntry()) {
         reloType = TR_CallsiteTableEntryAddress;
-    } else if (cg->comp()->compileRelocatableCode() && node->getSymbol()->isMethodTypeTableEntry()) {
+    } else if (cg->comp()->compileRelocatableCode() && symbol->isMethodTypeTableEntry()) {
         reloType = TR_MethodTypeTableEntryAddress;
-    }
+    } else if (cg->comp()->compileRelocatableCode() && symbol->isConstantPoolAddress())
+        reloType = TR_ConstantPool;
+}
 
-    if (reloType != 0) {
-        if (tempMR->getConstantDataSnippet()) {
-            tempMR->getConstantDataSnippet()->setSymbolReference(tempMR->getSymbolReference());
-            tempMR->getConstantDataSnippet()->setReloType(reloType);
-        }
+if (reloType != 0) {
+    if (tempMR->getConstantDataSnippet()) {
+        tempMR->getConstantDataSnippet()->setSymbolReference(tempMR->getSymbolReference());
+        tempMR->getConstantDataSnippet()->setReloType(reloType);
     }
+}
 }
 
 TR::Register *OMR::Z::TreeEvaluator::checkAndAllocateReferenceRegister(TR::Node *node, TR::CodeGenerator *cg,
@@ -11581,6 +11584,10 @@ TR::Register *OMR::Z::TreeEvaluator::loadaddrEvaluator(TR::Node *node, TR::CodeG
                     cursor = generateRegLitRefInstruction(cg, TR::InstOpCode::getLoadOpCode(), node, targetRegister,
                         (uintptr_t)node->getSymbol()->getStaticSymbol()->getStaticAddress(),
                         TR_MethodTypeTableEntryAddress, NULL, NULL, NULL);
+                } else if (comp->compileRelocatableCode() && sym && sym->isConstantPoolAddress()) {
+                    cursor = generateRegLitRefInstruction(cg, TR::InstOpCode::getLoadOpCode(), node, targetRegister,
+                        (uintptr_t)node->getSymbol()->getStaticSymbol()->getStaticAddress(), TR_ConstantPool, NULL,
+                        NULL, NULL);
                 } else {
                     cursor = genLoadAddressConstant(cg, node,
                         (uintptr_t)node->getSymbol()->getStaticSymbol()->getStaticAddress(), targetRegister);

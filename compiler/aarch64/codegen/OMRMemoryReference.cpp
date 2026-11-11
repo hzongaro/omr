@@ -108,6 +108,8 @@ static void loadRelocatableConstant(TR::Node *node, TR::SymbolReference *ref, TR
         loadAddressConstant(cg, true, GCRnode, 1, reg, NULL, TR_CallsiteTableEntryAddress);
     } else if (symbol->isMethodTypeTableEntry() && !ref->isUnresolved() && comp->compileRelocatableCode()) {
         loadAddressConstant(cg, true, GCRnode, 1, reg, NULL, TR_MethodTypeTableEntryAddress);
+    } else if (symbol->isConstantPoolAddress() && comp->compileRelocatableCode()) {
+        loadAddressConstant(cg, true, GCRnode, 1, reg, NULL, TR_ConstantPool);
     } else {
         loadConstant64(cg, node, addr, reg);
     }
